@@ -26,9 +26,9 @@ This repository stores a minimal cryptocurrency payment widget designed for embe
 Use short, descriptive commit messages (e.g., `Add payment widget skeleton`).
 
 ## Changelog
-- 2025-06-20: Initial MetaMask support added.
-- 2025-06-21: Introduced explicit wallet connect functions and simplified widget.
-- 2025-06-21: Fixed provider reload after network switch.
-- 2025-06-21: Handling missing chains by adding the network before switching.
-- 2025-06-22: Added QR code display and documented network switch behavior.
-- 2025-06-23: Improved network checks and error messages.
+- 2025-06-20-21:36; Initial MetaMask support added.
+- 2025-06-21-09:26; Introduced explicit wallet connect functions and simplified widget.
+- 2025-06-21-11:53; Fixed provider reload after network switch.
+- 2025-06-21-14:12; Handling missing chains by adding the network before switching.
+- 2025-06-21-22:42; Added QR code display and documented network switch behavior.
+- 2025-06-21-23:17; Improved network checks and error messages.
