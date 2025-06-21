@@ -21,7 +21,6 @@
 </div>
 
 <!-- Dependencies -->
-<script src="https://cdn.jsdelivr.net/npm/@walletconnect/web3-provider@1.8.0/dist/umd/index.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
 
@@ -132,17 +131,29 @@ function resetWalletUI() {
   document.getElementById('sqmu-bal').style.display = 'none';
 }
 
-async function setupProvider() {
-  if (window.ethereum) {
+async function connectWallet() {
+  try {
+    if (!window.ethereum) throw new Error('MetaMask not available');
     provider = new ethers.providers.Web3Provider(window.ethereum, 'any');
     await provider.send('eth_requestAccounts', []);
-  } else {
-    const wc = new WalletConnectProvider.default({infuraId:'822e08935dea4fb48f668ff353ac863a'});
-    await wc.enable();
-    provider = new ethers.providers.Web3Provider(wc, 'any');
+    signer = provider.getSigner();
+    userAddr = await signer.getAddress();
+    await finalizeConnection();
+  } catch(e) {
+    resetWalletUI();
+    alert('Connection failed.');
   }
-  signer = provider.getSigner();
-  userAddr = await signer.getAddress();
+}
+
+async function finalizeConnection() {
+  await ensureNetwork();
+  document.getElementById('sqmu-connect').style.display = 'none';
+  document.getElementById('sqmu-disconnect').style.display = '';
+  document.getElementById('sqmu-pay').style.display = '';
+  document.getElementById('sqmu-info').innerText = `Connected: ${userAddr.slice(0,6)}...${userAddr.slice(-4)}`;
+  await showBalance();
+  provider.provider.on && provider.provider.on('accountsChanged', disconnectWallet);
+  provider.provider.on && provider.provider.on('chainChanged', disconnectWallet);
 }
 async function ensureNetwork() {
   const net = await provider.getNetwork();
@@ -168,22 +179,6 @@ async function showBalance() {
     const el = document.getElementById('sqmu-bal');
     el.innerText = 'Unable to retrieve balance.';
     el.style.display = '';
-  }
-}
-async function connectWallet() {
-  try {
-    await setupProvider();
-    await ensureNetwork();
-    document.getElementById('sqmu-connect').style.display = 'none';
-    document.getElementById('sqmu-disconnect').style.display = '';
-    document.getElementById('sqmu-pay').style.display = '';
-    document.getElementById('sqmu-info').innerText = `Connected: ${userAddr.slice(0,6)}...${userAddr.slice(-4)}`;
-    await showBalance();
-    provider.provider.on && provider.provider.on('accountsChanged', disconnectWallet);
-    provider.provider.on && provider.provider.on('chainChanged', disconnectWallet);
-  } catch(e) {
-    resetWalletUI();
-    alert('Connection failed.');
   }
 }
 function disconnectWallet() {
