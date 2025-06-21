@@ -34,6 +34,27 @@
       137: 'https://polygonscan.com'
     }
 
+    const CHAIN_INFO = {
+      1: {
+        chainName: 'Ethereum',
+        rpcUrls: ['https://rpc.ankr.com/eth'],
+        nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
+        blockExplorerUrls: ['https://etherscan.io']
+      },
+      137: {
+        chainName: 'Polygon',
+        rpcUrls: ['https://polygon-rpc.com'],
+        nativeCurrency: { name: 'Matic', symbol: 'MATIC', decimals: 18 },
+        blockExplorerUrls: ['https://polygonscan.com']
+      },
+      42161: {
+        chainName: 'Arbitrum One',
+        rpcUrls: ['https://arb1.arbitrum.io/rpc'],
+        nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
+        blockExplorerUrls: ['https://arbiscan.io']
+      }
+    }
+
     let provider
     let signer
 
@@ -71,18 +92,35 @@
 
     async function switchNetwork(token) {
         if (!provider?.provider?.request) return false
+        const hex = ethers.toBeHex(token.chainId)
         try {
           await provider.provider.request({
             method: 'wallet_switchEthereumChain',
-            params: [{ chainId: ethers.toBeHex(token.chainId) }]
+            params: [{ chainId: hex }]
           })
-          provider = new ethers.BrowserProvider(provider.provider)
-          signer = await provider.getSigner()
-          return true
-        } catch (_) {
-          show('Network switch failed')
-          return false
+        } catch (err) {
+          if (err.code === 4902) {
+            try {
+              await provider.provider.request({
+                method: 'wallet_addEthereumChain',
+                params: [{ chainId: hex, ...CHAIN_INFO[token.chainId] }]
+              })
+              await provider.provider.request({
+                method: 'wallet_switchEthereumChain',
+                params: [{ chainId: hex }]
+              })
+            } catch (_) {
+              show('Network switch failed')
+              return false
+            }
+          } else {
+            show('Network switch failed')
+            return false
+          }
         }
+        provider = new ethers.BrowserProvider(provider.provider)
+        signer = await provider.getSigner()
+        return true
       }
 
     function disconnectWallet() {
