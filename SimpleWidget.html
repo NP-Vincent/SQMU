@@ -1,0 +1,227 @@
+<!-- SQMU Simple Crypto Payment Widget - WalletConnect/Ethers.js -->
+<div id="sqmu-widget" style="max-width:430px;margin:32px auto;padding:20px;background:#fff;box-shadow:0 2px 12px #0002;border-radius:12px;">
+  <h3 id="sqmu-title" style="margin-bottom:8px;"></h3>
+  <div style="margin-bottom:6px;font-size:1.05em;"><span id="sqmu-fee"></span></div>
+  <label for="sqmu-net" style="display:block;margin-top:6px;">Choose Network & Token:</label>
+  <select id="sqmu-net" style="width:100%;margin:6px 0 12px 0;padding:6px;"></select>
+  <div id="sqmu-wallet">
+    <button id="sqmu-connect" style="width:100%;background:#2865d9;color:#fff;">Connect Wallet</button>
+    <div id="sqmu-info" style="margin:6px 0;font-size:0.95em;"></div>
+    <div id="sqmu-bal" style="background:#f7f7f7;border-radius:8px;padding:7px 11px;margin:8px 0;display:none;font-size:0.95em;"></div>
+    <button id="sqmu-pay" style="display:none;width:100%;background:#08a870;color:#fff;margin-bottom:8px;">Send Payment</button>
+    <button id="sqmu-disconnect" style="display:none;width:100%;background:#e7e7e7;color:#b00;">Disconnect</button>
+  </div>
+  <div id="sqmu-manual" style="margin-top:12px;">
+    <div><b>Or send manually:</b></div>
+    <div>To address: <span id="sqmu-addr" style="word-break:break-all;"></span></div>
+    <button onclick="copyAddr()" style="margin:4px 0 6px 0;">Copy Address</button>
+    <div id="sqmu-qr" style="margin-top:6px;"></div>
+  </div>
+  <div id="sqmu-tx" style="margin-top:10px;font-size:0.95em;"></div>
+</div>
+
+<!-- Dependencies -->
+<script src="https://cdn.jsdelivr.net/npm/@walletconnect/web3-provider@1.8.0/dist/umd/index.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
+
+<script>
+const DEFAULT_TITLE = "Pay Consultation Fee";
+const CONSULT_FEE = 100;
+const AED_RATE = 3.67;
+const PAYMENT_OPTIONS = [
+  {
+    key: "usdt-eth",
+    label: "Ethereum Mainnet (USDT)",
+    chainId: "0x1",
+    chainName: "Ethereum",
+    token: "USDT",
+    tokenAddress: "0xdAC17F958D2ee523a2206206994597C13D831ec7",
+    decimals: 6,
+    treasury: "0x43F3f03d89290358034993aE3B3938D056D76De2",
+    explorer: "https://etherscan.io/tx/"
+  },
+  {
+    key: "usdc-arb",
+    label: "Arbitrum One (USDC)",
+    chainId: "0xa4b1",
+    chainName: "Arbitrum",
+    token: "USDC",
+    tokenAddress: "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+    decimals: 6,
+    treasury: "0x43F3f03d89290358034993aE3B3938D056D76De2",
+    explorer: "https://arbiscan.io/tx/"
+  },
+  {
+    key: "usdc-poly",
+    label: "Polygon (USDC)",
+    chainId: "0x89",
+    chainName: "Polygon",
+    token: "USDC",
+    tokenAddress: "0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359",
+    decimals: 6,
+    treasury: "0x43F3f03d89290358034993aE3B3938D056D76De2",
+    explorer: "https://polygonscan.com/tx/"
+  }
+];
+const ERC20_ABI = [
+  "function balanceOf(address) view returns (uint256)",
+  "function transfer(address to, uint value) public returns (bool)",
+  "function decimals() public view returns (uint8)"
+];
+
+let provider, signer, userAddr, currentOpt;
+let FEE_USD = CONSULT_FEE;
+let FEE_AED = Math.round(CONSULT_FEE * AED_RATE);
+let TITLE = DEFAULT_TITLE;
+
+function getParam(name) {
+  try {
+    const url = new URL(window.location.href);
+    return url.searchParams.get(name) || "";
+  } catch(e) { return ""; }
+}
+function sanitize(s) { return (s || "").replace(/[<>]/g, ""); }
+function initFromParams() {
+  const usd = parseFloat(getParam('usd'));
+  const aed = parseFloat(getParam('aed'));
+  const title = sanitize(getParam('title'));
+  if (!isNaN(usd) && usd > 0) FEE_USD = usd;
+  if (!isNaN(aed) && aed > 0) {
+    FEE_AED = Math.round(aed);
+  } else {
+    FEE_AED = Math.round(FEE_USD * AED_RATE);
+  }
+  if (title) TITLE = title;
+}
+
+function populateOptions() {
+  const sel = document.getElementById('sqmu-net');
+  sel.innerHTML = '';
+  PAYMENT_OPTIONS.forEach(o => {
+    const opt = document.createElement('option');
+    opt.value = o.key;
+    opt.text = o.label;
+    sel.appendChild(opt);
+  });
+}
+function getSelected() {
+  const key = document.getElementById('sqmu-net').value;
+  return PAYMENT_OPTIONS.find(o => o.key === key);
+}
+function updateUI() {
+  currentOpt = getSelected();
+  document.getElementById('sqmu-title').innerText = TITLE;
+  document.getElementById('sqmu-fee').innerHTML = `${FEE_USD} ${currentOpt.token} <span style="color:#555;font-size:0.96em;">(AED ${FEE_AED})</span>`;
+  document.getElementById('sqmu-addr').innerText = currentOpt.treasury;
+  document.getElementById('sqmu-tx').innerHTML = '';
+  QRCode.toDataURL(currentOpt.treasury, {width:180}, (err,url) => {
+    document.getElementById('sqmu-qr').innerHTML = `<img src="${url}" alt="QR" style="display:block;margin:8px auto 0;">`;
+  });
+  resetWalletUI();
+}
+function copyAddr() {
+  navigator.clipboard.writeText(currentOpt.treasury);
+  alert('Address copied!');
+}
+function resetWalletUI() {
+  document.getElementById('sqmu-connect').style.display = '';
+  document.getElementById('sqmu-pay').style.display = 'none';
+  document.getElementById('sqmu-disconnect').style.display = 'none';
+  document.getElementById('sqmu-info').innerText = '';
+  document.getElementById('sqmu-bal').style.display = 'none';
+}
+
+async function setupProvider() {
+  if (window.ethereum) {
+    provider = new ethers.providers.Web3Provider(window.ethereum, 'any');
+    await provider.send('eth_requestAccounts', []);
+  } else {
+    const wc = new WalletConnectProvider.default({infuraId:'822e08935dea4fb48f668ff353ac863a'});
+    await wc.enable();
+    provider = new ethers.providers.Web3Provider(wc, 'any');
+  }
+  signer = provider.getSigner();
+  userAddr = await signer.getAddress();
+}
+async function ensureNetwork() {
+  const net = await provider.getNetwork();
+  if ('0x'+net.chainId.toString(16) !== currentOpt.chainId) {
+    await provider.provider.request({
+      method:'wallet_switchEthereumChain',
+      params:[{chainId: currentOpt.chainId}]
+    });
+  }
+}
+async function showBalance() {
+  try {
+    const token = new ethers.Contract(currentOpt.tokenAddress, ERC20_ABI, provider);
+    const [balRaw, dec] = await Promise.all([
+      token.balanceOf(userAddr),
+      token.decimals()
+    ]);
+    const bal = ethers.utils.formatUnits(balRaw, dec);
+    const el = document.getElementById('sqmu-bal');
+    el.innerText = `Your ${currentOpt.token} Balance: ${bal}`;
+    el.style.display = '';
+  } catch(e) {
+    const el = document.getElementById('sqmu-bal');
+    el.innerText = 'Unable to retrieve balance.';
+    el.style.display = '';
+  }
+}
+async function connectWallet() {
+  try {
+    await setupProvider();
+    await ensureNetwork();
+    document.getElementById('sqmu-connect').style.display = 'none';
+    document.getElementById('sqmu-disconnect').style.display = '';
+    document.getElementById('sqmu-pay').style.display = '';
+    document.getElementById('sqmu-info').innerText = `Connected: ${userAddr.slice(0,6)}...${userAddr.slice(-4)}`;
+    await showBalance();
+    provider.provider.on && provider.provider.on('accountsChanged', disconnectWallet);
+    provider.provider.on && provider.provider.on('chainChanged', disconnectWallet);
+  } catch(e) {
+    resetWalletUI();
+    alert('Connection failed.');
+  }
+}
+function disconnectWallet() {
+  if (provider && provider.provider && provider.provider.disconnect) {
+    try { provider.provider.disconnect(); } catch(e) {}
+  }
+  provider = signer = userAddr = null;
+  resetWalletUI();
+}
+async function sendPayment() {
+  if (!signer) return alert('Connect wallet first.');
+  const {tokenAddress, treasury, decimals, explorer} = currentOpt;
+  const contract = new ethers.Contract(tokenAddress, ERC20_ABI, signer);
+  const amt = ethers.utils.parseUnits(FEE_USD.toString(), decimals);
+  const btn = document.getElementById('sqmu-pay');
+  try {
+    btn.innerText = 'Awaiting confirmation...';
+    btn.disabled = true;
+    const tx = await contract.transfer(treasury, amt);
+    await tx.wait();
+    btn.innerText = 'Send Payment';
+    btn.disabled = false;
+    document.getElementById('sqmu-tx').innerHTML = `<div style="background:#eaffea;border-radius:8px;padding:8px;">Payment sent! <a href="${explorer}${tx.hash}" target="_blank">View Tx</a></div>`;
+    await showBalance();
+  } catch(e) {
+    btn.innerText = 'Send Payment';
+    btn.disabled = false;
+    document.getElementById('sqmu-tx').innerHTML = '<div style="color:#b00;">Payment failed.</div>';
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  initFromParams();
+  populateOptions();
+  updateUI();
+  document.getElementById('sqmu-connect').addEventListener('click', connectWallet);
+  document.getElementById('sqmu-disconnect').addEventListener('click', disconnectWallet);
+  document.getElementById('sqmu-pay').addEventListener('click', sendPayment);
+  document.getElementById('sqmu-net').addEventListener('change', updateUI);
+});
+</script>
