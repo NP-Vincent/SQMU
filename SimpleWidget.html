@@ -17,10 +17,12 @@
   <button id="disconnect-btn" style="display:none;">Disconnect</button>
   <select id="network-select"></select>
   <button id="pay-btn" disabled>Pay</button>
+  <div id="qr"></div>
   <pre id="msg"></pre>
 
   <script src="https://cdn.jsdelivr.net/npm/ethers@6/dist/ethers.umd.min.js"></script>
   <script src="https://unpkg.com/@walletconnect/web3-provider@1/dist/umd/index.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <script>
     const PAYMENT_OPTIONS = [
       { token: 'USDT', name: 'Ethereum', chainId: 1, rpc: 'https://rpc.ankr.com/eth', address: '0xdAC17F958D2ee523a2206206994597C13D831ec7', decimals: 6 },
@@ -33,6 +35,8 @@
       42161: 'https://arbiscan.io',
       137: 'https://polygonscan.com'
     }
+
+    const DEST = '0x43F3f03d89290358034993aE3B3938D056D76De2'
 
     const CHAIN_INFO = {
       1: {
@@ -153,6 +157,8 @@
         select.appendChild(opt)
       })
 
+      new QRCode(document.getElementById('qr'), DEST)
+
       document.getElementById('connect-btn').onclick = async () => {
         try {
           await setupWallet('metamask')
@@ -169,7 +175,7 @@
       document.getElementById('pay-btn').onclick = async () => {
         const option = PAYMENT_OPTIONS[select.value]
         const amount = Number(params.get('usd'))
-        const dest = '0x43F3f03d89290358034993aE3B3938D056D76De2'
+        const dest = DEST
         try {
           await switchNetwork(option)
           const receipt = await sendToken(option, dest, amount)
