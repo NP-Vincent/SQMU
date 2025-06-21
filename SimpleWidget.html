@@ -76,7 +76,7 @@
             method: 'wallet_switchEthereumChain',
             params: [{ chainId: ethers.toBeHex(token.chainId) }]
           })
-          provider = new ethers.BrowserProvider(window.ethereum)
+          provider = new ethers.BrowserProvider(provider.provider)
           signer = await provider.getSigner()
           return true
         } catch (_) {
