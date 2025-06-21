@@ -88,12 +88,14 @@
     function disconnectWallet() {
       if (provider?.provider?.disconnect) {
         provider.provider.disconnect()
+        show('Wallet disconnected')
+      } else {
+        show('Widget reset. Disconnect MetaMask from the extension.')
       }
       provider = null
       signer = null
       document.getElementById('pay-btn').disabled = true
       document.getElementById('disconnect-btn').style.display = 'none'
-      show('Wallet disconnected')
     }
     function show(msg) {
       document.getElementById('msg').textContent = msg
