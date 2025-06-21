@@ -22,3 +22,10 @@ Run `tidy -errors SimpleWidget.html` after modifications to validate the HTML.
 
 ## Commit messages
 Use short, descriptive commit messages (e.g., `Add payment widget skeleton`).
+
+## Changelog
+- 2025-06-20: Initial MetaMask support added.
+- 2025-06-21: Introduced explicit wallet connect functions and simplified widget.
+- 2025-06-21: Fixed provider reload after network switch.
+- 2025-06-21: Handling missing chains by adding the network before switching.
+- 2025-06-22: Added QR code display and documented network switch behavior.
