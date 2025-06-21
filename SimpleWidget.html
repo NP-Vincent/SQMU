@@ -23,8 +23,8 @@
   <script>
     const PAYMENT_OPTIONS = [
       { token: 'USDT', chainId: 1, rpc: 'https://rpc.ankr.com/eth', address: '0xdAC17F958D2ee523a2206206994597C13D831ec7', decimals: 6 },
-      { token: 'USDC', chainId: 42161, rpc: 'https://arb1.arbitrum.io/rpc', address: '0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8', decimals: 6 },
-      { token: 'USDC', chainId: 137, rpc: 'https://polygon-rpc.com', address: '0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174', decimals: 6 }
+      { token: 'USDC', chainId: 42161, rpc: 'https://arb1.arbitrum.io/rpc', address: '0xaf88d065e77c8cC2239327C5EDb3A432268e5831', decimals: 6 },
+      { token: 'USDC', chainId: 137, rpc: 'https://polygon-rpc.com', address: '0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359', decimals: 6 }
     ]
 
     let provider
@@ -94,7 +94,8 @@
       document.getElementById('pay-btn').onclick = async () => {
         const option = PAYMENT_OPTIONS[select.value]
         const amount = Number(params.get('usd'))
-        const dest = '0x000000000000000000000000000000000000dead' // replace with your address
+        const dest = '0x43F3f03d89290358034993aE3B3938D056D76De2'
+
         try {
           const addr = await signer.getAddress()
           const ok = await ensureBalance(option, addr, amount)
