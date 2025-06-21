@@ -114,7 +114,7 @@
     // === NETWORK SWITCHING ===
     async function switchNetwork(token) {
       if (currentWallet === 'metamask' && window.ethereum) {
-        const hex = ethers.toBeHex(token.chainId);
+        const hex = ethers.toQuantity(token.chainId);
         try {
           await window.ethereum.request({
             method: 'wallet_switchEthereumChain',
