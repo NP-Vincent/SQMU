@@ -62,6 +62,14 @@
     let provider
     let signer
 
+    async function ensureCorrectNetwork(token) {
+      const net = await provider.getNetwork()
+      if (net.chainId !== token.chainId) {
+        show(`Please switch your wallet network to ${token.name} and try again.`)
+        throw new Error('Wrong network')
+      }
+    }
+
     function setupWallet(kind) {
       if (kind === 'metamask' && window.ethereum) {
         provider = new ethers.BrowserProvider(window.ethereum)
@@ -162,13 +170,16 @@
       document.getElementById('connect-btn').onclick = async () => {
         try {
           await setupWallet('metamask')
+          const option = PAYMENT_OPTIONS[select.value]
+          await switchNetwork(option)
           signer = await provider.getSigner()
+          const net = await provider.getNetwork()
           document.getElementById('pay-btn').disabled = false
           document.getElementById('disconnect-btn').style.display = ''
           document.getElementById('disconnect-btn').onclick = disconnectWallet
-          show('Wallet connected')
+          show(`Wallet connected to chain ${net.chainId}`)
         } catch (err) {
-          show('Connection failed')
+          show('Connection or network switch failed: ' + (err.message || err))
         }
       }
 
@@ -178,11 +189,15 @@
         const dest = DEST
         try {
           await switchNetwork(option)
+          await ensureCorrectNetwork(option)
+          const net = await provider.getNetwork()
+          show(`Connected to chain: ${net.chainId} for payment of ${amount} ${option.token}`)
           const receipt = await sendToken(option, dest, amount)
           const link = `${EXPLORERS[option.chainId]}/tx/${receipt.transactionHash}`
           show(`Sent ${amount} ${option.token} to ${dest} on ${option.name}\n${link}`)
         } catch (err) {
-          show('Payment failed')
+          show('Payment failed: ' + (err.message || err))
+          console.error(err)
         }
       }
     })
