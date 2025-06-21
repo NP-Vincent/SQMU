@@ -22,7 +22,6 @@
 </div>
 
 <!-- Dependencies -->
-<script src="https://cdn.jsdelivr.net/npm/@walletconnect/web3-provider@1.8.0/dist/umd/index.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
 
@@ -135,6 +134,7 @@ function resetWalletUI() {
 }
 
 async function connectMetamask() {
+
   try {
     if (!window.ethereum) throw new Error('MetaMask not available');
     provider = new ethers.providers.Web3Provider(window.ethereum, 'any');
@@ -159,13 +159,16 @@ async function connectTrustWallet() {
   } catch(e) {
     resetWalletUI();
     alert('Connection failed.');
+
   }
 }
 
 async function finalizeConnection() {
   await ensureNetwork();
+
   document.getElementById('sqmu-connect-metamask').style.display = 'none';
   document.getElementById('sqmu-connect-trust').style.display = 'none';
+
   document.getElementById('sqmu-disconnect').style.display = '';
   document.getElementById('sqmu-pay').style.display = '';
   document.getElementById('sqmu-info').innerText = `Connected: ${userAddr.slice(0,6)}...${userAddr.slice(-4)}`;
