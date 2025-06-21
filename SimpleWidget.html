@@ -4,7 +4,8 @@
   <meta charset="UTF-8">
   <title>Crypto Payment</title>
   <style>
-    body { font-family: sans-serif; max-width: 400px; margin: auto; }
+
+    body { font-family: sans-serif; margin: auto; }
     #msg { white-space: pre-wrap; }
   </style>
 </head>
@@ -13,6 +14,7 @@
   <p id="price-aed"></p>
   <p id="price-usd"></p>
   <button id="connect-btn">Connect Wallet</button>
+  <button id="disconnect-btn" style="display:none;">Disconnect</button>
   <select id="network-select"></select>
   <button id="pay-btn" disabled>Pay</button>
   <pre id="msg"></pre>
@@ -22,9 +24,9 @@
   <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
   <script>
     const PAYMENT_OPTIONS = [
-      { token: 'USDT', chainId: 1, rpc: 'https://rpc.ankr.com/eth', address: '0xdAC17F958D2ee523a2206206994597C13D831ec7', decimals: 6 },
-      { token: 'USDC', chainId: 42161, rpc: 'https://arb1.arbitrum.io/rpc', address: '0xaf88d065e77c8cC2239327C5EDb3A432268e5831', decimals: 6 },
-      { token: 'USDC', chainId: 137, rpc: 'https://polygon-rpc.com', address: '0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359', decimals: 6 }
+      { token: 'USDT', name: 'Ethereum', chainId: 1, rpc: 'https://rpc.ankr.com/eth', address: '0xdAC17F958D2ee523a2206206994597C13D831ec7', decimals: 6 },
+      { token: 'USDC', name: 'Arbitrum', chainId: 42161, rpc: 'https://arb1.arbitrum.io/rpc', address: '0xaf88d065e77c8cC2239327C5EDb3A432268e5831', decimals: 6 },
+      { token: 'USDC', name: 'Polygon', chainId: 137, rpc: 'https://polygon-rpc.com', address: '0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359', decimals: 6 }
     ]
 
     let provider
@@ -62,6 +64,28 @@
       return tx.wait()
     }
 
+    async function switchNetwork(token) {
+      if (!provider?.provider?.request) return
+      try {
+        await provider.provider.request({
+          method: 'wallet_switchEthereumChain',
+          params: [{ chainId: ethers.toBeHex(token.chainId) }]
+        })
+      } catch (_) {
+        show('Network switch failed')
+      }
+    }
+
+    function disconnectWallet() {
+      if (provider?.provider?.disconnect) {
+        provider.provider.disconnect()
+      }
+      provider = null
+      signer = null
+      document.getElementById('pay-btn').disabled = true
+      document.getElementById('disconnect-btn').style.display = 'none'
+      show('Wallet disconnected')
+    }
     function show(msg) {
       document.getElementById('msg').textContent = msg
     }
@@ -76,7 +100,7 @@
       PAYMENT_OPTIONS.forEach((o, i) => {
         const opt = document.createElement('option')
         opt.value = i
-        opt.textContent = `${o.token} (${o.chainId})`
+        opt.textContent = `${o.token} (${o.name})`
         select.appendChild(opt)
       })
 
@@ -85,6 +109,8 @@
           await setupWallet('metamask')
           signer = await provider.getSigner()
           document.getElementById('pay-btn').disabled = false
+          document.getElementById('disconnect-btn').style.display = ''
+          document.getElementById('disconnect-btn').onclick = disconnectWallet
           show('Wallet connected')
         } catch (err) {
           show('Connection failed')
@@ -95,11 +121,8 @@
         const option = PAYMENT_OPTIONS[select.value]
         const amount = Number(params.get('usd'))
         const dest = '0x43F3f03d89290358034993aE3B3938D056D76De2'
-
         try {
-          const addr = await signer.getAddress()
-          const ok = await ensureBalance(option, addr, amount)
-          if (!ok) return show('Insufficient balance')
+          await switchNetwork(option)
           const receipt = await sendToken(option, dest, amount)
           show(`Success: ${receipt.transactionHash}`)
         } catch (err) {
