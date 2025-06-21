@@ -31,3 +31,4 @@ Use short, descriptive commit messages (e.g., `Add payment widget skeleton`).
 - 2025-06-21: Fixed provider reload after network switch.
 - 2025-06-21: Handling missing chains by adding the network before switching.
 - 2025-06-22: Added QR code display and documented network switch behavior.
+- 2025-06-23: Improved network checks and error messages.
