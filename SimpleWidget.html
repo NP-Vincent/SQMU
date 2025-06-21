@@ -65,16 +65,20 @@
     }
 
     async function switchNetwork(token) {
-      if (!provider?.provider?.request) return
-      try {
-        await provider.provider.request({
-          method: 'wallet_switchEthereumChain',
-          params: [{ chainId: ethers.toBeHex(token.chainId) }]
-        })
-      } catch (_) {
-        show('Network switch failed')
+        if (!provider?.provider?.request) return false
+        try {
+          await provider.provider.request({
+            method: 'wallet_switchEthereumChain',
+            params: [{ chainId: ethers.toBeHex(token.chainId) }]
+          })
+          provider = new ethers.BrowserProvider(window.ethereum)
+          signer = await provider.getSigner()
+          return true
+        } catch (_) {
+          show('Network switch failed')
+          return false
+        }
       }
-    }
 
     function disconnectWallet() {
       if (provider?.provider?.disconnect) {
@@ -121,13 +125,14 @@
         const option = PAYMENT_OPTIONS[select.value]
         const amount = Number(params.get('usd'))
         const dest = '0x43F3f03d89290358034993aE3B3938D056D76De2'
-        try {
-          await switchNetwork(option)
-          const receipt = await sendToken(option, dest, amount)
-          show(`Success: ${receipt.transactionHash}`)
-        } catch (err) {
-          show('Payment failed')
-        }
+          try {
+            const ok = await switchNetwork(option)
+            if (!ok) return
+            const receipt = await sendToken(option, dest, amount)
+            show(`Success: ${receipt.transactionHash}`)
+          } catch (err) {
+            show('Payment failed')
+          }
       }
     })
   </script>
