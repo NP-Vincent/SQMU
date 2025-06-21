@@ -25,7 +25,12 @@
 #crypto-payment-widget input, #crypto-payment-widget select { border-radius:6px;border:1px solid #ccc; }
 #crypto-payment-widget button { border-radius:7px; border:none; padding:8px 13px; cursor:pointer; }
 #crypto-payment-widget hr { border:0; border-top:1px solid #e5e5e5; }
-@media (max-width:500px) { #crypto-payment-widget { padding:12px 3vw; } }
+@media (max-width:500px) {
+  #crypto-payment-widget { padding:12px 3vw; }
+  /* Improve Web3Modal layout and image size on small screens */
+  #WEB3_CONNECT_MODAL_ID img { max-width:40px; height:auto; }
+  #WEB3_CONNECT_MODAL_ID .web3modal-provider-wrapper { width:46% !important; }
+}
 </style>
 
 <!-- DEPENDENCIES from CDN -->
@@ -98,8 +103,15 @@ function sanitize(s) { return (s || '').replace(/[<>]/g, ''); }
   let usd = getParam('usd');
   let aed = getParam('aed');
   let title = getParam('title');
-  if (usd && !isNaN(Number(usd)) && Number(usd) > 0) FEE_USD = Number(usd);
-  if (aed && !isNaN(Number(aed)) && Number(aed) > 0) FEE_AED = Math.round(Number(aed));
+  if (usd && !isNaN(Number(usd)) && Number(usd) > 0) {
+    FEE_USD = Number(usd);
+  }
+  if (aed && !isNaN(Number(aed)) && Number(aed) > 0) {
+    FEE_AED = Math.round(Number(aed));
+  } else {
+    // Keep AED price in sync with USD unless explicitly overridden
+    FEE_AED = Math.round(FEE_USD * AED_RATE);
+  }
   if (title) PROP_TITLE = sanitize(decodeURIComponent(title.replace(/\+/g,' ')));
 })();
 
@@ -158,7 +170,9 @@ let web3Modal;
   const providerOptions = {
     walletconnect: {
       package: window.WalletConnectProvider.default,
-      options: { infuraId: "822e08935dea4fb48f668ff353ac863a" }
+      options: { infuraId: "822e08935dea4fb48f668ff353ac863a" },
+      // Show MetaMask option on mobile through WalletConnect
+      mobileLinks: ["metamask"]
     },
     coinbasewallet: {
       package: window.CoinbaseWalletSDK,
