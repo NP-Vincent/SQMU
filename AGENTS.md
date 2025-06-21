@@ -13,12 +13,14 @@ This repository stores a minimal cryptocurrency payment widget designed for embe
 - Initialize the widget on `DOMContentLoaded` and read `title`, `aed`, and `usd` query parameters to populate the UI.
 - Separate wallet setup, balance lookup, and token transfer into small functions.
 - Provide concise error messages and transaction feedback.
+
 - `switchNetwork` now tries to add the chain when `wallet_switchEthereumChain`
   returns error 4902. Earlier versions simply showed "Network switch failed" if
   the user had not added the chain, so this logic prevents that failure.
 
 ## Verification
-Run `tidy -errors SimpleWidget.html` after modifications to validate the HTML.
+- Run `tidy -errors SimpleWidget.html` after modifications to validate the HTML.
+- Add to changelog in AGENTS.md if no errors are found.
 
 ## Commit messages
 Use short, descriptive commit messages (e.g., `Add payment widget skeleton`).
