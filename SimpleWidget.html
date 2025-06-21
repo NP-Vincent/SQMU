@@ -71,16 +71,20 @@
     }
 
     async function switchNetwork(token) {
-      if (!provider?.provider?.request) return
-      try {
-        await provider.provider.request({
-          method: 'wallet_switchEthereumChain',
-          params: [{ chainId: ethers.toBeHex(token.chainId) }]
-        })
-      } catch (_) {
-        show('Network switch failed')
+        if (!provider?.provider?.request) return false
+        try {
+          await provider.provider.request({
+            method: 'wallet_switchEthereumChain',
+            params: [{ chainId: ethers.toBeHex(token.chainId) }]
+          })
+          provider = new ethers.BrowserProvider(window.ethereum)
+          signer = await provider.getSigner()
+          return true
+        } catch (_) {
+          show('Network switch failed')
+          return false
+        }
       }
-    }
 
     function disconnectWallet() {
       if (provider?.provider?.disconnect) {
