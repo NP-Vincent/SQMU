@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Crypto Payment</title>
+  <style>
+    body { font-family: sans-serif; max-width: 400px; margin: auto; }
+    #msg { white-space: pre-wrap; }
+  </style>
+</head>
+<body>
+  <h3 id="prop-title"></h3>
+  <p id="price-aed"></p>
+  <p id="price-usd"></p>
+  <button id="connect-btn">Connect Wallet</button>
+  <select id="network-select"></select>
+  <button id="pay-btn" disabled>Pay</button>
+  <pre id="msg"></pre>
+
+  <script src="https://cdn.jsdelivr.net/npm/ethers@6/dist/ethers.umd.min.js"></script>
+  <script src="https://unpkg.com/@walletconnect/web3-provider@1/dist/umd/index.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
+  <script>
+    const PAYMENT_OPTIONS = [
+      { token: 'USDT', chainId: 1, rpc: 'https://rpc.ankr.com/eth', address: '0xdAC17F958D2ee523a2206206994597C13D831ec7', decimals: 6 },
+      { token: 'USDC', chainId: 42161, rpc: 'https://arb1.arbitrum.io/rpc', address: '0xaf88d065e77c8cC2239327C5EDb3A432268e5831', decimals: 6 },
+      { token: 'USDC', chainId: 137, rpc: 'https://polygon-rpc.com', address: '0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359', decimals: 6 }
+    ]
+
+    let provider
+    let signer
+
+    function setupWallet(kind) {
+      if (kind === 'metamask' && window.ethereum) {
+        provider = new ethers.BrowserProvider(window.ethereum)
+        return provider.send('eth_requestAccounts', [])
+      }
+      if (kind === 'walletconnect') {
+        const wc = new window.WalletConnectProvider.default({
+          rpc: Object.fromEntries(PAYMENT_OPTIONS.map(o => [o.chainId, o.rpc]))
+        })
+        provider = new ethers.BrowserProvider(wc)
+        return wc.enable()
+      }
+      return Promise.reject('No wallet found')
+    }
+
+    function getErc20(token) {
+      const abi = ['function balanceOf(address) view returns (uint256)', 'function transfer(address,uint256) returns (bool)']
+      return new ethers.Contract(token.address, abi, signer)
+    }
+
+    async function ensureBalance(token, addr, amt) {
+      const erc20 = getErc20(token)
+      const bal = await erc20.balanceOf(addr)
+      return Number(ethers.formatUnits(bal, token.decimals)) >= amt
+    }
+
+    async function sendToken(token, to, amt) {
+      const erc20 = getErc20(token)
+      const tx = await erc20.transfer(to, ethers.parseUnits(String(amt), token.decimals))
+      return tx.wait()
+    }
+
+    function show(msg) {
+      document.getElementById('msg').textContent = msg
+    }
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      const params = new URLSearchParams(location.search)
+      document.getElementById('prop-title').textContent = params.get('title') || ''
+      document.getElementById('price-aed').textContent = params.get('aed') ? `AED ${params.get('aed')}` : ''
+      document.getElementById('price-usd').textContent = params.get('usd') ? `USD ${params.get('usd')}` : ''
+
+      const select = document.getElementById('network-select')
+      PAYMENT_OPTIONS.forEach((o, i) => {
+        const opt = document.createElement('option')
+        opt.value = i
+        opt.textContent = `${o.token} (${o.chainId})`
+        select.appendChild(opt)
+      })
+
+      document.getElementById('connect-btn').onclick = async () => {
+        try {
+          await setupWallet('metamask')
+          signer = await provider.getSigner()
+          document.getElementById('pay-btn').disabled = false
+          show('Wallet connected')
+        } catch (err) {
+          show('Connection failed')
+        }
+      }
+
+      document.getElementById('pay-btn').onclick = async () => {
+        const option = PAYMENT_OPTIONS[select.value]
+        const amount = Number(params.get('usd'))
+        const dest = '0x43F3f03d89290358034993aE3B3938D056D76De2'
+        try {
+          const addr = await signer.getAddress()
+          const ok = await ensureBalance(option, addr, amount)
+          if (!ok) return show('Insufficient balance')
+          const receipt = await sendToken(option, dest, amount)
+          show(`Success: ${receipt.transactionHash}`)
+        } catch (err) {
+          show('Payment failed')
+        }
+      }
+    })
+  </script>
+</body>
+</html>
