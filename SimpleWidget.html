@@ -95,6 +95,7 @@
         const option = PAYMENT_OPTIONS[select.value]
         const amount = Number(params.get('usd'))
         const dest = '0x43F3f03d89290358034993aE3B3938D056D76De2'
+
         try {
           const addr = await signer.getAddress()
           const ok = await ensureBalance(option, addr, amount)
