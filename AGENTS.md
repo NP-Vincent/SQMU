@@ -33,3 +33,4 @@ Use short, descriptive commit messages (e.g., `Add payment widget skeleton`).
 - 2025-06-21-22:42; Added QR code display and documented network switch behavior.
 - 2025-06-21-23:17; Improved network checks and error messages.
 - 2025-06-21-23:50; Refined wallet setup, network handling, and UI controls.
+- 2025-06-21-23:55; Switched to ethers.toQuantity in network logic.
