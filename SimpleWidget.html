@@ -29,6 +29,12 @@
       { token: 'USDC', name: 'Polygon', chainId: 137, rpc: 'https://polygon-rpc.com', address: '0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359', decimals: 6 }
     ]
 
+    const EXPLORERS = {
+      1: 'https://etherscan.io',
+      42161: 'https://arbiscan.io',
+      137: 'https://polygonscan.com'
+    }
+
     let provider
     let signer
 
@@ -125,14 +131,14 @@
         const option = PAYMENT_OPTIONS[select.value]
         const amount = Number(params.get('usd'))
         const dest = '0x43F3f03d89290358034993aE3B3938D056D76De2'
-          try {
-            const ok = await switchNetwork(option)
-            if (!ok) return
-            const receipt = await sendToken(option, dest, amount)
-            show(`Success: ${receipt.transactionHash}`)
-          } catch (err) {
-            show('Payment failed')
-          }
+        try {
+          await switchNetwork(option)
+          const receipt = await sendToken(option, dest, amount)
+          const link = `${EXPLORERS[option.chainId]}/tx/${receipt.transactionHash}`
+          show(`Sent ${amount} ${option.token} to ${dest} on ${option.name}\n${link}`)
+        } catch (err) {
+          show('Payment failed')
+        }
       }
     })
   </script>
