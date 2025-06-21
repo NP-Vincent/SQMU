@@ -98,8 +98,15 @@ function sanitize(s) { return (s || '').replace(/[<>]/g, ''); }
   let usd = getParam('usd');
   let aed = getParam('aed');
   let title = getParam('title');
-  if (usd && !isNaN(Number(usd)) && Number(usd) > 0) FEE_USD = Number(usd);
-  if (aed && !isNaN(Number(aed)) && Number(aed) > 0) FEE_AED = Math.round(Number(aed));
+  if (usd && !isNaN(Number(usd)) && Number(usd) > 0) {
+    FEE_USD = Number(usd);
+  }
+  if (aed && !isNaN(Number(aed)) && Number(aed) > 0) {
+    FEE_AED = Math.round(Number(aed));
+  } else {
+    // Keep AED price in sync with USD unless explicitly overridden
+    FEE_AED = Math.round(FEE_USD * AED_RATE);
+  }
   if (title) PROP_TITLE = sanitize(decodeURIComponent(title.replace(/\+/g,' ')));
 })();
 
