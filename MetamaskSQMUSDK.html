@@ -29,11 +29,17 @@
   <script src="https://unpkg.com/@metamask/sdk/dist/metamask-sdk.js"></script>
   <script>
     const INFURA_KEY = '822e08935dea4fb48f668ff353ac863a';
-    const MMSDK = new MetaMaskSDK.MetaMaskSDK({
-      dappMetadata: { name: 'SQMU Payment', url: 'https://sqmu.net' },
-      infuraAPIKey: INFURA_KEY || undefined
-    });
-    const ethereum = MMSDK.getProvider();
+    let ethereum;
+    let sdkError = false;
+    try {
+      const MMSDK = new MetaMaskSDK.MetaMaskSDK({
+        dappMetadata: { name: 'SQMU Payment', url: 'https://sqmu.net' },
+        infuraAPIKey: INFURA_KEY || undefined
+      });
+      ethereum = MMSDK.getProvider();
+    } catch (err) {
+      sdkError = true;
+    }
 
     // === CONFIGURATION ===
     const PAYMENT_OPTIONS = [
@@ -210,6 +216,12 @@
 
       // Setup QR code for manual payment
       new QRCode(document.getElementById('qr'), DEST);
+
+      if (sdkError || !ethereum) {
+        show('MetaMask failed to initialize. Please check your browser or network.');
+        document.getElementById('connect-btn').disabled = true;
+        return;
+      }
 
       // Connect Wallet
       document.getElementById('connect-btn').onclick = async () => {

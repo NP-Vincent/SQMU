@@ -42,6 +42,7 @@ Use short, descriptive commit messages (e.g., `Add payment widget skeleton`).
 - 2025-06-22-13:14; Updated MobileCompWidget deep link to remove encoding.
 - 2025-06-22-15:19; Added MobileCompWidget2 with WalletConnect deep linking.
 - 2025-06-22-16:04; Added MetamaskSQMUSDK widget using MetaMask SDK.
+- 2025-06-22-19:02; Verified HTML after MetaMask error handling.
 
 ## Development rationale
 Using MetaMask SDK avoids direct `window.ethereum` access and ensures the
