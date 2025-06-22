@@ -39,3 +39,9 @@ Use short, descriptive commit messages (e.g., `Add payment widget skeleton`).
 - 2025-06-22-13:00; Fixed MetaMask deep link to use sqmu.net domain.
 - 2025-06-22-13:14; Updated MobileCompWidget deep link to remove encoding.
 - 2025-06-22-15:19; Added MobileCompWidget2 with WalletConnect deep linking.
+- 2025-06-22-16:04; Added MetamaskSQMUSDK widget using MetaMask SDK.
+
+## Development rationale
+Using MetaMask SDK avoids direct `window.ethereum` access and ensures the
+widget works across browsers and platforms where MetaMask injects a provider
+asynchronously.
