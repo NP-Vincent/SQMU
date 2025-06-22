@@ -38,3 +38,4 @@ Use short, descriptive commit messages (e.g., `Add payment widget skeleton`).
 - 2025-06-22-12:43; Added MobileCompWidget with mobile MetaMask deep linking.
 - 2025-06-22-13:00; Fixed MetaMask deep link to use sqmu.net domain.
 - 2025-06-22-13:14; Updated MobileCompWidget deep link to remove encoding.
+- 2025-06-22-15:19; Added MobileCompWidget2 with WalletConnect deep linking.
