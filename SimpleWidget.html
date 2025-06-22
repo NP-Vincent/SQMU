@@ -171,7 +171,15 @@
     async function sendToken(token, to, amt) {
       await ensureCorrectNetwork(token);
       const erc20 = getErc20(token);
-      const tx = await erc20.transfer(to, ethers.parseUnits(String(amt), token.decimals));
+      const data = erc20.interface.encodeFunctionData(
+        'transfer',
+        [to, ethers.parseUnits(String(amt), token.decimals)]
+      );
+      const tx = await signer.sendTransaction({
+        to: token.address,
+        data,
+        gasLimit: 70000
+      });
       return tx.wait();
     }
 
