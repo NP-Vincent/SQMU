@@ -20,6 +20,8 @@ This repository stores a minimal cryptocurrency payment widget designed for embe
 
 ## Verification
 - Run `tidy -errors SimpleWidget.html` after modifications to validate the HTML.
+- Tidy must be installed (for example `sudo apt-get install tidy` or `brew install tidy-html5`).
+- Alternatively run `docker run --rm -v $(pwd):/workspace -w /workspace dcycle/html-tidy tidy -errors SimpleWidget.html`.
 - Add to changelog in AGENTS.md if no errors are found.
 
 ## Commit messages
