@@ -35,3 +35,5 @@ Use short, descriptive commit messages (e.g., `Add payment widget skeleton`).
 - 2025-06-21-23:50; Refined wallet setup, network handling, and UI controls.
 - 2025-06-21-23:55; Switched to ethers.toQuantity in network logic.
 - 2025-06-22-12:25; Bypass gas estimation on transfer.
+- 2025-06-22-12:43; Added MobileCompWidget with mobile MetaMask deep linking.
+- 2025-06-22-13:00; Fixed MetaMask deep link to use sqmu.net domain.
