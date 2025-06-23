@@ -39,3 +39,4 @@ Use short, descriptive commit messages (e.g., `Add payment widget skeleton`).
 - 2025-06-21-23:55; Switched to ethers.toQuantity in network logic.
 - 2025-06-22-12:25; Bypass gas estimation on transfer.
 - 2025-06-22-13:10; Validate USD amount before sending payment.
+- 2025-06-22-14:30; Added token/chain query parameters to preselect network.
