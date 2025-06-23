@@ -29,20 +29,20 @@ Metamask 2.0.html
 Use short, descriptive commit messages (e.g., `Add payment widget skeleton`).
 
 ## Changelog
-- 2025-06-20-21:36; Initial MetaMask support added.
-- 2025-06-21-09:26; Introduced explicit wallet connect functions and simplified widget.
-- 2025-06-21-11:53; Fixed provider reload after network switch.
-- 2025-06-21-14:12; Handling missing chains by adding the network before switching.
-- 2025-06-21-22:42; Added QR code display and documented network switch behavior.
-- 2025-06-21-23:17; Improved network checks and error messages.
-- 2025-06-21-23:50; Refined wallet setup, network handling, and UI controls.
-- 2025-06-21-23:55; Switched to ethers.toQuantity in network logic.
-- 2025-06-22-12:25; Bypass gas estimation on transfer.
-- 2025-06-22-13:10; Validate USD amount before sending payment.
-- 2025-06-22-14:30; Added token/chain query parameters to preselect network.
-- 2025-06-23-12:59; Added checkout page to send amount and network to Metamask 2.0.
-- 2025-06-23-13:11; Display purchase token info on payment launcher.
-- 2025-06-23-13:51; Fix query string handling between pages.
-- 2025-06-23-14:45; Support dynamic titles and AED pricing in checkout link.
-- 2025-06-23-15:05; Ensure AED param in launch URL and fallback calculation in checkout.
-- 2025-06-23-14:19; Retrieve title from page and build checkout URL with URL.searchParams.
+- 2025-06-20-21:36-UTC; Initial MetaMask support added.
+- 2025-06-21-09:26-UTC; Introduced explicit wallet connect functions and simplified widget.
+- 2025-06-21-11:53-UTC; Fixed provider reload after network switch.
+- 2025-06-21-14:12-UTC; Handling missing chains by adding the network before switching.
+- 2025-06-21-22:42-UTC; Added QR code display and documented network switch behavior.
+- 2025-06-21-23:17-UTC; Improved network checks and error messages.
+- 2025-06-21-23:50-UTC; Refined wallet setup, network handling, and UI controls.
+- 2025-06-21-23:55-UTC; Switched to ethers.toQuantity in network logic.
+- 2025-06-22-12:25-UTC; Bypass gas estimation on transfer.
+- 2025-06-22-13:10-UTC; Validate USD amount before sending payment.
+- 2025-06-22-14:30-UTC; Added token/chain query parameters to preselect network.
+- 2025-06-23-12:59-UTC; Added checkout page to send amount and network to Metamask 2.0.
+- 2025-06-23-13:11-UTC; Display purchase token info on payment launcher.
+- 2025-06-23-13:21-UTC; Fix query string handling between pages.
+- 2025-06-23-13:39-UTC; Support dynamic titles and AED pricing in checkout link.
+- 2025-06-23-13:55-UTC; Ensure AED param in launch URL and fallback calculation in checkout.
+- 2025-06-23-14:19-UTC; Retrieve title from page and build checkout URL with URL.searchParams.
