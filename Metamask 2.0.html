@@ -209,19 +209,24 @@
         select.appendChild(opt);
       });
 
-      // Preselect network based on ?token= or ?chain=
+      // Preselect network based on ?token= and ?chain=
       let idx = -1;
       const tokenParam = params.get('token');
       const chainParam = params.get('chain');
-      if (tokenParam) {
-        idx = PAYMENT_OPTIONS.findIndex(o => o.token.toLowerCase() === tokenParam.toLowerCase());
+      if (tokenParam && chainParam) {
+        idx = PAYMENT_OPTIONS.findIndex(o =>
+          o.token.toLowerCase() === tokenParam.toLowerCase() &&
+          String(o.chainId) === chainParam
+        );
       }
       if (idx === -1 && chainParam) {
         idx = PAYMENT_OPTIONS.findIndex(o => String(o.chainId) === chainParam);
       }
+      if (idx === -1 && tokenParam) {
+        idx = PAYMENT_OPTIONS.findIndex(o => o.token.toLowerCase() === tokenParam.toLowerCase());
+      }
       if (idx >= 0) {
         select.value = String(idx);
-        select.disabled = true;
       }
 
       // Setup QR code for manual payment
