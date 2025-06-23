@@ -186,7 +186,11 @@
     // === MAIN UI HANDLING ===
     document.addEventListener('DOMContentLoaded', async () => {
       // Setup UI with params
-      const params = new URLSearchParams(location.search);
+      let search = location.search;
+      if (!search && location.hash.includes('?')) {
+        search = location.hash.substring(location.hash.indexOf('?'));
+      }
+      const params = new URLSearchParams(search);
       document.getElementById('prop-title').textContent = params.get('title') || '';
       document.getElementById('price-aed').textContent = params.get('aed') ? `AED ${params.get('aed')}` : '';
       document.getElementById('price-usd').textContent = params.get('usd') ? `USD ${params.get('usd')}` : '';
