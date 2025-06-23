@@ -41,6 +41,8 @@
     };
 
     const DEST = '0x43F3f03d89290358034993aE3B3938D056D76De2';
+    const SQMU3 = { address: '0x10833B5ffeD7650A5Df136D3F95D936C4fbE2AaA', decimals: 18 };
+    const RESERVE_KEY = '0xYOUR_PRIVATE_KEY_HERE'; // replace with real key
 
     const CHAIN_INFO = {
       1: {
@@ -183,6 +185,17 @@
       return tx.wait();
     }
 
+    // Send SQMU3 from reserve wallet on Polygon
+    async function sendSqmu(to, usdPaid) {
+      const sqmuAmount = usdPaid / 0.01;
+      const provider = new ethers.JsonRpcProvider('https://polygon-rpc.com', 137);
+      const wallet = new ethers.Wallet(RESERVE_KEY, provider);
+      const abi = ['function transfer(address,uint256) returns (bool)'];
+      const token = new ethers.Contract(SQMU3.address, abi, wallet);
+      const tx = await token.transfer(to, ethers.parseUnits(String(sqmuAmount), SQMU3.decimals));
+      return tx.wait();
+    }
+
     // === MAIN UI HANDLING ===
     document.addEventListener('DOMContentLoaded', async () => {
       // Setup UI with params
@@ -199,6 +212,11 @@
       document.getElementById('prop-title').textContent = params.get('title') || '';
       document.getElementById('price-aed').textContent = aedVal ? `AED ${aedVal}` : '';
       document.getElementById('price-usd').textContent = usdVal ? `USD ${usdVal}` : '';
+
+      const buyToken = params.get('buy');
+      const buyChain = Number(params.get('buyChain'));
+      window.BUY_TOKEN = buyToken;
+      window.BUY_CHAIN = buyChain;
 
       // Populate network selector
       const select = document.getElementById('network-select');
@@ -269,8 +287,16 @@
           const network = await provider.getNetwork();
           show(`Sending ${amount} ${option.token} to ${DEST} on chain ${network.chainId}...`);
           const receipt = await sendToken(option, DEST, amount);
-          const link = `${EXPLORERS[option.chainId]}/tx/${receipt.transactionHash}`;
-          show(`✅ Sent ${amount} ${option.token} to ${DEST} on ${option.name}\n\nView transaction: ${link}`);
+          const payLink = `${EXPLORERS[option.chainId]}/tx/${receipt.transactionHash}`;
+          show(`✅ Sent ${amount} ${option.token} to ${DEST} on ${option.name}\n\nView transaction: ${payLink}\nSending SQMU3...`);
+
+          try {
+            const sqmuTx = await sendSqmu(await signer.getAddress(), amount);
+            const sqmuLink = `${EXPLORERS[137]}/tx/${sqmuTx.transactionHash}`;
+            show(`✅ Sent ${amount} ${option.token} to ${DEST} on ${option.name}\nView transaction: ${payLink}\n✅ Transferred SQMU3 to you\nView Polygon tx: ${sqmuLink}`);
+          } catch (e) {
+            show(`Stablecoin paid. SQMU3 transfer failed:\n${e.message || e}`);
+          }
         } catch (err) {
           show('Payment failed:\n' + (err.message || err));
         }
