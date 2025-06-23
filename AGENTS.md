@@ -5,7 +5,7 @@ This repository stores a minimal cryptocurrency payment widget designed for embe
 ## Development
 Metamask 1.0.html
 - Place all source code in standalone HTML files at the repo root.
-- Use CDN imports for **WalletConnect**, **ethers.js**, and **qrcode**.
+- Use CDN imports for **ethers.js**, and **qrcode**.
 - Maintain a `PAYMENT_OPTIONS` array with:
   1. USDT on Ethereum mainnet
   2. USDC on Arbitrum One
