@@ -40,3 +40,5 @@ Use short, descriptive commit messages (e.g., `Add payment widget skeleton`).
 - 2025-06-22-12:25; Bypass gas estimation on transfer.
 - 2025-06-22-13:10; Validate USD amount before sending payment.
 - 2025-06-22-14:30; Added token/chain query parameters to preselect network.
+
+- 2025-06-23-12:59; Added checkout page to send amount and network to Metamask 2.0.
