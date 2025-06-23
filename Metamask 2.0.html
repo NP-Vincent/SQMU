@@ -42,7 +42,7 @@
 
     const DEST = '0x43F3f03d89290358034993aE3B3938D056D76De2';
     const SQMU3 = { address: '0x10833B5ffeD7650A5Df136D3F95D936C4fbE2AaA', decimals: 18 };
-    const RESERVE_KEY = '0xYOUR_PRIVATE_KEY_HERE'; // replace with real key
+    const SALE_ADDR = '0x321C680e79fef934074955d90a0be4290b25b3aD';
 
     const CHAIN_INFO = {
       1: {
@@ -185,14 +185,20 @@
       return tx.wait();
     }
 
-    // Send SQMU3 from reserve wallet on Polygon
-    async function sendSqmu(to, usdPaid) {
-      const sqmuAmount = usdPaid / 0.01;
-      const provider = new ethers.JsonRpcProvider('https://polygon-rpc.com', 137);
-      const wallet = new ethers.Wallet(RESERVE_KEY, provider);
-      const abi = ['function transfer(address,uint256) returns (bool)'];
-      const token = new ethers.Contract(SQMU3.address, abi, wallet);
-      const tx = await token.transfer(to, ethers.parseUnits(String(sqmuAmount), SQMU3.decimals));
+    // Call token sale contract to receive SQMU3
+    async function sendSqmu(option, usdPaid) {
+      const saleChain = Number(window.BUY_CHAIN) || 137;
+      const current = await provider.getNetwork();
+      if (Number(current.chainId) !== saleChain) {
+        const chainOpt = PAYMENT_OPTIONS.find(o => o.chainId === saleChain) || { chainId: saleChain };
+        await switchNetwork(chainOpt);
+        await ensureCorrectNetwork({ chainId: saleChain, name: chainOpt.name || 'Polygon' });
+      }
+
+      const method = option.token === 'USDT' ? 'buyWithUSDT' : 'buyWithUSDC';
+      const abi = [`function ${method}(uint256)`];
+      const sale = new ethers.Contract(SALE_ADDR, abi, signer);
+      const tx = await sale[method](ethers.parseUnits(String(usdPaid), option.decimals));
       return tx.wait();
     }
 
@@ -288,14 +294,15 @@
           show(`Sending ${amount} ${option.token} to ${DEST} on chain ${network.chainId}...`);
           const receipt = await sendToken(option, DEST, amount);
           const payLink = `${EXPLORERS[option.chainId]}/tx/${receipt.transactionHash}`;
-          show(`✅ Sent ${amount} ${option.token} to ${DEST} on ${option.name}\n\nView transaction: ${payLink}\nSending SQMU3...`);
+          show(`✅ Sent ${amount} ${option.token} to ${DEST} on ${option.name}\n\nView transaction: ${payLink}\nCalling sale contract...`);
 
           try {
-            const sqmuTx = await sendSqmu(await signer.getAddress(), amount);
-            const sqmuLink = `${EXPLORERS[137]}/tx/${sqmuTx.transactionHash}`;
-            show(`✅ Sent ${amount} ${option.token} to ${DEST} on ${option.name}\nView transaction: ${payLink}\n✅ Transferred SQMU3 to you\nView Polygon tx: ${sqmuLink}`);
+            const sqmuTx = await sendSqmu(option, amount);
+            const saleChain = window.BUY_CHAIN || 137;
+            const sqmuLink = `${EXPLORERS[saleChain]}/tx/${sqmuTx.transactionHash}`;
+            show(`✅ Sent ${amount} ${option.token} to ${DEST} on ${option.name}\nView transaction: ${payLink}\n✅ Purchased ${window.BUY_TOKEN || 'SQMU3'}\nView Polygon tx: ${sqmuLink}`);
           } catch (e) {
-            show(`Stablecoin paid. SQMU3 transfer failed:\n${e.message || e}`);
+            show(`Stablecoin paid. Token purchase failed:\n${e.message || e}`);
           }
         } catch (err) {
           show('Payment failed:\n' + (err.message || err));
