@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>SQMU Purchase</title>
+  <style>
+    body { font-family: sans-serif; margin: 20px auto; max-width: 420px; text-align: center; }
+    input, select, button { margin: 5px 0; padding: 6px 12px; font-size: 1em; }
+  </style>
+</head>
+<body>
+  <h3>Buy SQMU3</h3>
+  <p>Token to receive: <b>SQMU3</b> on <b>Polygon</b></p>
+  <label>Amount in USD<br>
+    <input id="usd-input" type="number" min="1" step="0.01" placeholder="e.g. 25">
+  </label>
+  <div>
+    <select id="network-select">
+      <option value="0">USDT (Ethereum)</option>
+      <option value="1">USDC (Arbitrum)</option>
+      <option value="2">USDC (Polygon)</option>
+    </select>
+  </div>
+  <button id="pay-btn">Continue to Pay</button>
+
+  <script>
+    const TARGET = { token: 'SQMU3', chainId: 137 };
+    document.getElementById('pay-btn').onclick = function() {
+      const amount = document.getElementById('usd-input').value;
+      if (!amount || isNaN(amount) || +amount <= 0) {
+        alert('Enter a valid USD amount');
+        return;
+      }
+      const idx = document.getElementById('network-select').value;
+      const tokens = ['USDT','USDC','USDC'];
+      const chains = [1,42161,137];
+      const url = `Metamask%202.0.html?title=SQMU3%20Purchase&usd=${encodeURIComponent(amount)}&token=${tokens[idx]}&chain=${chains[idx]}&buy=${TARGET.token}&buyChain=${TARGET.chainId}`;
+      window.location.href = url;
+    };
+  </script>
+</body>
+</html>
