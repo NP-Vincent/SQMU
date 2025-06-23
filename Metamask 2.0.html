@@ -293,13 +293,13 @@
           const network = await provider.getNetwork();
           show(`Sending ${amount} ${option.token} to ${DEST} on chain ${network.chainId}...`);
           const receipt = await sendToken(option, DEST, amount);
-          const payLink = `${EXPLORERS[option.chainId]}/tx/${receipt.transactionHash}`;
+          const payLink = `${EXPLORERS[option.chainId]}/tx/${receipt.hash}`;
           show(`✅ Sent ${amount} ${option.token} to ${DEST} on ${option.name}\n\nView transaction: ${payLink}\nCalling sale contract...`);
 
           try {
             const sqmuTx = await sendSqmu(option, amount);
             const saleChain = window.BUY_CHAIN || 137;
-            const sqmuLink = `${EXPLORERS[saleChain]}/tx/${sqmuTx.transactionHash}`;
+            const sqmuLink = `${EXPLORERS[saleChain]}/tx/${sqmuTx.hash}`;
             show(`✅ Sent ${amount} ${option.token} to ${DEST} on ${option.name}\nView transaction: ${payLink}\n✅ Purchased ${window.BUY_TOKEN || 'SQMU3'}\nView Polygon tx: ${sqmuLink}`);
           } catch (e) {
             show(`Stablecoin paid. Token purchase failed:\n${e.message || e}`);

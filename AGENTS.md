@@ -51,3 +51,4 @@ Use short, descriptive commit messages (e.g., `Add payment widget skeleton`).
 - 2025-06-23-21:30-UTC; Fix network preselection and keep dropdown editable.
 - 2025-06-23-22:10-UTC; Parse buy params and send SQMU3 after payment.
 - 2025-06-23-22:40-UTC; Add sale-contract purchase flow with PolygonScan links.
+- 2025-06-24-00:00-UTC; Fix explorer links for ethers v6.
