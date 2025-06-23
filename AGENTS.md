@@ -42,3 +42,4 @@ Use short, descriptive commit messages (e.g., `Add payment widget skeleton`).
 - 2025-06-22-14:30; Added token/chain query parameters to preselect network.
 - 2025-06-23-12:59; Added checkout page to send amount and network to Metamask 2.0.
 - 2025-06-23-13:11; Display purchase token info on payment launcher.
+- 2025-06-23-13:51; Fix query string handling between pages.
