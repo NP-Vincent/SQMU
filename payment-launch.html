@@ -34,7 +34,7 @@
       const idx = document.getElementById('network-select').value;
       const tokens = ['USDT','USDC','USDC'];
       const chains = [1,42161,137];
-      const url = `Metamask%202.0.html?title=SQMU3%20Purchase&usd=${encodeURIComponent(amount)}&token=${tokens[idx]}&chain=${chains[idx]}&buy=${TARGET.token}&buyChain=${TARGET.chainId}`;
+      const url = `https://sqmu.net/metamask2?title=SQMU3%20Purchase&usd=${encodeURIComponent(amount)}&token=${tokens[idx]}&chain=${chains[idx]}&buy=${TARGET.token}&buyChain=${TARGET.chainId}`;
       window.location.href = url;
     };
   </script>
