@@ -39,6 +39,9 @@
         }
       } else {
         usd = document.getElementById('usd-input').value;
+        if (usd) {
+          aed = (parseFloat(usd) * 3.67).toFixed(2);
+        }
       }
       if (!usd || isNaN(usd) || +usd <= 0) {
         alert('Enter a valid USD amount');
@@ -49,7 +52,9 @@
       const chains = [1,42161,137];
       const url = new URL('https://sqmu.net/metamask2');
       url.searchParams.set('title', pageTitle);
-      if (aed) url.searchParams.set('aed', aed);
+      if (aed) {
+        url.searchParams.set('aed', aed);
+      }
       url.searchParams.set('usd', usd);
       url.searchParams.set('token', tokens[idx]);
       url.searchParams.set('chain', chains[idx]);
