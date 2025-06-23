@@ -191,9 +191,14 @@
         search = location.hash.substring(location.hash.indexOf('?'));
       }
       const params = new URLSearchParams(search);
+      const usdVal = params.get('usd');
+      let aedVal = params.get('aed');
+      if (!aedVal && usdVal) {
+        aedVal = (parseFloat(usdVal) * 3.67).toFixed(2);
+      }
       document.getElementById('prop-title').textContent = params.get('title') || '';
-      document.getElementById('price-aed').textContent = params.get('aed') ? `AED ${params.get('aed')}` : '';
-      document.getElementById('price-usd').textContent = params.get('usd') ? `USD ${params.get('usd')}` : '';
+      document.getElementById('price-aed').textContent = aedVal ? `AED ${aedVal}` : '';
+      document.getElementById('price-usd').textContent = usdVal ? `USD ${usdVal}` : '';
 
       // Populate network selector
       const select = document.getElementById('network-select');
