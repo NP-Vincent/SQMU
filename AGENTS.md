@@ -45,3 +45,4 @@ Use short, descriptive commit messages (e.g., `Add payment widget skeleton`).
 - 2025-06-23-13:51; Fix query string handling between pages.
 - 2025-06-23-14:45; Support dynamic titles and AED pricing in checkout link.
 - 2025-06-23-15:05; Ensure AED param in launch URL and fallback calculation in checkout.
+- 2025-06-23-14:19; Retrieve title from page and build checkout URL with URL.searchParams.
