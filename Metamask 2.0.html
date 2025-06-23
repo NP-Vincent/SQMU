@@ -229,6 +229,10 @@
         enablePayBtn(false);
         const option = PAYMENT_OPTIONS[select.value];
         const amount = Number(params.get('usd'));
+        if (!Number.isFinite(amount) || amount <= 0) {
+          show('Invalid USD amount');
+          return;
+        }
         try {
           show('Checking network...');
           await switchNetwork(option);
