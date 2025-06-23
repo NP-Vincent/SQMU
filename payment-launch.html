@@ -26,22 +26,36 @@
   <script>
     const TARGET = { token: 'SQMU3', chainId: 137 };
     document.getElementById('pay-btn').onclick = function() {
-      const amount = document.getElementById('usd-input').value;
-      if (!amount || isNaN(amount) || +amount <= 0) {
+      const titleEl = document.querySelector('.property-title');
+      const pageTitle = titleEl ? titleEl.textContent : document.title;
+
+      const priceEl = document.querySelector('.es-price');
+      let usd, aed;
+      if (priceEl) {
+        const match = priceEl.textContent.replace(/,/g, '').match(/AED\s*([\d.]+)/i);
+        if (match) {
+          aed = parseFloat(match[1]);
+          usd = (aed / 3.67).toFixed(2);
+        }
+      } else {
+        usd = document.getElementById('usd-input').value;
+      }
+      if (!usd || isNaN(usd) || +usd <= 0) {
         alert('Enter a valid USD amount');
         return;
       }
       const idx = document.getElementById('network-select').value;
       const tokens = ['USDT','USDC','USDC'];
       const chains = [1,42161,137];
-      const url =
-        'https://sqmu.net/metamask2/?title=SQMU3%20Purchase' +
-        '&usd=' + encodeURIComponent(amount) +
-        '&token=' + tokens[idx] +
-        '&chain=' + chains[idx] +
-        '&buy=' + TARGET.token +
-        '&buyChain=' + TARGET.chainId;
-      window.open(url, '_blank');
+      const url = new URL('https://sqmu.net/metamask2');
+      url.searchParams.set('title', pageTitle);
+      if (aed) url.searchParams.set('aed', aed);
+      url.searchParams.set('usd', usd);
+      url.searchParams.set('token', tokens[idx]);
+      url.searchParams.set('chain', chains[idx]);
+      url.searchParams.set('buy', TARGET.token);
+      url.searchParams.set('buyChain', TARGET.chainId);
+      window.open(url.toString(), '_blank');
     };
   </script>
 </body>
