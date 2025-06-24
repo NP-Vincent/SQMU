@@ -22,6 +22,14 @@ Metamask 1.0.html
 Metamask 2.0.html
 - Under development better integration for features including better integration with Wordpress.com HTML and CSS
 
+## Token Sale Workflow
+The README describes how this widget fits into a larger SQMU sale process:
+- Create a unique SQMU ERC-20 token for each property using the WPSmartContract plugin. Token supply equals the property's square metres and is deployed on Polygon.
+- Deploy a sale or delivery contract (e.g. `SqmuDistributor.sol`) on the same chain. This contract is approved to transfer SQMU from a treasury address to the buyer once payment is confirmed.
+- `payment-launch.html` is embedded in property pages. It gathers the property title, USD amount and desired stablecoin network and then opens the appropriate `Metamask 2.x.html` checkout page.
+- The checkout page handles USDT on Ethereum, USDC on Arbitrum or Polygon and, after receiving payment, calls the sale contract to distribute SQMU tokens to the buyer.
+- Keep the sale contract and destination addresses near the top of the HTML files so they can be updated for each property.
+
 ## Changelog
 - Add to changelog in AGENTS.md after completion of changes
 
@@ -53,3 +61,4 @@ Use short, descriptive commit messages (e.g., `Add payment widget skeleton`).
 - 2025-06-23-22:40-UTC; Add sale-contract purchase flow with PolygonScan links.
 - 2025-06-24-00:00-UTC; Fix explorer links for ethers v6.
 - 2025-06-23-23:58-UTC; Added Metamask 2.1 and SQMU distributor contract.
+- 2025-06-24-12:18-UTC; Documented token sale workflow from README.
