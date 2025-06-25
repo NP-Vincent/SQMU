@@ -71,12 +71,61 @@
 
     // === UI UTILS ===
     function show(msg) {
-      document.getElementById('msg').innerHTML = msg;
+      document.getElementById('msg').textContent = msg;
     }
 
     function enablePayBtn(enabled) {
       const emailOk = document.getElementById('email-input').validity.valid;
       document.getElementById('pay-btn').disabled = !(enabled && emailOk);
+    }
+
+    function showReceiptForm(payLink, amount, option, email) {
+      const msg = document.getElementById('msg');
+      msg.innerHTML = '';
+      const h3 = document.createElement('h3');
+      h3.textContent = 'Get Email Receipt';
+      const form = document.createElement('form');
+      form.id = 'receipt-form';
+      form.action = MAIL_URL;
+      form.method = 'POST';
+      form.target = '_blank';
+
+      const emailInput = document.createElement('input');
+      emailInput.type = 'email';
+      emailInput.name = 'to_email';
+      emailInput.value = email;
+      emailInput.placeholder = 'Email';
+      emailInput.required = true;
+      form.appendChild(emailInput);
+      form.appendChild(document.createElement('br'));
+
+      const hiddenFields = {
+        tx_link: payLink,
+        usd: amount,
+        chain: option.name,
+        token: option.token
+      };
+      for (const [name, value] of Object.entries(hiddenFields)) {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = name;
+        input.value = value;
+        form.appendChild(input);
+      }
+
+      const btn = document.createElement('button');
+      btn.type = 'submit';
+      btn.className = 'wp-block-button__link';
+      btn.textContent = 'Send Receipt';
+      form.appendChild(btn);
+
+      msg.appendChild(h3);
+      msg.appendChild(form);
+      const info = document.createElement('div');
+      const em = document.createElement('em');
+      em.textContent = 'A new tab will open. Please check your inbox after a few moments.';
+      info.appendChild(em);
+      msg.appendChild(info);
     }
 
     // === WALLET CONNECTION LOGIC ===
@@ -297,8 +346,7 @@
           show(`✅ Sent ${amount} ${option.token} to ${DEST} on ${option.name}\n\nView transaction: ${payLink}`);
           txDetails.textContent = `Payment: ${payLink}`;
           postPay.style.display = '';
-          const receiptFormHtml = `\n  <h3>Get Email Receipt</h3>\n  <form id="receipt-form" action="${MAIL_URL}" method="POST" target="_blank">\n    <input type="email" name="to_email" value="${emailInput.value}" placeholder="Email" required><br>\n    <input type="hidden" name="tx_link" value="${payLink}">\n    <input type="hidden" name="usd" value="${amount}">\n    <input type="hidden" name="chain" value="${option.name}">\n    <input type="hidden" name="token" value="${option.token}">\n    <button type="submit" class="wp-block-button__link">Send Receipt</button>\n  </form>\n  <div><em>A new tab will open. Please check your inbox after a few moments.</em></div>`;
-          show(receiptFormHtml);
+          showReceiptForm(payLink, amount, option, emailInput.value);
         } catch (err) {
           show('Payment failed:\n' + (err.message || err));
         }
