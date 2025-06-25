@@ -80,7 +80,7 @@
 
     // === UI UTILS ===
     function show(msg) {
-      document.getElementById('msg').textContent = msg;
+      document.getElementById('msg').innerHTML = msg;
     }
 
     function enablePayBtn(enabled) {
@@ -306,28 +306,8 @@
           show(`✅ Sent ${amount} ${option.token} to ${DEST} on ${option.name}\n\nView transaction: ${payLink}`);
           txDetails.textContent = `Payment: ${payLink}`;
           postPay.style.display = '';
-          const email = emailInput.value;
-          try {
-            const res = await fetch(MAIL_URL, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                to_email: email,
-                tx_link: payLink,
-                usd: amount,
-                chain: option.name,
-                token: option.token
-              })
-            });
-            const text = await res.text();
-            if (text === 'OK') {
-              show('Email sent!');
-            } else {
-              show('Email error: ' + text);
-            }
-          } catch (mailErr) {
-            show(`Email failed:\n${mailErr.message || mailErr}`);
-          }
+          const receiptFormHtml = `\n  <h3>Get Email Receipt</h3>\n  <form id="receipt-form" action="${MAIL_URL}" method="POST" target="_blank">\n    <input type="email" name="to_email" value="${emailInput.value}" placeholder="Email" required><br>\n    <input type="hidden" name="tx_link" value="${payLink}">\n    <input type="hidden" name="usd" value="${amount}">\n    <input type="hidden" name="chain" value="${option.name}">\n    <input type="hidden" name="token" value="${option.token}">\n    <button type="submit">Send Receipt</button>\n  </form>\n  <div><em>A new tab will open. Please check your inbox after a few moments.</em></div>`;
+          show(receiptFormHtml);
         } catch (err) {
           show('Payment failed:\n' + (err.message || err));
         }
