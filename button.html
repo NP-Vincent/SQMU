@@ -19,7 +19,7 @@ document.addEventListener('DOMContentLoaded', function() {
             e.preventDefault();
             // Extract price ("AED 892,000" → 892000)
             var rawPrice = priceEl.innerText.replace(/[^\d.]/g, '');
-            var priceAED = parseInt(rawPrice.replace(/,/g, ''));
+            var priceAED = parseFloat(rawPrice.replace(/,/g, ''));
             var usdRate = 3.67;
             var priceUSD = (priceAED / usdRate).toFixed(2);
             var depositUsd = (priceUSD * 0.001).toFixed(2);
