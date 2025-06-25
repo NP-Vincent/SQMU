@@ -84,3 +84,4 @@ Use short, descriptive commit messages (e.g., `Add payment widget skeleton`).
 - 2025-06-25-21:30-UTC; Centered layout and removed fixed widget width.
 - 2025-06-25-20:26-UTC; Document Masu theme requirements for widgets.
 - 2025-06-26-00:00-UTC; Removed inline styles and added wp-block button classes.
+- 2025-06-26-12:00-UTC; Updated show helper to use textContent and sanitized receipt form in Metamask 2.0.
