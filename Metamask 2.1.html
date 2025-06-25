@@ -214,9 +214,11 @@
     document.addEventListener('DOMContentLoaded', async () => {
       const postPay = document.getElementById('post-pay');
       const txDetails = document.getElementById('tx-details');
-      document.getElementById('copy-btn').onclick = () => {
-        navigator.clipboard.writeText(txDetails.textContent);
-      };
+      function copyDetails() {
+        const text = txDetails.textContent || document.getElementById('msg').textContent;
+        navigator.clipboard.writeText(text);
+      }
+      document.getElementById('copy-btn').onclick = copyDetails;
       document.getElementById('schedule-btn').onclick = () => {
         window.open('https://calendly.com/sqmu-call', '_blank');
       };
