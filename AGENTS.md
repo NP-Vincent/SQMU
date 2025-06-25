@@ -75,3 +75,4 @@ Use short, descriptive commit messages (e.g., `Add payment widget skeleton`).
 - 2025-06-25-19:05-UTC; Validate POST data in Apps Script.
 - 2025-06-25-20:00-UTC; Update public Apps Script URL.
 - 2025-06-25-20:10-UTC; Replace AJAX email with form submission in Metamask 2.0.
+- 2025-06-25-21:00-UTC; Accept form POST in Apps Script.
