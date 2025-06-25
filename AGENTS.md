@@ -67,3 +67,4 @@ Use short, descriptive commit messages (e.g., `Add payment widget skeleton`).
 - 2025-06-25-10:15-UTC; Document deposit calculation and post-payment meeting scheduling features.
 - 2025-06-25-10:20-UTC; Handle fractional AED amounts in launcher.
 - 2025-06-25-10:22-UTC; Added copyDetails function for clipboard copying.
+- 2025-06-25-14:40-UTC; Simplified Metamask 2.0 to omit SQMU token delivery.
