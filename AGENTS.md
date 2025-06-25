@@ -25,7 +25,7 @@ Metamask 2.0.html
   (`#widget`) styles minimal. Avoid fixed widths so the widget inherits the
   width of the WordPress column. Center buttons and content with `text-align:
   center` and allow text to wrap naturally within the parent column.
-- Follow the Masu theme by removing all <style> blocks and inline CSS from the widget. Use WordPress classes such as `wp-block-button__link` on <button> elements. Let the <body> and #widget widths inherit from the surrounding block. Inline `display` toggles may remain.
+ - Follow the Masu theme. A short `<style>` section may be included for dropdown sizing, padding and layout tweaks. Use WordPress button classes like `wp-block-button__link`. Avoid inline styles except simple `display` toggles.
 
 ## Token Sale Workflow
 The README describes how this widget fits into a larger SQMU sale process:
@@ -86,3 +86,4 @@ Use short, descriptive commit messages (e.g., `Add payment widget skeleton`).
 - 2025-06-25-20:34-UTC; Removed inline styles and added wp-block button classes.
 - 2025-06-26-20:39-UTC; Updated show helper to use textContent and sanitized receipt form in Metamask 2.0.
 - 2025-06-25-20:43-UTC; Corrected Mwetamask reference in guidelines.
+- 2025-06-25-21:04-UTC; Updated styling guidance allowing small <style> blocks.
