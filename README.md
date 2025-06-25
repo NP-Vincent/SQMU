@@ -11,5 +11,3 @@ The payment page is coded and deployed. It will trigger the SALE or Delivery con
 
 The button is also a code snippet HTML + JS that is embedded as CustomHTML Block in a page template that will be applicable for all properties of similar type. There are 2 types fractionalised and non-fractionalised.
 
-Mobile users should open the checkout page inside their wallet browser (preferably MetaMask) because other wallets may refresh and lose form data.
-
