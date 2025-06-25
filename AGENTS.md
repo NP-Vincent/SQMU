@@ -21,6 +21,10 @@ Metamask 1.0.html
 
 Metamask 2.0.html
 - Under development better integration for features including better integration with Wordpress.com HTML and CSS
+- When authoring the widget markup keep the `<body>` and main container
+  (`#widget`) styles minimal. Avoid fixed widths so the widget inherits the
+  width of the WordPress column. Center buttons and content with `text-align:
+  center` and allow text to wrap naturally within the parent column.
 
 ## Token Sale Workflow
 The README describes how this widget fits into a larger SQMU sale process:
@@ -76,3 +80,4 @@ Use short, descriptive commit messages (e.g., `Add payment widget skeleton`).
 - 2025-06-25-20:00-UTC; Update public Apps Script URL.
 - 2025-06-25-20:10-UTC; Replace AJAX email with form submission in Metamask 2.0.
 - 2025-06-25-21:00-UTC; Accept form POST in Apps Script.
+- 2025-06-25-21:30-UTC; Centered layout and removed fixed widget width.
