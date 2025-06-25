@@ -17,7 +17,7 @@ Metamask 1.0.html
 - `switchNetwork` now tries to add the chain when `wallet_switchEthereumChain`
   returns error 4902. Earlier versions simply showed "Network switch failed" if
   the user had not added the chain, so this logic prevents that failure.
-- No further changes to be made to Mwetamask 1.0.html. Preserve as fully functional fallback. 
+- No further changes to be made to Metamask 1.0.html. Preserve as fully functional fallback. 
 
 Metamask 2.0.html
 - Under development better integration for features including better integration with Wordpress.com HTML and CSS
@@ -85,3 +85,4 @@ Use short, descriptive commit messages (e.g., `Add payment widget skeleton`).
 - 2025-06-25-20:26-UTC; Document Masu theme requirements for widgets.
 - 2025-06-26-00:00-UTC; Removed inline styles and added wp-block button classes.
 - 2025-06-26-12:00-UTC; Updated show helper to use textContent and sanitized receipt form in Metamask 2.0.
+- 2025-06-25-20:43-UTC; Corrected Mwetamask reference in guidelines.
