@@ -5,6 +5,7 @@
   <title>Crypto Payment</title>
   <style>
     body { font-family: sans-serif; margin: auto; }
+    #widget { max-width: 420px; margin: 20px auto; text-align: center; }
     #msg { white-space: pre-wrap; }
     #qr { margin: 20px 0; }
     #connect-btn, #pay-btn, #disconnect-btn, #network-select {
@@ -13,6 +14,7 @@
   </style>
 </head>
 <body>
+  <div id="widget">
   <h3 id="prop-title"></h3>
   <p id="price-aed"></p>
   <p id="price-usd"></p>
@@ -22,6 +24,11 @@
   <button id="pay-btn" disabled>Pay</button>
   <div id="qr"></div>
   <pre id="msg"></pre>
+  <div id="post-pay" style="display:none;">
+    <button id="schedule-btn">Schedule Call</button>
+    <pre id="tx-details"></pre>
+    <button id="copy-btn">Copy Details</button>
+  </div>
 
   <script src="https://cdn.jsdelivr.net/npm/ethers@6/dist/ethers.umd.min.js"></script>
   <script src="https://unpkg.com/@walletconnect/web3-provider@1/dist/umd/index.min.js"></script>
@@ -41,8 +48,6 @@
     };
 
     const DEST = '0x43F3f03d89290358034993aE3B3938D056D76De2';
-    const SQMU3 = { address: '0x10833B5ffeD7650A5Df136D3F95D936C4fbE2AaA', decimals: 18 };
-    const SALE_ADDR = '0x321C680e79fef934074955d90a0be4290b25b3aD';
 
     const CHAIN_INFO = {
       1: {
@@ -185,25 +190,19 @@
       return tx.wait();
     }
 
-    // Call token sale contract to receive SQMU3
-    async function sendSqmu(option, usdPaid) {
-      const saleChain = Number(window.BUY_CHAIN) || 137;
-      const current = await provider.getNetwork();
-      if (Number(current.chainId) !== saleChain) {
-        const chainOpt = PAYMENT_OPTIONS.find(o => o.chainId === saleChain) || { chainId: saleChain };
-        await switchNetwork(chainOpt);
-        await ensureCorrectNetwork({ chainId: saleChain, name: chainOpt.name || 'Polygon' });
-      }
-
-      const method = option.token === 'USDT' ? 'buyWithUSDT' : 'buyWithUSDC';
-      const abi = [`function ${method}(uint256)`];
-      const sale = new ethers.Contract(SALE_ADDR, abi, signer);
-      const tx = await sale[method](ethers.parseUnits(String(usdPaid), option.decimals));
-      return tx.wait();
-    }
 
     // === MAIN UI HANDLING ===
     document.addEventListener('DOMContentLoaded', async () => {
+      const postPay = document.getElementById('post-pay');
+      const txDetails = document.getElementById('tx-details');
+      function copyDetails() {
+        const text = txDetails.textContent || document.getElementById('msg').textContent;
+        navigator.clipboard.writeText(text);
+      }
+      document.getElementById('copy-btn').onclick = copyDetails;
+      document.getElementById('schedule-btn').onclick = () => {
+        window.open('https://calendly.com/sqmu-call', '_blank');
+      };
       // Setup UI with params
       let search = location.search;
       if (!search && location.hash.includes('?')) {
@@ -294,16 +293,9 @@
           show(`Sending ${amount} ${option.token} to ${DEST} on chain ${network.chainId}...`);
           const receipt = await sendToken(option, DEST, amount);
           const payLink = `${EXPLORERS[option.chainId]}/tx/${receipt.hash}`;
-          show(`✅ Sent ${amount} ${option.token} to ${DEST} on ${option.name}\n\nView transaction: ${payLink}\nCalling sale contract...`);
-
-          try {
-            const sqmuTx = await sendSqmu(option, amount);
-            const saleChain = window.BUY_CHAIN || 137;
-            const sqmuLink = `${EXPLORERS[saleChain]}/tx/${sqmuTx.hash}`;
-            show(`✅ Sent ${amount} ${option.token} to ${DEST} on ${option.name}\nView transaction: ${payLink}\n✅ Purchased ${window.BUY_TOKEN || 'SQMU3'}\nView Polygon tx: ${sqmuLink}`);
-          } catch (e) {
-            show(`Stablecoin paid. Token purchase failed:\n${e.message || e}`);
-          }
+          show(`✅ Sent ${amount} ${option.token} to ${DEST} on ${option.name}\n\nView transaction: ${payLink}`);
+          txDetails.textContent = `Payment: ${payLink}`;
+          postPay.style.display = '';
         } catch (err) {
           show('Payment failed:\n' + (err.message || err));
         }
@@ -330,5 +322,6 @@
       document.getElementById('disconnect-btn').onclick = disconnectWallet;
     });
   </script>
+  </div>
 </body>
 </html>
