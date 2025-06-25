@@ -64,3 +64,4 @@ Use short, descriptive commit messages (e.g., `Add payment widget skeleton`).
 - 2025-06-24-12:18-UTC; Documented token sale workflow from README.
 - 2025-06-25-09:57-UTC; Add deposit computation to launcher and button snippet.
 - 2025-06-25-10:12-UTC; Added post-payment section with scheduling and copy to clipboard.
+- 2025-06-25-10:15-UTC; Document deposit calculation and post-payment meeting scheduling features.
