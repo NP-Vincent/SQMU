@@ -70,3 +70,4 @@ Use short, descriptive commit messages (e.g., `Add payment widget skeleton`).
 - 2025-06-25-14:40-UTC; Simplified Metamask 2.0 to omit SQMU token delivery.
 - 2025-06-25-16:30-UTC; Added email receipt option using EmailJS.
 - 2025-06-25-17:00-UTC; Switched receipts to Google Apps Script.
+- 2025-06-25-18:00-UTC; Added mobile wallet browser instructions.
