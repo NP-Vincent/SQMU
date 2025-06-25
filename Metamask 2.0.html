@@ -21,6 +21,7 @@
   <select id="network-select"></select>
   <button id="connect-btn">Connect Wallet</button>
   <button id="disconnect-btn" style="display:none;">Disconnect</button>
+  <input id="email-input" type="email" placeholder="Email for receipt">
   <button id="pay-btn" disabled>Pay</button>
   <div id="qr"></div>
   <pre id="msg"></pre>
@@ -34,6 +35,7 @@
   <script src="https://unpkg.com/@walletconnect/web3-provider@1/dist/umd/index.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <script>
+    const MAIL_URL = 'YOUR_GOOGLE_SCRIPT_URL'; // Google Apps Script endpoint
     // === CONFIGURATION ===
     const PAYMENT_OPTIONS = [
       { token: 'USDT', name: 'Ethereum', chainId: 1, rpc: 'https://rpc.ankr.com/eth', address: '0xdAC17F958D2ee523a2206206994597C13D831ec7', decimals: 6 },
@@ -81,7 +83,8 @@
     }
 
     function enablePayBtn(enabled) {
-      document.getElementById('pay-btn').disabled = !enabled;
+      const emailOk = document.getElementById('email-input').validity.valid;
+      document.getElementById('pay-btn').disabled = !(enabled && emailOk);
     }
 
     // === WALLET CONNECTION LOGIC ===
@@ -195,6 +198,8 @@
     document.addEventListener('DOMContentLoaded', async () => {
       const postPay = document.getElementById('post-pay');
       const txDetails = document.getElementById('tx-details');
+      const emailInput = document.getElementById('email-input');
+      emailInput.oninput = () => enablePayBtn(!!(provider && signer));
       function copyDetails() {
         const text = txDetails.textContent || document.getElementById('msg').textContent;
         navigator.clipboard.writeText(text);
@@ -296,6 +301,28 @@
           show(`✅ Sent ${amount} ${option.token} to ${DEST} on ${option.name}\n\nView transaction: ${payLink}`);
           txDetails.textContent = `Payment: ${payLink}`;
           postPay.style.display = '';
+          const email = emailInput.value;
+          try {
+            const res = await fetch(MAIL_URL, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                to_email: email,
+                tx_link: payLink,
+                usd: amount,
+                chain: option.name,
+                token: option.token
+              })
+            });
+            const text = await res.text();
+            if (text === 'OK') {
+              show('Email sent!');
+            } else {
+              show('Email error: ' + text);
+            }
+          } catch (mailErr) {
+            show(`Email failed:\n${mailErr.message || mailErr}`);
+          }
         } catch (err) {
           show('Payment failed:\n' + (err.message || err));
         }
