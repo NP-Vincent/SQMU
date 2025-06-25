@@ -5,6 +5,7 @@
   <title>Crypto Payment 2.1</title>
   <style>
     body { font-family: sans-serif; margin: auto; }
+    #widget { max-width: 420px; margin: 20px auto; text-align: center; }
     #msg { white-space: pre-wrap; }
     #qr { margin: 20px 0; }
     #connect-btn, #pay-btn, #disconnect-btn, #network-select {
@@ -13,6 +14,7 @@
   </style>
 </head>
 <body>
+  <div id="widget">
   <h3 id="prop-title"></h3>
   <p id="price-aed"></p>
   <p id="price-usd"></p>
@@ -22,6 +24,11 @@
   <button id="pay-btn" disabled>Pay</button>
   <div id="qr"></div>
   <pre id="msg"></pre>
+  <div id="post-pay" style="display:none;">
+    <button id="schedule-btn">Schedule Call</button>
+    <pre id="tx-details"></pre>
+    <button id="copy-btn">Copy Details</button>
+  </div>
 
   <script src="https://cdn.jsdelivr.net/npm/ethers@6/dist/ethers.umd.min.js"></script>
   <script src="https://unpkg.com/@walletconnect/web3-provider@1/dist/umd/index.min.js"></script>
@@ -205,6 +212,14 @@
 
     // === MAIN UI HANDLING ===
     document.addEventListener('DOMContentLoaded', async () => {
+      const postPay = document.getElementById('post-pay');
+      const txDetails = document.getElementById('tx-details');
+      document.getElementById('copy-btn').onclick = () => {
+        navigator.clipboard.writeText(txDetails.textContent);
+      };
+      document.getElementById('schedule-btn').onclick = () => {
+        window.open('https://calendly.com/sqmu-call', '_blank');
+      };
       // Setup UI with params
       let search = location.search;
       if (!search && location.hash.includes('?')) {
@@ -302,8 +317,12 @@
             const saleChain = window.BUY_CHAIN || 137;
             const sqmuLink = `${EXPLORERS[saleChain]}/tx/${sqmuTx.hash}`;
             show(`✅ Sent ${amount} ${option.token} to ${DEST} on ${option.name}\nView transaction: ${payLink}\n✅ Purchased ${window.BUY_TOKEN || 'SQMU3'}\nView Polygon tx: ${sqmuLink}`);
+            txDetails.textContent = `Payment: ${payLink}\nToken purchase: ${sqmuLink}`;
+            postPay.style.display = '';
           } catch (e) {
             show(`Stablecoin paid. Token purchase failed:\n${e.message || e}`);
+            txDetails.textContent = `Payment: ${payLink}`;
+            postPay.style.display = '';
           }
         } catch (err) {
           show('Payment failed:\n' + (err.message || err));
@@ -331,5 +350,6 @@
       document.getElementById('disconnect-btn').onclick = disconnectWallet;
     });
   </script>
+  </div>
 </body>
 </html>
