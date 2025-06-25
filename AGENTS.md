@@ -62,3 +62,4 @@ Use short, descriptive commit messages (e.g., `Add payment widget skeleton`).
 - 2025-06-24-00:00-UTC; Fix explorer links for ethers v6.
 - 2025-06-23-23:58-UTC; Added Metamask 2.1 and SQMU distributor contract.
 - 2025-06-24-12:18-UTC; Documented token sale workflow from README.
+- 2025-06-25-09:57-UTC; Add deposit computation to launcher and button snippet.

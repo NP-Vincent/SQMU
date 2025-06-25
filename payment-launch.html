@@ -49,6 +49,7 @@
         alert('Enter a valid USD amount');
         return;
       }
+      const depositUsd = (+usd * 0.001).toFixed(2);
       const idx = document.getElementById('network-select').value;
       const tokens = ['USDT','USDC','USDC'];
       const chains = [1,42161,137];
@@ -57,7 +58,8 @@
       if (aed) {
         url.searchParams.set('aed', aed);
       }
-      url.searchParams.set('usd', usd);
+      url.searchParams.set('usdFull', usd);
+      url.searchParams.set('usd', depositUsd);
       url.searchParams.set('token', tokens[idx]);
       url.searchParams.set('chain', chains[idx]);
       url.searchParams.set('buy', TARGET.token);

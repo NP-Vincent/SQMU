@@ -1,0 +1,36 @@
+<div class="wp-block-button">
+  <a id="crypto-pay-btn"
+     class="wp-block-button__link wp-element-button"
+     href="#"
+     style="display:none;">
+    Pay with Crypto
+  </a>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Finds the first Pay with Crypto button on the page
+    var btn = document.getElementById('crypto-pay-btn');
+    // Grabs price and title as specified
+    var priceEl = document.querySelector('.es-price');
+    var titleEl = document.querySelector('.property-title');
+    if (btn && priceEl && titleEl) {
+        btn.style.display = '';
+        btn.onclick = function(e) {
+            e.preventDefault();
+            // Extract price ("AED 892,000" → 892000)
+            var rawPrice = priceEl.innerText.replace(/[^\d.]/g, '');
+            var priceAED = parseInt(rawPrice.replace(/,/g, ''));
+            var usdRate = 3.67;
+            var priceUSD = (priceAED / usdRate).toFixed(2);
+            var depositUsd = (priceUSD * 0.001).toFixed(2);
+            // Encode title for URL
+            var propTitle = encodeURIComponent(titleEl.innerText.trim());
+            // Payment page URL with params (customize as needed)
+            var payUrl = 'https://sqmu.net/pay/?title=' + propTitle +
+                         '&aed=' + priceAED + '&usdFull=' + priceUSD +
+                         '&usd=' + depositUsd;
+            window.open(payUrl, '_blank');
+        };
+    }
+});
+</script>
