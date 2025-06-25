@@ -3,15 +3,6 @@
 <head>
   <meta charset="UTF-8">
   <title>Crypto Payment 2.1</title>
-  <style>
-    body { font-family: sans-serif; margin: 0; }
-    #widget { margin: 20px 0; text-align: center; }
-    #msg { white-space: pre-wrap; }
-    #qr { margin: 20px 0; }
-    #connect-btn, #pay-btn, #disconnect-btn, #network-select {
-      margin: 5px;
-    }
-  </style>
 </head>
 <body>
   <div id="widget">
@@ -19,15 +10,15 @@
   <p id="price-aed"></p>
   <p id="price-usd"></p>
   <select id="network-select"></select>
-  <button id="connect-btn">Connect Wallet</button>
-  <button id="disconnect-btn" style="display:none;">Disconnect</button>
-  <button id="pay-btn" disabled>Pay</button>
+  <button id="connect-btn" class="wp-block-button__link">Connect Wallet</button>
+  <button id="disconnect-btn" class="wp-block-button__link" style="display:none;">Disconnect</button>
+  <button id="pay-btn" class="wp-block-button__link" disabled>Pay</button>
   <div id="qr"></div>
   <pre id="msg"></pre>
   <div id="post-pay" style="display:none;">
-    <button id="schedule-btn">Schedule Call</button>
+    <button id="schedule-btn" class="wp-block-button__link">Schedule Call</button>
     <pre id="tx-details"></pre>
-    <button id="copy-btn">Copy Details</button>
+    <button id="copy-btn" class="wp-block-button__link">Copy Details</button>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/ethers@6/dist/ethers.umd.min.js"></script>
