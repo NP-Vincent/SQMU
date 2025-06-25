@@ -18,6 +18,7 @@
   <h3 id="prop-title"></h3>
   <p id="price-aed"></p>
   <p id="price-usd"></p>
+  <p id="mobile-tip" style="display:none;">For best results open this page from your wallet's built-in browser (preferably MetaMask). Other wallet browsers may refresh and lose form data.</p>
   <select id="network-select"></select>
   <button id="connect-btn">Connect Wallet</button>
   <button id="disconnect-btn" style="display:none;">Disconnect</button>
@@ -199,6 +200,10 @@
       const postPay = document.getElementById('post-pay');
       const txDetails = document.getElementById('tx-details');
       const emailInput = document.getElementById('email-input');
+      const mobileTip = document.getElementById('mobile-tip');
+      const ua = navigator.userAgent || navigator.vendor || '';
+      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua);
+      if (isMobile) mobileTip.style.display = '';
       emailInput.oninput = () => enablePayBtn(!!(provider && signer));
       function copyDetails() {
         const text = txDetails.textContent || document.getElementById('msg').textContent;
