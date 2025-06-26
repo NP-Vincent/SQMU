@@ -90,3 +90,4 @@ Use short, descriptive commit messages (e.g., `Add payment widget skeleton`).
 - 2025-06-26-20:49-UTC; Required email field with label added.
 - 2025-06-26-20:55-UTC; Automatically email receipt after payment.
 - 2025-06-26-20:56-UTC; Added layout spacing and required label styling in Metamask 2.0.
+- 2025-06-26-21:30-UTC; Added agent commission support and agent code input in Metamask 2.1 with updated distributor contract.
