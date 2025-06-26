@@ -88,3 +88,4 @@ Use short, descriptive commit messages (e.g., `Add payment widget skeleton`).
 - 2025-06-25-20:43-UTC; Corrected Mwetamask reference in guidelines.
 - 2025-06-25-21:04-UTC; Updated styling guidance allowing small <style> blocks.
 - 2025-06-26-20:49-UTC; Required email field with label added.
+- 2025-06-26-20:55-UTC; Automatically email receipt after payment.

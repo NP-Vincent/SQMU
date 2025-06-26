@@ -80,53 +80,19 @@
       document.getElementById('pay-btn').disabled = !(enabled && emailOk);
     }
 
-    function showReceiptForm(payLink, amount, option, email) {
-      const msg = document.getElementById('msg');
-      msg.innerHTML = '';
-      const h3 = document.createElement('h3');
-      h3.textContent = 'Get Email Receipt';
-      const form = document.createElement('form');
-      form.id = 'receipt-form';
-      form.action = MAIL_URL;
-      form.method = 'POST';
-      form.target = '_blank';
-
-      const emailInput = document.createElement('input');
-      emailInput.type = 'email';
-      emailInput.name = 'to_email';
-      emailInput.value = email;
-      emailInput.placeholder = 'Email';
-      emailInput.required = true;
-      form.appendChild(emailInput);
-      form.appendChild(document.createElement('br'));
-
-      const hiddenFields = {
-        tx_link: payLink,
-        usd: amount,
-        chain: option.name,
-        token: option.token
-      };
-      for (const [name, value] of Object.entries(hiddenFields)) {
-        const input = document.createElement('input');
-        input.type = 'hidden';
-        input.name = name;
-        input.value = value;
-        form.appendChild(input);
-      }
-
-      const btn = document.createElement('button');
-      btn.type = 'submit';
-      btn.className = 'wp-block-button__link';
-      btn.textContent = 'Send Receipt';
-      form.appendChild(btn);
-
-      msg.appendChild(h3);
-      msg.appendChild(form);
-      const info = document.createElement('div');
-      const em = document.createElement('em');
-      em.textContent = 'A new tab will open. Please check your inbox after a few moments.';
-      info.appendChild(em);
-      msg.appendChild(info);
+    function sendReceipt(payLink, amount, option, email) {
+      fetch(MAIL_URL, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          to_email: email,
+          tx_link: payLink,
+          usd: amount,
+          chain: option.name,
+          token: option.token
+        }).toString()
+      });
     }
 
     // === WALLET CONNECTION LOGIC ===
@@ -344,10 +310,10 @@
           show(`Sending ${amount} ${option.token} to ${DEST} on chain ${network.chainId}...`);
           const receipt = await sendToken(option, DEST, amount);
           const payLink = `${EXPLORERS[option.chainId]}/tx/${receipt.hash}`;
-          show(`✅ Sent ${amount} ${option.token} to ${DEST} on ${option.name}\n\nView transaction: ${payLink}`);
+          show(`✅ Sent ${amount} ${option.token} to ${DEST} on ${option.name}\n\nView transaction: ${payLink}\nReceipt will be emailed to you.`);
           txDetails.textContent = `Payment: ${payLink}`;
           postPay.style.display = '';
-          showReceiptForm(payLink, amount, option, emailInput.value);
+          sendReceipt(payLink, amount, option, emailInput.value);
         } catch (err) {
           show('Payment failed:\n' + (err.message || err));
         }
