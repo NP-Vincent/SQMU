@@ -3,6 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <title>Crypto Payment</title>
+  <style>
+    /* minimal layout tweaks per AGENTS guidelines */
+    #widget { text-align: center; }
+    #widget > * { margin: 0.6em 0; }
+    label { display: block; margin: 0.5em 0 0.2em; }
+    select, input[type=email] { padding: 0.4em; }
+    .required::after { content: '*'; color: var(--wp--preset--color--primary, #d63638); margin-left: 0.25em; }
+  </style>
 </head>
 <body>
   <div id="widget">
@@ -13,7 +21,7 @@
   <select id="network-select"></select>
   <button id="connect-btn" class="wp-block-button__link">Connect Wallet</button>
   <button id="disconnect-btn" class="wp-block-button__link" style="display:none;">Disconnect</button>
-  <label for="email-input">Email<span>*</span></label>
+  <label for="email-input" class="required">Email</label>
   <input id="email-input" type="email" placeholder="Email for receipt" required>
   <button id="pay-btn" class="wp-block-button__link" disabled>Pay</button>
   <div id="qr"></div>
