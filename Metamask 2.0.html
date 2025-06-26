@@ -13,7 +13,8 @@
   <select id="network-select"></select>
   <button id="connect-btn" class="wp-block-button__link">Connect Wallet</button>
   <button id="disconnect-btn" class="wp-block-button__link" style="display:none;">Disconnect</button>
-  <input id="email-input" type="email" placeholder="Email for receipt">
+  <label for="email-input">Email<span>*</span></label>
+  <input id="email-input" type="email" placeholder="Email for receipt" required>
   <button id="pay-btn" class="wp-block-button__link" disabled>Pay</button>
   <div id="qr"></div>
   <pre id="msg"></pre>
