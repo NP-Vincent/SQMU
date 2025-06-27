@@ -106,7 +106,7 @@
           token_amt: tokenAmt,
           token_id: tokenId,
           sqmu_link: sqmuLink,
-          token_addr: SQMU3.address,
+          token_addr: SQMU4.address,
           fail: fail ? '1' : ''
         }).toString()
       });
@@ -227,13 +227,13 @@
       const dist = new ethers.Contract(SALE_ADDR, distAbi, readProv);
       const treasury = await dist.treasury();
       const balAbi = ['function balanceOf(address) view returns(uint256)'];
-      const token = new ethers.Contract(SQMU3.address, balAbi, readProv);
+      const token = new ethers.Contract(SQMU4.address, balAbi, readProv);
       const bal = await token.balanceOf(treasury);
-      const needed = ethers.parseUnits(String(usdAmount * 100), SQMU3.decimals);
+      const needed = ethers.parseUnits(String(usdAmount * 100), SQMU4.decimals);
       return bal >= needed;
     }
 
-    // Call Polygon contract to distribute SQMU3 from treasury
+    // Call Polygon contract to distribute SQMU4 from treasury
     async function sendSqmu(option, usdPaid, code) {
       const saleChain = Number(window.BUY_CHAIN) || 137;
       const current = await provider.getNetwork();
@@ -246,8 +246,8 @@
       const abi = ['function distribute(address to, uint256 amount, string agentCode)'];
       const sale = new ethers.Contract(SALE_ADDR, abi, signer);
       const to = await signer.getAddress();
-      const tokenAmt = usdPaid * 100; // 1 SQMU3 = 0.01 USD
-      const tx = await sale.distribute(to, ethers.parseUnits(String(tokenAmt), SQMU3.decimals), code);
+      const tokenAmt = usdPaid * 100; // 1 SQMU4 = 0.01 USD
+      const tx = await sale.distribute(to, ethers.parseUnits(String(tokenAmt), SQMU4.decimals), code);
       return tx.wait();
     }
 
@@ -385,10 +385,10 @@
             show(`Stablecoin paid. Token purchase failed:\n${e.message || e}\nReceipt will be emailed to you.`);
             txDetails.textContent = `Payment: ${payLink}`;
             postPay.style.display = '';
-            sendReceipt(payLink, amount, option, emailInput.value, tokenAmt, window.BUY_TOKEN || 'SQMU3', tokenTxLink, true);
+            sendReceipt(payLink, amount, option, emailInput.value, tokenAmt, window.BUY_TOKEN || 'SQMU4', tokenTxLink, true);
           }
           if (!tokenFail) {
-            sendReceipt(payLink, amount, option, emailInput.value, tokenAmt, window.BUY_TOKEN || 'SQMU3', tokenTxLink);
+            sendReceipt(payLink, amount, option, emailInput.value, tokenAmt, window.BUY_TOKEN || 'SQMU4', tokenTxLink);
           }
         } catch (err) {
           show('Payment failed:\n' + (err.message || err));
