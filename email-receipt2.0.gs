@@ -25,7 +25,7 @@ function doPost(e) {
       if (sqmuLink) {
         body += '\nToken purchase tx: ' + sqmuLink;
       }
-      body += '\nAdd this token to your wallet using the contract address above.';
+      body += '\nAdd the contract address above in your wallet to view your purchased SQMU tokens.';
     }
     if (fail) {
       body += '\nSQMU delivery failed. Please reply with your wallet details so we can resend your tokens.';
