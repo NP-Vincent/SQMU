@@ -3,12 +3,14 @@ pragma solidity ^0.8.0;
 
 interface IERC20 {
     function transferFrom(address from, address to, uint256 amount) external returns (bool);
+    function balanceOf(address account) external view returns (uint256);
 }
 
 /**
  * @title SQMU Distributor
  * @notice Transfers SQMU tokens from a treasury wallet to buyers.
  * The treasury must approve this contract to spend its SQMU balance.
+ * Use {available} to check how many SQMU remain in the treasury.
  */
 contract SqmuDistributor {
     address public owner;
@@ -55,6 +57,11 @@ contract SqmuDistributor {
         require(agent != address(0), "Zero address");
         agentCodes[code] = agent;
         emit AgentCodeSet(code, agent);
+    }
+
+    /// @notice Returns the SQMU balance currently held in the treasury.
+    function available() external view returns (uint256) {
+        return sqmu.balanceOf(treasury);
     }
 
     /// @notice Transfer SQMU from treasury to `to` with optional agent commission.
