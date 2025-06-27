@@ -65,7 +65,8 @@ contract SqmuDistributor {
     }
 
     /// @notice Transfer SQMU from treasury to `to` with optional agent commission.
-    function distribute(address to, uint256 amount, string calldata agentCode) external onlyOwner {
+    function distribute(address to, uint256 amount, string calldata agentCode) external {
+        require(msg.sender == to, "not recipient");
         address agent = agentCodes[agentCode];
         uint256 agentAmount = 0;
         uint256 buyerAmount = amount;
