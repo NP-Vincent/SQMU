@@ -52,8 +52,8 @@
     };
 
     const DEST = '0x43F3f03d89290358034993aE3B3938D056D76De2';
-    const SQMU3 = { address: '0x10833B5ffeD7650A5Df136D3F95D936C4fbE2AaA', decimals: 18 };
-    const SALE_ADDR = '0x321C680e79fef934074955d90a0be4290b25b3aD';
+    const SQMU4 = { address: '0x38753025A423581aCdC1A167fd603a7EBEBfB3ad', decimals: 2 };
+    const SALE_ADDR = '0x60dE2232787B4ba5DC2a936AFE8FED31bd19835c';
 
     const CHAIN_INFO = {
       1: {
@@ -377,7 +377,7 @@
             const sqmuLink = `${EXPLORERS[saleChain]}/tx/${sqmuTx.hash}`;
             tokenAmt = amount * 100;
             tokenTxLink = sqmuLink;
-            show(`✅ Sent ${amount} ${option.token} to ${DEST} on ${option.name}\nView transaction: ${payLink}\n✅ Purchased ${window.BUY_TOKEN || 'SQMU3'}\nView Polygon tx: ${sqmuLink}\nReceipt will be emailed to you.`);
+            show(`✅ Sent ${amount} ${option.token} to ${DEST} on ${option.name}\nView transaction: ${payLink}\n✅ Purchased ${window.BUY_TOKEN || 'SQMU4'}\nView Polygon tx: ${sqmuLink}\nReceipt will be emailed to you.`);
             txDetails.textContent = `Payment: ${payLink}\nToken purchase: ${sqmuLink}`;
             postPay.style.display = '';
           } catch (e) {
