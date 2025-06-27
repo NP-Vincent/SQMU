@@ -97,3 +97,4 @@ Use short, descriptive commit messages (e.g., `Add payment widget skeleton`).
 - 2025-06-27-10:00-UTC; Added fail flag to receipt emails when SQMU delivery fails.
 - 2025-06-27-10:30-UTC; Added SQMU supply check before payment in Metamask 2.1.
 - 2025-06-27-11:20-UTC; Added available supply view to SqmuDistributor.
+- 2025-06-27-12:00-UTC; Added SQMU balance display and token amount purchase option in launcher.

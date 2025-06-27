@@ -8,9 +8,11 @@
 <body>
   <h3>Buy SQMU3</h3>
   <p>Token to receive: <b>SQMU3</b> on <b>Polygon</b></p>
-  <label>Amount in USD<br>
-    <input id="usd-input" type="number" min="1" step="0.01" placeholder="e.g. 25">
+  <p>Available: <span id="avail">...</span> SQMU3</p>
+  <label>SQMU Amount<br>
+    <input id="sqmu-input" type="number" min="1" step="1" placeholder="100">
   </label>
+  <p>USD Amount: <span id="usd-display"></span></p>
   <div>
     <select id="network-select">
       <option value="0">USDT (Ethereum)</option>
@@ -20,48 +22,60 @@
   </div>
   <button id="pay-btn" class="wp-block-button__link">Continue to Pay</button>
 
-  <!-- Direct string concatenation can be corrupted when pasted in visual editors -->
+  <script src="https://cdn.jsdelivr.net/npm/ethers@6/dist/ethers.umd.min.js"></script>
   <script>
-    const TARGET = { token: 'SQMU3', chainId: 137 };
-    document.getElementById('pay-btn').onclick = function() {
-      const titleEl = document.querySelector('.property-title');
-      const pageTitle = titleEl ? titleEl.textContent : document.title;
+    const TARGET = { token: 'SQMU3', chainId: 137, decimals: 18 };
+    const SALE_ADDR = '0x321C680e79fef934074955d90a0be4290b25b3aD';
+    const RPC = 'https://polygon-rpc.com';
+    const SQMU_USD = 0.01; // 1 SQMU3 = 0.01 USD
 
-      const priceEl = document.querySelector('.es-price');
-      let usd, aed;
-      if (priceEl) {
-        const match = priceEl.textContent.replace(/,/g, '').match(/AED\s*([\d.]+)/i);
-        if (match) {
-          aed = parseFloat(match[1]);
-          usd = (aed / 3.67).toFixed(2);
-        }
-      } else {
-        usd = document.getElementById('usd-input').value;
-        if (usd) {
-          aed = (parseFloat(usd) * 3.67).toFixed(2);
-        }
+    async function fetchAvailable() {
+      try {
+        const provider = new ethers.JsonRpcProvider(RPC);
+        const sale = new ethers.Contract(SALE_ADDR, ['function available() view returns(uint256)'], provider);
+        const bal = await sale.available();
+        const supply = Number(ethers.formatUnits(bal, TARGET.decimals));
+        document.getElementById('avail').textContent = supply.toLocaleString();
+        return supply;
+      } catch (e) {
+        document.getElementById('avail').textContent = 'N/A';
       }
-      if (!usd || isNaN(usd) || +usd <= 0) {
-        alert('Enter a valid USD amount');
+    }
+
+    function updateUsd() {
+      const amt = parseFloat(document.getElementById('sqmu-input').value);
+      if (!amt || amt <= 0) {
+        document.getElementById('usd-display').textContent = '';
         return;
       }
-      const depositUsd = (+usd * 0.001).toFixed(2);
-      const idx = document.getElementById('network-select').value;
-      const tokens = ['USDT','USDC','USDC'];
-      const chains = [1,42161,137];
-      const url = new URL('https://sqmu.net/metamask2');
-      url.searchParams.set('title', pageTitle);
-      if (aed) {
-        url.searchParams.set('aed', aed);
-      }
-      url.searchParams.set('usdFull', usd);
-      url.searchParams.set('usd', depositUsd);
-      url.searchParams.set('token', tokens[idx]);
-      url.searchParams.set('chain', chains[idx]);
-      url.searchParams.set('buy', TARGET.token);
-      url.searchParams.set('buyChain', TARGET.chainId);
-      window.open(url.toString(), '_blank');
-    };
+      document.getElementById('usd-display').textContent = (amt * SQMU_USD).toFixed(2);
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      fetchAvailable();
+      document.getElementById('sqmu-input').oninput = updateUsd;
+      document.getElementById('pay-btn').onclick = () => {
+        const sqmuAmt = parseFloat(document.getElementById('sqmu-input').value);
+        if (!sqmuAmt || sqmuAmt <= 0) {
+          alert('Enter a valid SQMU amount');
+          return;
+        }
+        const usd = (sqmuAmt * SQMU_USD).toFixed(2);
+        const idx = document.getElementById('network-select').value;
+        const tokens = ['USDT','USDC','USDC'];
+        const chains = [1,42161,137];
+        const titleEl = document.querySelector('.property-title');
+        const pageTitle = titleEl ? titleEl.textContent : document.title;
+        const url = new URL('https://sqmu.net/metamask2');
+        url.searchParams.set('title', pageTitle);
+        url.searchParams.set('usd', usd);
+        url.searchParams.set('token', tokens[idx]);
+        url.searchParams.set('chain', chains[idx]);
+        url.searchParams.set('buy', TARGET.token);
+        url.searchParams.set('buyChain', TARGET.chainId);
+        window.open(url.toString(), '_blank');
+      };
+    });
   </script>
 </body>
 </html>
