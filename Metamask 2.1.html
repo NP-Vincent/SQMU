@@ -91,7 +91,8 @@
       document.getElementById('pay-btn').disabled = !(enabled && emailOk);
     }
 
-    function sendReceipt(payLink, amount, option, email) {
+
+    function sendReceipt(payLink, amount, option, email, tokenAmt, tokenId, sqmuLink) {
       fetch(MAIL_URL, {
         method: 'POST',
         mode: 'no-cors',
@@ -101,7 +102,11 @@
           tx_link: payLink,
           usd: amount,
           chain: option.name,
-          token: option.token
+          token: option.token,
+          token_amt: tokenAmt,
+          token_id: tokenId,
+          sqmu_link: sqmuLink,
+          token_addr: SQMU3.address
         }).toString()
       });
     }
@@ -339,11 +344,16 @@
           show(`✅ Sent ${amount} ${option.token} to ${DEST} on ${option.name}\n\nView transaction: ${payLink}\nCalling sale contract...`);
           sendReceipt(payLink, amount, option, emailInput.value);
 
+          let tokenAmt = '';
+          let tokenTxLink = '';
+
           const code = agentInput.value.trim();
           try {
             const sqmuTx = await sendSqmu(option, amount, code);
             const saleChain = window.BUY_CHAIN || 137;
             const sqmuLink = `${EXPLORERS[saleChain]}/tx/${sqmuTx.hash}`;
+            tokenAmt = amount * 100;
+            tokenTxLink = sqmuLink;
             show(`✅ Sent ${amount} ${option.token} to ${DEST} on ${option.name}\nView transaction: ${payLink}\n✅ Purchased ${window.BUY_TOKEN || 'SQMU3'}\nView Polygon tx: ${sqmuLink}\nReceipt will be emailed to you.`);
             txDetails.textContent = `Payment: ${payLink}\nToken purchase: ${sqmuLink}`;
             postPay.style.display = '';
@@ -352,6 +362,7 @@
             txDetails.textContent = `Payment: ${payLink}`;
             postPay.style.display = '';
           }
+          sendReceipt(payLink, amount, option, emailInput.value, tokenAmt, window.BUY_TOKEN || 'SQMU3', tokenTxLink);
         } catch (err) {
           show('Payment failed:\n' + (err.message || err));
         }
