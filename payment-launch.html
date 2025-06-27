@@ -6,8 +6,8 @@
   <title>SQMU Purchase</title>
 </head>
 <body>
-  <h3>Buy SQMU3</h3>
-  <p>Token to receive: <b>SQMU3</b> on <b>Polygon</b></p>
+  <h3>Buy SQMU4</h3>
+  <p>Token to receive: <b>SQMU4</b> on <b>Polygon</b></p>
   <p>Available: <span id="avail">...</span> SQMU3</p>
   <label>SQMU Amount<br>
     <input id="sqmu-input" type="number" min="1" step="1" placeholder="100">
@@ -24,10 +24,10 @@
 
   <script src="https://cdn.jsdelivr.net/npm/ethers@6/dist/ethers.umd.min.js"></script>
   <script>
-    const TARGET = { token: 'SQMU3', chainId: 137, decimals: 18 };
-    const SALE_ADDR = '0x321C680e79fef934074955d90a0be4290b25b3aD';
+    const TARGET = { token: 'SQMU4', chainId: 137, decimals: 2 };
+    const SALE_ADDR = '0x60de2232787b4ba5dc2a936afe8fed31bd19835c';
     const RPC = 'https://polygon-rpc.com';
-    const SQMU_USD = 0.01; // 1 SQMU3 = 0.01 USD
+    const SQMU_USD = 0.01; // 1 SQMU4 = 0.01 USD
 
     async function fetchAvailable() {
       try {
