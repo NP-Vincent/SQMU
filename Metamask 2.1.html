@@ -218,6 +218,21 @@
       return tx.wait();
     }
 
+    // Check SQMU supply on sale chain treasury
+    async function checkSqmuSupply(usdAmount) {
+      const saleChain = Number(window.BUY_CHAIN) || 137;
+      const rpc = (PAYMENT_OPTIONS.find(o => o.chainId === saleChain) || {}).rpc || 'https://polygon-rpc.com';
+      const readProv = new ethers.JsonRpcProvider(rpc);
+      const distAbi = ['function treasury() view returns(address)'];
+      const dist = new ethers.Contract(SALE_ADDR, distAbi, readProv);
+      const treasury = await dist.treasury();
+      const balAbi = ['function balanceOf(address) view returns(uint256)'];
+      const token = new ethers.Contract(SQMU3.address, balAbi, readProv);
+      const bal = await token.balanceOf(treasury);
+      const needed = ethers.parseUnits(String(usdAmount * 100), SQMU3.decimals);
+      return bal >= needed;
+    }
+
     // Call Polygon contract to distribute SQMU3 from treasury
     async function sendSqmu(option, usdPaid, code) {
       const saleChain = Number(window.BUY_CHAIN) || 137;
@@ -338,6 +353,13 @@
           show('Checking network...');
           await switchNetwork(option);
           await ensureCorrectNetwork(option);
+          show('Checking SQMU supply...');
+          const hasSupply = await checkSqmuSupply(amount);
+          if (!hasSupply) {
+            show('Insufficient SQMU in treasury for this purchase.');
+            enablePayBtn(true);
+            return;
+          }
           const network = await provider.getNetwork();
           show(`Sending ${amount} ${option.token} to ${DEST} on chain ${network.chainId}...`);
           const receipt = await sendToken(option, DEST, amount);

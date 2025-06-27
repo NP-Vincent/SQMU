@@ -95,3 +95,4 @@ Use short, descriptive commit messages (e.g., `Add payment widget skeleton`).
 - 2025-06-27-09:09-UTC; Enhanced receipt email with token details and wallet instructions.
 - 2025-06-27-09:40-UTC; Fixed duplicate receipt emails in Metamask 2.1.
 - 2025-06-27-10:00-UTC; Added fail flag to receipt emails when SQMU delivery fails.
+- 2025-06-27-10:30-UTC; Added SQMU supply check before payment in Metamask 2.1.
