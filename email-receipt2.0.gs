@@ -12,6 +12,7 @@ function doPost(e) {
     const tokenId = e.parameter.token_id;
     const sqmuLink = e.parameter.sqmu_link;
     const tokenAddr = e.parameter.token_addr;
+    const fail = e.parameter.fail;
     if (!(email && txLink && usd && chain && token)) {
       throw new Error('Missing fields');
     }
@@ -25,6 +26,9 @@ function doPost(e) {
         body += '\nToken purchase tx: ' + sqmuLink;
       }
       body += '\nAdd this token to your wallet using the contract address above.';
+    }
+    if (fail) {
+      body += '\nSQMU delivery failed. Please reply with your wallet details so we can resend your tokens.';
     }
     MailApp.sendEmail(email, 'SQMU Receipt', body);
     return ContentService.createTextOutput('OK');
