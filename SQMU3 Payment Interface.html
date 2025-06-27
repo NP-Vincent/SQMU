@@ -1,0 +1,180 @@
+<!-- SQMU3 Sale Widget: Buy SQMU3 with USDC on Polygon -->
+<html>
+<head>
+  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js" defer></script>
+  <style>
+    body { font-family: sans-serif; max-width: 420px; margin: 32px auto; }
+    #widget { border-radius: 14px; background: #fafdff; box-shadow: 0 2px 12px #0002; padding: 24px 18px; }
+    input, button { font-size: 1em; margin-top: 7px; padding: 7px 13px; border-radius: 8px; border: 1px solid #ddd; }
+    button { background: #ddeeff; border: none; cursor: pointer; margin-right: 6px; }
+    button:disabled { opacity: 0.6; cursor: not-allowed; }
+    #balances, #calc, #txinfo { margin: 11px 0 10px 0; font-size: 1em; }
+    #confirm { color: #227b23; }
+    #error { color: #ae1e00; }
+    #calc { color: #09498c; }
+  </style>
+</head>
+<body>
+<div id="widget">
+  <h3>Buy SQMU3 with USDC (Polygon)</h3>
+  <div id="balances"></div>
+  <label>
+    SQMU3 to Buy:<br>
+    <input id="sqmuInput" type="number" min="0.01" step="0.01" placeholder="e.g. 10.25">
+  </label>
+  <div id="calc"></div>
+  <button id="connectBtn">Connect Wallet</button>
+  <button id="approveBtn" style="display:none">Approve USDC</button>
+  <button id="buyBtn" style="display:none">Buy SQMU3</button>
+  <div id="confirm"></div>
+  <div id="error"></div>
+  <div id="txinfo"></div>
+</div>
+<script defer>
+const SQMU3_ADDR = "0x10833B5ffeD7650A5Df136D3F95D936C4fbE2AaA";
+const USDC_ADDR = "0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359";
+const SALE_ADDR = "0x321C680e79fef934074955d90a0be4290b25b3aD";
+const rateUSDC = "1000"; // 1 SQMU3 = 0.001 USDC
+const SQMU3_DECIMALS = 2;
+const USDC_DECIMALS = 6;
+
+// ABIs
+const ERC20_ABI = [
+  "function balanceOf(address) view returns (uint256)",
+  "function decimals() view returns (uint8)",
+  "function allowance(address owner, address spender) view returns (uint256)",
+  "function approve(address spender, uint256 value) returns (bool)"
+];
+const SALE_ABI = [
+  "function buyWithUSDC(uint256 usdcAmount) external",
+];
+
+// State
+let provider, signer, userAddr, usdc, sqmu3, sale;
+
+function format(num, decimals) {
+  return (+ethers.utils.formatUnits(num, decimals)).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: decimals});
+}
+function roundToDecimals(num, decimals) {
+  const factor = 10 ** decimals;
+  return Math.floor(num * factor) / factor;
+}
+
+// Live calculation: SQMU3 → USDC
+function sqmu3ToUsdc(sqmu3) {
+  // Returns {usdcMicro, usdcHuman}
+  if (!sqmu3 || isNaN(sqmu3) || +sqmu3 <= 0) return {usdcMicro: "0", usdcHuman: "0"};
+  const sqmu3Micro = ethers.utils.parseUnits(sqmu3, SQMU3_DECIMALS);
+  // usdcAmount = sqmu3Amount * rateUSDC / 10^SQMU3_DECIMALS
+  const usdcMicro = sqmu3Micro.mul(rateUSDC).div(ethers.BigNumber.from(10).pow(SQMU3_DECIMALS));
+  const usdcHuman = +ethers.utils.formatUnits(usdcMicro, USDC_DECIMALS);
+  return {usdcMicro, usdcHuman};
+}
+
+async function showBalances() {
+  if (!signer || !userAddr) return;
+  try {
+    let [usdcBal, sqmu3Bal] = await Promise.all([
+      usdc.balanceOf(userAddr),
+      sqmu3.balanceOf(userAddr)
+    ]);
+    document.getElementById("balances").innerHTML =
+      `<b>Your Balances</b><br>
+      USDC: ${format(usdcBal, USDC_DECIMALS)}<br>
+      SQMU3: ${format(sqmu3Bal, SQMU3_DECIMALS)}`;
+  } catch {
+    document.getElementById("balances").innerHTML = "Unable to fetch balances.";
+  }
+}
+
+async function checkAllowance(neededAmount) {
+  if (!userAddr) return false;
+  let allowance = await usdc.allowance(userAddr, SALE_ADDR);
+  return allowance.gte(neededAmount);
+}
+
+async function connectWallet() {
+  try {
+    if (!window.ethereum) throw new Error("No wallet found (MetaMask, Rabby, etc).");
+    provider = new ethers.providers.Web3Provider(window.ethereum);
+    await provider.send("eth_requestAccounts", []);
+    signer = provider.getSigner();
+    userAddr = await signer.getAddress();
+    usdc = new ethers.Contract(USDC_ADDR, ERC20_ABI, signer);
+    sqmu3 = new ethers.Contract(SQMU3_ADDR, ERC20_ABI, signer);
+    sale = new ethers.Contract(SALE_ADDR, SALE_ABI, signer);
+    // Check correct chain (Polygon = 137)
+    const net = await provider.getNetwork();
+    if (net.chainId !== 137) throw new Error("Please switch your wallet to Polygon mainnet.");
+    document.getElementById("connectBtn").style.display = "none";
+    document.getElementById("approveBtn").style.display = "";
+    document.getElementById("buyBtn").style.display = "";
+    document.getElementById("confirm").innerText = "";
+    document.getElementById("error").innerText = "";
+    await showBalances();
+  } catch (e) {
+    document.getElementById("error").innerText = e.message;
+  }
+}
+
+async function handleApprove() {
+  try {
+    document.getElementById("error").innerText = "";
+    document.getElementById("confirm").innerText = "Awaiting approval confirmation…";
+    const sqmuValue = document.getElementById("sqmuInput").value;
+    if (!sqmuValue || isNaN(sqmuValue) || +sqmuValue <= 0) throw new Error("Enter valid SQMU3 amount");
+    const {usdcMicro} = sqmu3ToUsdc(sqmuValue);
+    let tx = await usdc.approve(SALE_ADDR, usdcMicro);
+    await tx.wait();
+    document.getElementById("confirm").innerText = "USDC approved. You can now buy SQMU3.";
+  } catch (e) {
+    document.getElementById("error").innerText = e.reason || e.message || "Approval failed";
+    document.getElementById("confirm").innerText = "";
+  }
+}
+
+async function handleBuy() {
+  try {
+    document.getElementById("error").innerText = "";
+    document.getElementById("confirm").innerText = "Submitting purchase…";
+    const sqmuValue = document.getElementById("sqmuInput").value;
+    if (!sqmuValue || isNaN(sqmuValue) || +sqmuValue <= 0) throw new Error("Enter valid SQMU3 amount");
+    const {usdcMicro, usdcHuman} = sqmu3ToUsdc(sqmuValue);
+    // Check allowance
+    if (!(await checkAllowance(usdcMicro))) throw new Error("You must approve USDC before buying.");
+    let tx = await sale.buyWithUSDC(usdcMicro);
+    document.getElementById("confirm").innerHTML = `Transaction sent. Waiting for confirmation…<br>
+      <a href='https://polygonscan.com/tx/${tx.hash}' target='_blank'>View on PolygonScan</a>`;
+    await tx.wait();
+    // Show transaction info
+    const now = new Date();
+    document.getElementById("confirm").innerText = `Success!`;
+    document.getElementById("txinfo").innerHTML = `
+      <b>Buyer:</b> ${userAddr}<br>
+      <b>SQMU3 Purchased:</b> ${roundToDecimals(+sqmuValue, 2)}<br>
+      <b>USDC Paid:</b> ${roundToDecimals(+usdcHuman, 6)}<br>
+      <b>Time:</b> ${now.toLocaleString()}<br>
+      <b>Tx Hash:</b> <a href='https://polygonscan.com/tx/${tx.hash}' target='_blank'>${tx.hash}</a>
+    `;
+    await showBalances();
+  } catch (e) {
+    document.getElementById("error").innerText = e.reason || e.message || "Purchase failed";
+    document.getElementById("confirm").innerText = "";
+    document.getElementById("txinfo").innerHTML = "";
+  }
+}
+
+// Real-time calculation display
+document.getElementById("sqmuInput").oninput = function() {
+  const v = this.value;
+  const {usdcHuman} = sqmu3ToUsdc(v);
+  document.getElementById("calc").innerHTML = (usdcHuman && v && +v>0) ?
+    `You will pay: <b>${roundToDecimals(+usdcHuman, 6)} USDC</b>` : "";
+};
+
+document.getElementById("connectBtn").onclick = connectWallet;
+document.getElementById("approveBtn").onclick = handleApprove;
+document.getElementById("buyBtn").onclick = handleBuy;
+</script>
+</body>
+</html>
