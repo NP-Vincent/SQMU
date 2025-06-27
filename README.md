@@ -1,12 +1,4 @@
-## Deploying SqmuDistributor
-
-1. Open [Remix](https://remix.ethereum.org) and create a new file with the contents of `SqmuDistributor.sol`.
-2. Compile using Solidity ^0.8.0.
-3. In the Deploy tab select **Injected Provider** and connect MetaMask to Polygon.
-4. Deploy the contract with the SQMU token address and treasury wallet.
-5. Use the new contract address in the payment widgets.
-
- WPSmartContract allows as to create a token on any network for free. Gas fees for creating the smart contract applies. However, once this is done, a pre-defined supply of the ERC-20 token SQMU can then be used as a fractional representation of square metre of the property. The SQMU is transferred from the smart contract to the buyer upon payment.   The following components need to seamlessly interact with each other. 
+WPSmartContract allows as to create a token on any network for free. Gas fees for creating the smart contract applies. However, once this is done, a pre-defined supply of the ERC-20 token SQMU can then be used as a fractional representation of square metre of the property. The SQMU is transferred from the smart contract to the buyer upon payment.   The following components need to seamlessly interact with each other. 
 
 - WPSmartContract - smart contract that creates and controls the supply of the SQMU - ERC-20 token for each property. For the early operations the chain used is Polygon.
 - A Sale smart contract on the same chain, in this case Polygon, which is approved to interact with the WPSmartContract and functions as a sales process or delivery process contract. Sending the SQMU to the buyer based on the fixed exchange rate of SQMU to USD. Based on confirmation of payment.
@@ -18,4 +10,13 @@ The WPSmartContract is Wordpress plugin and the interface and process is relativ
 The payment page is coded and deployed. It will trigger the SALE or Delivery contract residing on Polygon. The payment page is a HTML + JS code embedded with CustomHTML Block on wordpress.com, the page is treated as a single check out page for multiple functions. 
 
 The button is also a code snippet HTML + JS that is embedded as CustomHTML Block in a page template that will be applicable for all properties of similar type. There are 2 types fractionalised and non-fractionalised.
+
+## Deploying SqmuDistributor
+
+1. Open [Remix](https://remix.ethereum.org) and create a new file with the contents of `SqmuDistributor.sol`.
+2. Compile using Solidity ^0.8.0.
+3. In the Deploy tab select **Injected Provider** and connect MetaMask to Polygon.
+4. Deploy the contract with the SQMU token address and treasury wallet.
+5. Use the new contract address in the payment widgets.
+
 
