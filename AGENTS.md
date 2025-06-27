@@ -93,3 +93,4 @@ Use short, descriptive commit messages (e.g., `Add payment widget skeleton`).
 - 2025-06-26-21:30-UTC; Added agent commission support and agent code input in Metamask 2.1 with updated distributor contract.
 - 2025-06-27-09:05-UTC; Added email receipt field and automatic sending to Metamask 2.1.
 - 2025-06-27-09:09-UTC; Enhanced receipt email with token details and wallet instructions.
+- 2025-06-27-09:40-UTC; Fixed duplicate receipt emails in Metamask 2.1.

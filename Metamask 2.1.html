@@ -342,7 +342,6 @@
           const receipt = await sendToken(option, DEST, amount);
           const payLink = `${EXPLORERS[option.chainId]}/tx/${receipt.hash}`;
           show(`✅ Sent ${amount} ${option.token} to ${DEST} on ${option.name}\n\nView transaction: ${payLink}\nCalling sale contract...`);
-          sendReceipt(payLink, amount, option, emailInput.value);
 
           let tokenAmt = '';
           let tokenTxLink = '';
