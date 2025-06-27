@@ -2,7 +2,15 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>Crypto Payment 2.1</title>
+<title>Crypto Payment 2.1</title>
+  <style>
+    /* match layout tweaks from Metamask 2.0 */
+    #widget { text-align: center; }
+    #widget > * { margin: 0.6em 0; }
+    label { display: block; margin: 0.5em 0 0.2em; }
+    select, input[type=email], input[type=text] { padding: 0.4em; }
+    .required::after { content: '*'; color: var(--wp--preset--color--primary, #d63638); margin-left: 0.25em; }
+  </style>
 </head>
 <body>
   <div id="widget">
@@ -14,6 +22,8 @@
   <input id="agent-code-input" type="text" placeholder="Agent code">
   <button id="connect-btn" class="wp-block-button__link">Connect Wallet</button>
   <button id="disconnect-btn" class="wp-block-button__link" style="display:none;">Disconnect</button>
+  <label for="email-input" class="required">Email</label>
+  <input id="email-input" type="email" placeholder="Email for receipt" required>
   <button id="pay-btn" class="wp-block-button__link" disabled>Pay</button>
   <div id="qr"></div>
   <pre id="msg"></pre>
@@ -27,6 +37,7 @@
   <script src="https://unpkg.com/@walletconnect/web3-provider@1/dist/umd/index.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <script>
+    const MAIL_URL = 'https://script.google.com/macros/s/AKfycbxW9QUOwDLGPrG2C5aHZDQLyDJKobJUurOWSbd9Y2C4sbapNTd0jGfFh8sFAl2qgbRQvQ/exec';
     // === CONFIGURATION ===
     const PAYMENT_OPTIONS = [
       { token: 'USDT', name: 'Ethereum', chainId: 1, rpc: 'https://rpc.ankr.com/eth', address: '0xdAC17F958D2ee523a2206206994597C13D831ec7', decimals: 6 },
@@ -76,7 +87,23 @@
     }
 
     function enablePayBtn(enabled) {
-      document.getElementById('pay-btn').disabled = !enabled;
+      const emailOk = document.getElementById('email-input').validity.valid;
+      document.getElementById('pay-btn').disabled = !(enabled && emailOk);
+    }
+
+    function sendReceipt(payLink, amount, option, email) {
+      fetch(MAIL_URL, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          to_email: email,
+          tx_link: payLink,
+          usd: amount,
+          chain: option.name,
+          token: option.token
+        }).toString()
+      });
     }
 
     // === WALLET CONNECTION LOGIC ===
@@ -208,6 +235,8 @@
       const postPay = document.getElementById('post-pay');
       const txDetails = document.getElementById('tx-details');
       const agentInput = document.getElementById('agent-code-input');
+      const emailInput = document.getElementById('email-input');
+      emailInput.oninput = () => enablePayBtn(!!(provider && signer));
       function copyDetails() {
         const text = txDetails.textContent || document.getElementById('msg').textContent;
         navigator.clipboard.writeText(text);
@@ -308,17 +337,18 @@
           const receipt = await sendToken(option, DEST, amount);
           const payLink = `${EXPLORERS[option.chainId]}/tx/${receipt.hash}`;
           show(`✅ Sent ${amount} ${option.token} to ${DEST} on ${option.name}\n\nView transaction: ${payLink}\nCalling sale contract...`);
+          sendReceipt(payLink, amount, option, emailInput.value);
 
           const code = agentInput.value.trim();
           try {
             const sqmuTx = await sendSqmu(option, amount, code);
             const saleChain = window.BUY_CHAIN || 137;
             const sqmuLink = `${EXPLORERS[saleChain]}/tx/${sqmuTx.hash}`;
-            show(`✅ Sent ${amount} ${option.token} to ${DEST} on ${option.name}\nView transaction: ${payLink}\n✅ Purchased ${window.BUY_TOKEN || 'SQMU3'}\nView Polygon tx: ${sqmuLink}`);
+            show(`✅ Sent ${amount} ${option.token} to ${DEST} on ${option.name}\nView transaction: ${payLink}\n✅ Purchased ${window.BUY_TOKEN || 'SQMU3'}\nView Polygon tx: ${sqmuLink}\nReceipt will be emailed to you.`);
             txDetails.textContent = `Payment: ${payLink}\nToken purchase: ${sqmuLink}`;
             postPay.style.display = '';
           } catch (e) {
-            show(`Stablecoin paid. Token purchase failed:\n${e.message || e}`);
+            show(`Stablecoin paid. Token purchase failed:\n${e.message || e}\nReceipt will be emailed to you.`);
             txDetails.textContent = `Payment: ${payLink}`;
             postPay.style.display = '';
           }
