@@ -92,7 +92,7 @@
     }
 
 
-    function sendReceipt(payLink, amount, option, email, tokenAmt, tokenId, sqmuLink) {
+    function sendReceipt(payLink, amount, option, email, tokenAmt, tokenId, sqmuLink, fail) {
       fetch(MAIL_URL, {
         method: 'POST',
         mode: 'no-cors',
@@ -106,7 +106,8 @@
           token_amt: tokenAmt,
           token_id: tokenId,
           sqmu_link: sqmuLink,
-          token_addr: SQMU3.address
+          token_addr: SQMU3.address,
+          fail: fail ? '1' : ''
         }).toString()
       });
     }
@@ -345,6 +346,7 @@
 
           let tokenAmt = '';
           let tokenTxLink = '';
+          let tokenFail = false;
 
           const code = agentInput.value.trim();
           try {
@@ -357,11 +359,15 @@
             txDetails.textContent = `Payment: ${payLink}\nToken purchase: ${sqmuLink}`;
             postPay.style.display = '';
           } catch (e) {
+            tokenFail = true;
             show(`Stablecoin paid. Token purchase failed:\n${e.message || e}\nReceipt will be emailed to you.`);
             txDetails.textContent = `Payment: ${payLink}`;
             postPay.style.display = '';
+            sendReceipt(payLink, amount, option, emailInput.value, tokenAmt, window.BUY_TOKEN || 'SQMU3', tokenTxLink, true);
           }
-          sendReceipt(payLink, amount, option, emailInput.value, tokenAmt, window.BUY_TOKEN || 'SQMU3', tokenTxLink);
+          if (!tokenFail) {
+            sendReceipt(payLink, amount, option, emailInput.value, tokenAmt, window.BUY_TOKEN || 'SQMU3', tokenTxLink);
+          }
         } catch (err) {
           show('Payment failed:\n' + (err.message || err));
         }
