@@ -100,3 +100,4 @@ Use short, descriptive commit messages (e.g., `Add payment widget skeleton`).
 - 2025-06-27-12:00-UTC; Added SQMU balance display and token amount purchase option in launcher.
 - 2025-06-27-14:00-UTC; Updated payment pages to SQMU4 token references.
 - 2025-06-27-15:20-UTC; Removed owner check from distributor and redeployed contract on Polygon.
+- 2025-06-27-15:45-UTC; Updated distributor address in payment pages.
