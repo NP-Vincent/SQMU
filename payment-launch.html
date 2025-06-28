@@ -20,6 +20,9 @@
       <option value="2">USDC (Polygon)</option>
     </select>
   </div>
+  <p id="manual-info">After clicking Continue you will confirm payment on the
+    next page. Details will be emailed and your SQMU tokens will be delivered
+    to the paying wallet within 24 hours.</p>
   <button id="pay-btn" class="wp-block-button__link">Continue to Pay</button>
 
   <script src="https://cdn.jsdelivr.net/npm/ethers@6/dist/ethers.umd.min.js"></script>
@@ -69,6 +72,7 @@
         const url = new URL('https://sqmu.net/metamask2');
         url.searchParams.set('title', pageTitle);
         url.searchParams.set('usd', usd);
+        url.searchParams.set('sqmu', sqmuAmt);
         url.searchParams.set('token', tokens[idx]);
         url.searchParams.set('chain', chains[idx]);
         url.searchParams.set('buy', TARGET.token);

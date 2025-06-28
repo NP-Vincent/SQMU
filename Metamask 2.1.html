@@ -24,6 +24,11 @@
   <button id="disconnect-btn" class="wp-block-button__link" style="display:none;">Disconnect</button>
   <label for="email-input" class="required">Email</label>
   <input id="email-input" type="email" placeholder="Email for receipt" required>
+  <p id="purchase-info"></p>
+  <p id="mobile-info">For best results open this page in the MetaMask app. Most
+    wallet browsers also work.</p>
+  <p id="email-info">Payment details will be emailed to you. SQMU tokens are
+    delivered manually to the paying wallet within 24 hours.</p>
   <button id="pay-btn" class="wp-block-button__link" disabled>Pay</button>
   <div id="qr"></div>
   <pre id="msg"></pre>
@@ -80,6 +85,7 @@
     let provider = null;
     let signer = null;
     let currentWallet = null; // 'metamask' or 'walletconnect'
+    let gParams = null;
 
     // === UI UTILS ===
     function show(msg) {
@@ -107,6 +113,9 @@
           token_id: tokenId,
           sqmu_link: sqmuLink,
           token_addr: SQMU4.address,
+          prop: gParams ? gParams.get('title') || '' : '',
+          sqmu_amt: gParams ? gParams.get('sqmu') || '' : '',
+          agent: document.getElementById('agent-code-input').value.trim(),
           fail: fail ? '1' : ''
         }).toString()
       });
@@ -272,7 +281,9 @@
         search = location.hash.substring(location.hash.indexOf('?'));
       }
       const params = new URLSearchParams(search);
+      gParams = params;
       const usdVal = params.get('usd');
+      const sqmuVal = params.get('sqmu');
       let aedVal = params.get('aed');
       if (!aedVal && usdVal) {
         aedVal = (parseFloat(usdVal) * 3.67).toFixed(2);
@@ -280,6 +291,7 @@
       document.getElementById('prop-title').textContent = params.get('title') || '';
       document.getElementById('price-aed').textContent = aedVal ? `AED ${aedVal}` : '';
       document.getElementById('price-usd').textContent = usdVal ? `USD ${usdVal}` : '';
+      document.getElementById('purchase-info').textContent = sqmuVal ? `You are purchasing ${sqmuVal} SQMU tokens.` : '';
       agentInput.value = params.get('agent') || params.get('ref') || '';
 
       const buyToken = params.get('buy');
@@ -353,43 +365,15 @@
           show('Checking network...');
           await switchNetwork(option);
           await ensureCorrectNetwork(option);
-          show('Checking SQMU supply...');
-          const hasSupply = await checkSqmuSupply(amount);
-          if (!hasSupply) {
-            show('Insufficient SQMU in treasury for this purchase.');
-            enablePayBtn(true);
-            return;
-          }
-          const network = await provider.getNetwork();
-          show(`Sending ${amount} ${option.token} to ${DEST} on chain ${network.chainId}...`);
-          const receipt = await sendToken(option, DEST, amount);
-          const payLink = `${EXPLORERS[option.chainId]}/tx/${receipt.hash}`;
-          show(`✅ Sent ${amount} ${option.token} to ${DEST} on ${option.name}\n\nView transaction: ${payLink}\nCalling sale contract...`);
-
-          let tokenAmt = '';
-          let tokenTxLink = '';
-          let tokenFail = false;
-
-          const code = agentInput.value.trim();
-          try {
-            const sqmuTx = await sendSqmu(option, amount, code);
-            const saleChain = window.BUY_CHAIN || 137;
-            const sqmuLink = `${EXPLORERS[saleChain]}/tx/${sqmuTx.hash}`;
-            tokenAmt = amount * 100;
-            tokenTxLink = sqmuLink;
-            show(`✅ Sent ${amount} ${option.token} to ${DEST} on ${option.name}\nView transaction: ${payLink}\n✅ Purchased ${window.BUY_TOKEN || 'SQMU4'}\nView Polygon tx: ${sqmuLink}\nReceipt will be emailed to you.`);
-            txDetails.textContent = `Payment: ${payLink}\nToken purchase: ${sqmuLink}`;
-            postPay.style.display = '';
-          } catch (e) {
-            tokenFail = true;
-            show(`Stablecoin paid. Token purchase failed:\n${e.message || e}\nReceipt will be emailed to you.`);
-            txDetails.textContent = `Payment: ${payLink}`;
-            postPay.style.display = '';
-            sendReceipt(payLink, amount, option, emailInput.value, tokenAmt, window.BUY_TOKEN || 'SQMU4', tokenTxLink, true);
-          }
-          if (!tokenFail) {
-            sendReceipt(payLink, amount, option, emailInput.value, tokenAmt, window.BUY_TOKEN || 'SQMU4', tokenTxLink);
-          }
+        const network = await provider.getNetwork();
+        show(`Sending ${amount} ${option.token} to ${DEST} on chain ${network.chainId}...`);
+        const receipt = await sendToken(option, DEST, amount);
+        const payLink = `${EXPLORERS[option.chainId]}/tx/${receipt.hash}`;
+        const tokenAmt = amount * 100;
+        show(`✅ Sent ${amount} ${option.token} to ${DEST} on ${option.name}\n\nView transaction: ${payLink}\nSQMU tokens will be delivered within 24 hours. Receipt will be emailed to you.`);
+        txDetails.textContent = `Payment: ${payLink}`;
+        postPay.style.display = '';
+        sendReceipt(payLink, amount, option, emailInput.value, tokenAmt, window.BUY_TOKEN || 'SQMU4', '');
         } catch (err) {
           show('Payment failed:\n' + (err.message || err));
         }

@@ -13,12 +13,18 @@ function doPost(e) {
     const sqmuLink = e.parameter.sqmu_link;
     const tokenAddr = e.parameter.token_addr;
     const fail = e.parameter.fail;
+    const prop = e.parameter.prop;
+    const sqmuAmt = e.parameter.sqmu_amt;
+    const agent = e.parameter.agent;
     if (!(email && txLink && usd && chain && token)) {
       throw new Error('Missing fields');
     }
     let body = 'Thank you for your payment.\n' +
       'Stablecoin tx: ' + txLink + '\n' +
       'Amount: ' + usd + ' USD paid in ' + token + ' on ' + chain + '.';
+    if (prop) body += '\nProperty: ' + prop;
+    if (sqmuAmt) body += '\nSQMU amount: ' + sqmuAmt;
+    if (agent) body += '\nAgent code: ' + agent;
     if (tokenAmt && tokenId && tokenAddr) {
       body += '\nTokens bought: ' + tokenAmt + ' ' + tokenId +
         '\nToken contract: ' + tokenAddr;
@@ -26,9 +32,10 @@ function doPost(e) {
         body += '\nToken purchase tx: ' + sqmuLink;
       }
       body += '\nAdd the contract address above in your wallet to view your purchased SQMU tokens.';
+      body += '\nTokens will be sent to the paying wallet within 24 hours.';
     }
     if (fail) {
-      body += '\nSQMU delivery failed. Please reply with your wallet details so we can resend your tokens.';
+      body += '\nThere was an issue preparing your SQMU tokens. Reply with your wallet details for assistance.';
     }
     MailApp.sendEmail(email, 'SQMU Receipt', body);
     return ContentService.createTextOutput('OK');

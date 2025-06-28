@@ -102,3 +102,5 @@ Use short, descriptive commit messages (e.g., `Add payment widget skeleton`).
 - 2025-06-27-15:20-UTC; Removed owner check from distributor and redeployed contract on Polygon.
 - 2025-06-27-15:45-UTC; Updated distributor address in payment pages.
 - 2025-06-27-15:50-UTC; Clarified token claiming instructions in receipt.
+- 2025-06-27-16:10-UTC; Added manual delivery messaging and SQMU amount
+  forwarding between pages.
