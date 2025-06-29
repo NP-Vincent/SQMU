@@ -104,3 +104,4 @@ Use short, descriptive commit messages (e.g., `Add payment widget skeleton`).
 - 2025-06-27-15:50-UTC; Clarified token claiming instructions in receipt.
 - 2025-06-27-16:10-UTC; Added manual delivery messaging and SQMU amount
   forwarding between pages.
+- 2025-06-29-21:51-UTC; Added user instructions, layout tweaks and receipt updates for new purchase flows.

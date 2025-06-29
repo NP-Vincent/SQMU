@@ -5,15 +5,32 @@
 <title>Crypto Payment 2.1</title>
   <style>
     /* match layout tweaks from Metamask 2.0 */
-    #widget { text-align: center; }
-    #widget > * { margin: 0.6em 0; }
-    label { display: block; margin: 0.5em 0 0.2em; }
-    select, input[type=email], input[type=text] { padding: 0.4em; }
-    .required::after { content: '*'; color: var(--wp--preset--color--primary, #d63638); margin-left: 0.25em; }
+    #layout { display:flex; flex-wrap:wrap; gap:1em; justify-content:center; }
+    #info { max-width:320px; }
+    #widget { text-align:center; flex:1 1 300px; }
+    #widget > * { margin:0.6em 0; }
+    label { display:block; margin:0.5em 0 0.2em; }
+    select, input[type=email], input[type=text] { padding:0.4em; width:100%; max-width:320px; }
+    #qr img { margin:0 auto; }
+    .required::after { content:'*'; color:var(--wp--preset--color--primary,#d63638); margin-left:0.25em; }
   </style>
 </head>
 <body>
-  <div id="widget">
+  <div id="layout">
+    <div id="info">
+      <h4>SQMU Token Purchase Payment Page</h4>
+      <p>This page accepts:</p>
+      <ul>
+        <li>USDT (Ethereum)</li>
+        <li>USDC (Arbitrum &amp; Polygon)</li>
+      </ul>
+      <p>Transaction details (property name, number of SQMUs, payment amount, chosen token/network) will be auto-filled from the previous step.</p>
+      <p>Email is required — it will be used to:<br>
+      • Send your payment receipt<br>
+      • Confirm delivery and provide any required support</p>
+      <p>Optional: Agent Referral Code — enter if you have one.<br>Tokens will be manually delivered to your wallet within 24 hours.<br>For support, reply to the confirmation email or reach out via the contact details on the website.</p>
+    </div>
+    <div id="widget">
   <h3 id="prop-title"></h3>
   <p id="price-aed"></p>
   <p id="price-usd"></p>
@@ -400,6 +417,7 @@
       document.getElementById('disconnect-btn').onclick = disconnectWallet;
     });
   </script>
+  </div>
   </div>
 </body>
 </html>

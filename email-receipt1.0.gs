@@ -8,12 +8,16 @@ function doPost(e) {
     const usd = e.parameter.usd;
     const chain = e.parameter.chain;
     const token = e.parameter.token;
+    const prop = e.parameter.prop;
+    const reason = e.parameter.reason;
     if (!(email && txLink && usd && chain && token)) {
       throw new Error('Missing fields');
     }
-    const body = 'Thank you for your payment.\n' +
+    let body = 'Thank you for your payment.\n' +
       'Transaction: ' + txLink + '\n' +
       'Amount: ' + usd + ' USD paid in ' + token + ' on ' + chain + '.';
+    if (prop) body += '\nProperty: ' + prop;
+    if (reason) body += '\nReason: ' + reason;
     MailApp.sendEmail(email, 'SQMU Receipt', body);
     return ContentService.createTextOutput('OK');
   } catch (err) {
