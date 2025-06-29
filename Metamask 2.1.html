@@ -17,6 +17,31 @@
 </head>
 <body>
   <div id="layout">
+    <div id="widget">
+  <h3 id="prop-title"></h3>
+  <p id="price-aed"></p>
+  <p id="price-usd"></p>
+  <div id="qr"></div>
+  <pre id="msg"></pre>
+  <select id="network-select"></select>
+  <button id="connect-btn" class="wp-block-button__link">Connect Wallet</button>
+  <button id="disconnect-btn" class="wp-block-button__link" style="display:none;">Disconnect</button>
+  <label for="email-input" class="required">Email</label>
+  <input id="email-input" type="email" placeholder="Email for receipt" required>
+  <label for="agent-code-input">Agent Code (optional)</label>
+  <input id="agent-code-input" type="text" placeholder="Agent code">
+  <p id="purchase-info"></p>
+  <p id="mobile-info">For best results open this page in the MetaMask app. Most
+    wallet browsers also work.</p>
+  <p id="email-info">Payment details will be emailed to you. SQMU tokens are
+    delivered manually to the paying wallet within 24 hours.</p>
+  <button id="pay-btn" class="wp-block-button__link" disabled>Pay</button>
+  <div id="post-pay" style="display:none;">
+    <button id="schedule-btn" class="wp-block-button__link">Schedule Call</button>
+    <pre id="tx-details"></pre>
+    <button id="copy-btn" class="wp-block-button__link">Copy Details</button>
+  </div>
+    </div>
     <div id="info">
       <h4>SQMU Token Purchase Payment Page</h4>
       <p>This page accepts:</p>
@@ -30,30 +55,6 @@
       • Confirm delivery and provide any required support</p>
       <p>Optional: Agent Referral Code — enter if you have one.<br>Tokens will be manually delivered to your wallet within 24 hours.<br>For support, reply to the confirmation email or reach out via the contact details on the website.</p>
     </div>
-    <div id="widget">
-  <h3 id="prop-title"></h3>
-  <p id="price-aed"></p>
-  <p id="price-usd"></p>
-  <select id="network-select"></select>
-  <label for="agent-code-input">Agent Code (optional)</label>
-  <input id="agent-code-input" type="text" placeholder="Agent code">
-  <button id="connect-btn" class="wp-block-button__link">Connect Wallet</button>
-  <button id="disconnect-btn" class="wp-block-button__link" style="display:none;">Disconnect</button>
-  <label for="email-input" class="required">Email</label>
-  <input id="email-input" type="email" placeholder="Email for receipt" required>
-  <p id="purchase-info"></p>
-  <p id="mobile-info">For best results open this page in the MetaMask app. Most
-    wallet browsers also work.</p>
-  <p id="email-info">Payment details will be emailed to you. SQMU tokens are
-    delivered manually to the paying wallet within 24 hours.</p>
-  <button id="pay-btn" class="wp-block-button__link" disabled>Pay</button>
-  <div id="qr"></div>
-  <pre id="msg"></pre>
-  <div id="post-pay" style="display:none;">
-    <button id="schedule-btn" class="wp-block-button__link">Schedule Call</button>
-    <pre id="tx-details"></pre>
-    <button id="copy-btn" class="wp-block-button__link">Copy Details</button>
-  </div>
 
   <script src="https://cdn.jsdelivr.net/npm/ethers@6/dist/ethers.umd.min.js"></script>
   <script src="https://unpkg.com/@walletconnect/web3-provider@1/dist/umd/index.min.js"></script>
