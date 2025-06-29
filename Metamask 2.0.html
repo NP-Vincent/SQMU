@@ -17,19 +17,12 @@
 </head>
 <body>
   <div id="layout">
-    <div id="info">
-      <h4>Expression of Interest Payment Page (Full Property Purchase)</h4>
-      <p>This page is used for the Expression of Interest toward a full-property crypto purchase.</p>
-      <p>Please include the reason for payment in the provided field (e.g., "Villa Jumeirah EOI").</p>
-      <p>Email is mandatory — used to:<br>
-      • Send a receipt as proof of payment<br>
-      • Provide follow-up communication, including next steps</p>
-      <p>After payment, you'll receive a link to schedule a call to complete onboarding.</p>
-    </div>
     <div id="widget">
   <h3 id="prop-title"></h3>
   <p id="price-aed"></p>
   <p id="price-usd"></p>
+  <div id="qr"></div>
+  <pre id="msg"></pre>
   <p id="mobile-tip" style="display:none;">For best results open this page from your wallet's built-in browser (preferably MetaMask). Other wallet browsers may refresh and lose form data.</p>
   <select id="network-select"></select>
   <button id="connect-btn" class="wp-block-button__link">Connect Wallet</button>
@@ -39,13 +32,21 @@
   <label for="email-input" class="required">Email</label>
   <input id="email-input" type="email" placeholder="Email for receipt" required>
   <button id="pay-btn" class="wp-block-button__link" disabled>Pay</button>
-  <div id="qr"></div>
-  <pre id="msg"></pre>
   <div id="post-pay" style="display:none;">
     <button id="schedule-btn" class="wp-block-button__link">Schedule Call</button>
     <pre id="tx-details"></pre>
     <button id="copy-btn" class="wp-block-button__link">Copy Details</button>
   </div>
+    </div>
+    <div id="info">
+      <h4>Expression of Interest Payment Page (Full Property Purchase)</h4>
+      <p>This page is used for the Expression of Interest toward a full-property crypto purchase.</p>
+      <p>Please include the reason for payment in the provided field (e.g., "Villa Jumeirah EOI").</p>
+      <p>Email is mandatory — used to:<br>
+      • Send a receipt as proof of payment<br>
+      • Provide follow-up communication, including next steps</p>
+      <p>After payment, you'll receive a link to schedule a call to complete onboarding.</p>
+    </div>
 
   <script src="https://cdn.jsdelivr.net/npm/ethers@6/dist/ethers.umd.min.js"></script>
   <script src="https://unpkg.com/@walletconnect/web3-provider@1/dist/umd/index.min.js"></script>
