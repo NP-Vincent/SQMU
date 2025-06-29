@@ -108,3 +108,4 @@ Use short, descriptive commit messages (e.g., `Add payment widget skeleton`).
 
 - 2025-06-29-22:09-UTC; Reordered forms before instructions and moved QR/status higher.
 - 2025-06-29-22:34-UTC; Wrapped status text to prevent overflow.
+- 2025-06-29-22:36-UTC; Increased input field size and font inheritance.
