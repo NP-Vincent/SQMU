@@ -107,3 +107,4 @@ Use short, descriptive commit messages (e.g., `Add payment widget skeleton`).
 - 2025-06-29-21:51-UTC; Added user instructions, layout tweaks and receipt updates for new purchase flows.
 
 - 2025-06-29-22:09-UTC; Reordered forms before instructions and moved QR/status higher.
+- 2025-06-29-22:34-UTC; Wrapped status text to prevent overflow.
