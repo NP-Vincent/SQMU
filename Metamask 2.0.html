@@ -5,15 +5,28 @@
   <title>Crypto Payment</title>
   <style>
     /* minimal layout tweaks per AGENTS guidelines */
-    #widget { text-align: center; }
-    #widget > * { margin: 0.6em 0; }
-    label { display: block; margin: 0.5em 0 0.2em; }
-    select, input[type=email] { padding: 0.4em; }
-    .required::after { content: '*'; color: var(--wp--preset--color--primary, #d63638); margin-left: 0.25em; }
+    #layout { display:flex; flex-wrap:wrap; gap:1em; justify-content:center; }
+    #info { max-width:320px; }
+    #widget { text-align:center; flex:1 1 300px; }
+    #widget > * { margin:0.6em 0; }
+    label { display:block; margin:0.5em 0 0.2em; }
+    select, input[type=email], input[type=text] { padding:0.4em; width:100%; max-width:320px; }
+    #qr img { margin:0 auto; }
+    .required::after { content:'*'; color:var(--wp--preset--color--primary,#d63638); margin-left:0.25em; }
   </style>
 </head>
 <body>
-  <div id="widget">
+  <div id="layout">
+    <div id="info">
+      <h4>Expression of Interest Payment Page (Full Property Purchase)</h4>
+      <p>This page is used for the Expression of Interest toward a full-property crypto purchase.</p>
+      <p>Please include the reason for payment in the provided field (e.g., "Villa Jumeirah EOI").</p>
+      <p>Email is mandatory — used to:<br>
+      • Send a receipt as proof of payment<br>
+      • Provide follow-up communication, including next steps</p>
+      <p>After payment, you'll receive a link to schedule a call to complete onboarding.</p>
+    </div>
+    <div id="widget">
   <h3 id="prop-title"></h3>
   <p id="price-aed"></p>
   <p id="price-usd"></p>
@@ -21,6 +34,8 @@
   <select id="network-select"></select>
   <button id="connect-btn" class="wp-block-button__link">Connect Wallet</button>
   <button id="disconnect-btn" class="wp-block-button__link" style="display:none;">Disconnect</button>
+  <label for="reason-input">Reason for Payment</label>
+  <input id="reason-input" type="text" placeholder="e.g. Villa Jumeirah EOI">
   <label for="email-input" class="required">Email</label>
   <input id="email-input" type="email" placeholder="Email for receipt" required>
   <button id="pay-btn" class="wp-block-button__link" disabled>Pay</button>
@@ -88,7 +103,7 @@
       document.getElementById('pay-btn').disabled = !(enabled && emailOk);
     }
 
-    function sendReceipt(payLink, amount, option, email) {
+    function sendReceipt(payLink, amount, option, email, reason, prop) {
       fetch(MAIL_URL, {
         method: 'POST',
         mode: 'no-cors',
@@ -98,7 +113,9 @@
           tx_link: payLink,
           usd: amount,
           chain: option.name,
-          token: option.token
+          token: option.token,
+          reason: reason || '',
+          prop: prop || ''
         }).toString()
       });
     }
@@ -215,6 +232,7 @@
       const postPay = document.getElementById('post-pay');
       const txDetails = document.getElementById('tx-details');
       const emailInput = document.getElementById('email-input');
+      const reasonInput = document.getElementById('reason-input');
       const mobileTip = document.getElementById('mobile-tip');
       const ua = navigator.userAgent || navigator.vendor || '';
       const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua);
@@ -239,7 +257,8 @@
       if (!aedVal && usdVal) {
         aedVal = (parseFloat(usdVal) * 3.67).toFixed(2);
       }
-      document.getElementById('prop-title').textContent = params.get('title') || '';
+      const propTitle = params.get('title') || '';
+      document.getElementById('prop-title').textContent = propTitle;
       document.getElementById('price-aed').textContent = aedVal ? `AED ${aedVal}` : '';
       document.getElementById('price-usd').textContent = usdVal ? `USD ${usdVal}` : '';
 
@@ -321,7 +340,8 @@
           show(`✅ Sent ${amount} ${option.token} to ${DEST} on ${option.name}\n\nView transaction: ${payLink}\nReceipt will be emailed to you.`);
           txDetails.textContent = `Payment: ${payLink}`;
           postPay.style.display = '';
-          sendReceipt(payLink, amount, option, emailInput.value);
+          const reason = document.getElementById('reason-input').value;
+          sendReceipt(payLink, amount, option, emailInput.value, reason, propTitle);
         } catch (err) {
           show('Payment failed:\n' + (err.message || err));
         }
@@ -348,6 +368,7 @@
       document.getElementById('disconnect-btn').onclick = disconnectWallet;
     });
   </script>
+  </div>
   </div>
 </body>
 </html>
