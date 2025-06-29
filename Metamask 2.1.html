@@ -10,7 +10,15 @@
     #widget { text-align:center; flex:1 1 300px; }
     #widget > * { margin:0.6em 0; }
     label { display:block; margin:0.5em 0 0.2em; }
-    select, input[type=email], input[type=text] { padding:0.4em; width:100%; max-width:320px; }
+    select,
+    input[type=email],
+    input[type=text] {
+      font: inherit;
+      padding: 0.6em;
+      width: 100%;
+      max-width: 320px;
+      box-sizing: border-box;
+    }
     #qr img { margin:0 auto; }
     .required::after { content:'*'; color:var(--wp--preset--color--primary,#d63638); margin-left:0.25em; }
     #msg, #tx-details { white-space: pre-wrap; word-break: break-word; }
