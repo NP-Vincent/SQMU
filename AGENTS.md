@@ -110,3 +110,4 @@ Use short, descriptive commit messages (e.g., `Add payment widget skeleton`).
 - 2025-06-29-22:34-UTC; Wrapped status text to prevent overflow.
 - 2025-06-29-22:36-UTC; Increased input field size and font inheritance.
 - 2025-06-29-22:45-UTC; Harmonized launcher input styling and added message area.
+- 2025-06-30-16:53-UTC; Added Calendly popup integration for schedule buttons.
