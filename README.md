@@ -1,3 +1,11 @@
+
+## Admin Interface
+
+Use `admin.html` to register agents and send SQMU manually. Set `CONTRACT_ADDR` to your `SqmuDistributor` address and `APPS_SCRIPT_URL` to the deployed `record.gs` web app URL before embedding the file in WordPress.
+
+`record.gs` appends agent details to a Google Sheet named `Agents`. Create the sheet, deploy the script as a web app, and note its `SHEET_ID` in the code.
+
+Only the contract owner can call `distribute` after the latest update.
 WPSmartContract allows as to create a token on any network for free. Gas fees for creating the smart contract applies. However, once this is done, a pre-defined supply of the ERC-20 token SQMU can then be used as a fractional representation of square metre of the property. The SQMU is transferred from the smart contract to the buyer upon payment.   The following components need to seamlessly interact with each other. 
 
 - WPSmartContract - smart contract that creates and controls the supply of the SQMU - ERC-20 token for each property. For the early operations the chain used is Polygon.
