@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>SQMU Admin</title>
+  <style>
+    label { display:block; margin:0.5em 0 0.2em; }
+    input { padding:0.6em; width:100%; max-width:320px; box-sizing:border-box; }
+    form { margin-bottom:1.5em; }
+    #status, #distStatus { white-space:pre-wrap; }
+  </style>
+</head>
+<body>
+  <h3>Register Agent</h3>
+  <form id="agentForm">
+    <label class="required">Agent Name</label>
+    <input name="agentName" required>
+    <label class="required">Email</label>
+    <input name="agentEmail" type="email" required>
+    <label class="required">Wallet Address</label>
+    <input name="agentWallet" pattern="^0x[a-fA-F0-9]{40}$" required>
+    <label class="required">Agent Code</label>
+    <input name="agentCode" required>
+    <button type="submit">Add Agent</button>
+  </form>
+  <pre id="status"></pre>
+
+  <h3>Manual Distribution</h3>
+  <form id="distForm">
+    <label class="required">Buyer Wallet</label>
+    <input name="buyerWallet" pattern="^0x[a-fA-F0-9]{40}$" required>
+    <label class="required">SQMU Amount</label>
+    <input name="amount" type="number" min="1" required>
+    <label>Agent Code (optional)</label>
+    <input name="distAgentCode">
+    <button type="submit">Send Tokens</button>
+  </form>
+  <pre id="distStatus"></pre>
+
+  <script src="https://cdn.jsdelivr.net/npm/ethers@6/dist/ethers.umd.min.js"></script>
+  <script>
+    const CONTRACT_ADDR = 'YOUR_DISTRIBUTOR_CONTRACT';
+    const AGENT_ABI = ['function setAgentCode(string code, address agent) external'];
+    const DIST_ABI = ['function distribute(address to, uint256 amount, string agentCode) external'];
+    const APPS_SCRIPT_URL = 'YOUR_APPS_SCRIPT_URL';
+
+    document.getElementById('agentForm').onsubmit = async (e) => {
+      e.preventDefault();
+      const f = e.target;
+      const [name, email, wallet, code] = [f.agentName.value.trim(), f.agentEmail.value.trim(), f.agentWallet.value.trim(), f.agentCode.value.trim()];
+      fetch(APPS_SCRIPT_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ name, email, wallet, code })
+      });
+      try {
+        const provider = new ethers.BrowserProvider(window.ethereum);
+        await provider.send('eth_requestAccounts', []);
+        const signer = await provider.getSigner();
+        const dist = new ethers.Contract(CONTRACT_ADDR, AGENT_ABI, signer);
+        const tx = await dist.setAgentCode(code, wallet);
+        document.getElementById('status').textContent = 'Tx: ' + tx.hash;
+        await tx.wait();
+        document.getElementById('status').textContent = 'Agent added!';
+      } catch (err) {
+        document.getElementById('status').textContent = 'Error: ' + err.message;
+      }
+    };
+
+    document.getElementById('distForm').onsubmit = async (e) => {
+      e.preventDefault();
+      const f = e.target;
+      const [to, amt, code] = [f.buyerWallet.value.trim(), f.amount.value.trim(), f.distAgentCode.value.trim()];
+      try {
+        const provider = new ethers.BrowserProvider(window.ethereum);
+        await provider.send('eth_requestAccounts', []);
+        const signer = await provider.getSigner();
+        const dist = new ethers.Contract(CONTRACT_ADDR, DIST_ABI, signer);
+        const tx = await dist.distribute(to, amt, code);
+        document.getElementById('distStatus').textContent = 'Tx: ' + tx.hash;
+        await tx.wait();
+        document.getElementById('distStatus').textContent = 'SQMU sent!';
+      } catch (err) {
+        document.getElementById('distStatus').textContent = 'Error: ' + err.message;
+      }
+    };
+  </script>
+</body>
+</html>
