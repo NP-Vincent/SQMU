@@ -3,6 +3,8 @@
 <head>
   <meta charset="UTF-8">
 <title>Crypto Payment 2.1</title>
+  <link href="https://assets.calendly.com/assets/external/widget.css" rel="stylesheet">
+  <script src="https://assets.calendly.com/assets/external/widget.js" type="text/javascript" async></script>
   <style>
     /* match layout tweaks from Metamask 2.0 */
     #layout { display:flex; flex-wrap:wrap; gap:1em; justify-content:center; }
@@ -300,7 +302,8 @@
       }
       document.getElementById('copy-btn').onclick = copyDetails;
       document.getElementById('schedule-btn').onclick = () => {
-        window.open('https://calendly.com/sqmu-call', '_blank');
+        Calendly.initPopupWidget({url: 'https://calendly.com/vincent-sqmu/30min'});
+        return false;
       };
       // Setup UI with params
       let search = location.search;
