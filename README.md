@@ -22,6 +22,43 @@ Use `admin.html` to register agents and send SQMU manually. Set `CONTRACT_ADDR` 
 
 The button is also a code snippet HTML + JS that is embedded as CustomHTML Block in a page template that will be applicable for all properties of similar type. There are 2 types fractionalised and non-fractionalised.
 
+### Registering Properties
+
+After deploying `MultiSqmuDistributor` call `setProperty` for each SQMU token:
+
+```
+setProperty('SQMU4', '0xTokenAddress', '0xTreasuryAddress')
+```
+
+The admin page includes a **Register Property** form which posts the property
+name, code and token address to `record.gs` for logging.
+
+### Setting Exchange Rates
+
+`payment-launch.html` defines a `PROPS` object with default pricing. Add your
+property or override values via query parameters like `?price=0.02` or
+`?rate=0.02` (USD per SQMU). These parameters are forwarded to the payment page.
+
+### Updated Frontend Usage
+
+Embed `payment-launch.html` on each property page. It collects the SQMU amount
+and opens the payment interface (`Metamask 2.1.html`) with details encoded in
+the URL. Important parameters include:
+
+- `title` – property name
+- `usd` – USD amount to pay
+- `sqmu` – SQMU tokens being purchased
+- `token` and `chain` – stablecoin and network for payment
+- `buy`/`code` – property identifier
+- `buyChain` – chain ID where the SQMU token exists
+- `sqmuAddr` – token contract address
+- `sqmuDec` – token decimals
+- `rate` – price per SQMU
+- `saleAddr` – your `MultiSqmuDistributor` address
+
+The payment page reads these values, switches networks and calls the contract to
+distribute the purchased SQMU tokens.
+
 ## Deploying SqmuDistributor
 
 1. Open [Remix](https://remix.ethereum.org) and create a new file with the contents of `SqmuDistributor.sol`.
