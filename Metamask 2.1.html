@@ -86,7 +86,13 @@
     };
 
     const DEST = '0x43F3f03d89290358034993aE3B3938D056D76De2';
-    const SQMU4 = { address: '0x38753025A423581aCdC1A167fd603a7EBEBfB3ad', decimals: 2 };
+    const DEFAULT_PROP = {
+      code: 'SQMU4',
+      address: '0x38753025A423581aCdC1A167fd603a7EBEBfB3ad',
+      decimals: 2,
+      price: 0.01
+    };
+    let PROP = { ...DEFAULT_PROP };
     const SALE_ADDR = '0x05DE67Bcb469dDbddA68534c41fB5CcB7a50Fa7f';
 
     const CHAIN_INFO = {
@@ -141,7 +147,7 @@
           token_amt: tokenAmt,
           token_id: tokenId,
           sqmu_link: sqmuLink,
-          token_addr: SQMU4.address,
+          token_addr: PROP.address,
           prop: gParams ? gParams.get('title') || '' : '',
           prop_code: gParams ? gParams.get('buy') || '' : '',
           sqmu_amt: gParams ? gParams.get('sqmu') || '' : '',
@@ -264,8 +270,9 @@
       const readProv = new ethers.JsonRpcProvider(rpc);
       const distAbi = ['function getAvailable(string) view returns(uint256)'];
       const dist = new ethers.Contract(SALE_ADDR, distAbi, readProv);
-      const bal = await dist.getAvailable('SQMU4');
-      const needed = ethers.parseUnits(String(usdAmount * 100), SQMU4.decimals);
+      const bal = await dist.getAvailable(PROP.code);
+      const tokensNeeded = usdAmount / PROP.price;
+      const needed = ethers.parseUnits(String(tokensNeeded), PROP.decimals);
       return bal >= needed;
     }
 
@@ -282,8 +289,8 @@
       const abi = ['function distribute(string,address,uint256,string)'];
       const sale = new ethers.Contract(SALE_ADDR, abi, signer);
       const to = await signer.getAddress();
-      const tokenAmt = usdPaid * 100; // 1 SQMU4 = 0.01 USD
-      const tx = await sale.distribute('SQMU4', to, ethers.parseUnits(String(tokenAmt), SQMU4.decimals), code);
+      const tokenAmt = usdPaid / PROP.price;
+      const tx = await sale.distribute(PROP.code, to, ethers.parseUnits(String(tokenAmt), PROP.decimals), code);
       return tx.wait();
     }
 
@@ -322,8 +329,12 @@
       document.getElementById('purchase-info').textContent = sqmuVal ? `You are purchasing ${sqmuVal} SQMU tokens.` : '';
       agentInput.value = params.get('agent') || params.get('ref') || '';
 
-      const buyToken = params.get('buy');
+      const buyToken = params.get('buy') || params.get('code');
       const buyChain = Number(params.get('buyChain'));
+      if (buyToken) PROP.code = buyToken;
+      if (params.get('sqmuAddr')) PROP.address = params.get('sqmuAddr');
+      if (params.get('sqmuDec')) PROP.decimals = Number(params.get('sqmuDec'));
+      if (params.get('rate')) PROP.price = parseFloat(params.get('rate'));
       window.BUY_TOKEN = buyToken;
       window.BUY_CHAIN = buyChain;
 
@@ -397,11 +408,11 @@
         show(`Sending ${amount} ${option.token} to ${DEST} on chain ${network.chainId}...`);
         const receipt = await sendToken(option, DEST, amount);
         const payLink = `${EXPLORERS[option.chainId]}/tx/${receipt.hash}`;
-        const tokenAmt = amount * 100;
+        const tokenAmt = amount / PROP.price;
         show(`✅ Sent ${amount} ${option.token} to ${DEST} on ${option.name}\n\nView transaction: ${payLink}\nSQMU tokens will be delivered within 24 hours. Receipt will be emailed to you.`);
         txDetails.textContent = `Payment: ${payLink}`;
         postPay.style.display = '';
-        sendReceipt(payLink, amount, option, emailInput.value, tokenAmt, window.BUY_TOKEN || 'SQMU4', '');
+        sendReceipt(payLink, amount, option, emailInput.value, tokenAmt, window.BUY_TOKEN || PROP.code, '');
         } catch (err) {
           show('Payment failed:\n' + (err.message || err));
         }
