@@ -261,12 +261,9 @@
       const saleChain = Number(window.BUY_CHAIN) || 137;
       const rpc = (PAYMENT_OPTIONS.find(o => o.chainId === saleChain) || {}).rpc || 'https://polygon-rpc.com';
       const readProv = new ethers.JsonRpcProvider(rpc);
-      const distAbi = ['function treasury() view returns(address)'];
+      const distAbi = ['function getAvailable(string) view returns(uint256)'];
       const dist = new ethers.Contract(SALE_ADDR, distAbi, readProv);
-      const treasury = await dist.treasury();
-      const balAbi = ['function balanceOf(address) view returns(uint256)'];
-      const token = new ethers.Contract(SQMU4.address, balAbi, readProv);
-      const bal = await token.balanceOf(treasury);
+      const bal = await dist.getAvailable('SQMU4');
       const needed = ethers.parseUnits(String(usdAmount * 100), SQMU4.decimals);
       return bal >= needed;
     }
@@ -281,11 +278,11 @@
         await ensureCorrectNetwork({ chainId: saleChain, name: chainOpt.name || 'Polygon' });
       }
 
-      const abi = ['function distribute(address to, uint256 amount, string agentCode)'];
+      const abi = ['function distribute(string,address,uint256,string)'];
       const sale = new ethers.Contract(SALE_ADDR, abi, signer);
       const to = await signer.getAddress();
       const tokenAmt = usdPaid * 100; // 1 SQMU4 = 0.01 USD
-      const tx = await sale.distribute(to, ethers.parseUnits(String(tokenAmt), SQMU4.decimals), code);
+      const tx = await sale.distribute('SQMU4', to, ethers.parseUnits(String(tokenAmt), SQMU4.decimals), code);
       return tx.wait();
     }
 

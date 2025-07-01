@@ -65,11 +65,11 @@
       document.getElementById('msg').textContent = msg;
     }
 
-    async function fetchAvailable() {
-      try {
-        const provider = new ethers.JsonRpcProvider(RPC);
-        const sale = new ethers.Contract(SALE_ADDR, ['function available() view returns(uint256)'], provider);
-        const bal = await sale.available();
+      async function fetchAvailable() {
+        try {
+          const provider = new ethers.JsonRpcProvider(RPC);
+          const sale = new ethers.Contract(SALE_ADDR, ['function getAvailable(string) view returns(uint256)'], provider);
+          const bal = await sale.getAvailable(TARGET.token);
         const supply = Number(ethers.formatUnits(bal, TARGET.decimals));
         document.getElementById('avail').textContent = supply.toLocaleString();
         return supply;
