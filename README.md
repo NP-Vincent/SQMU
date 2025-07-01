@@ -15,9 +15,10 @@ calling `distribute` so the contract receives the correct token units.
 Only the contract owner can call `distribute` after the latest update. The
 page accepts fractional SQMU amounts and pays agent commissions in USDC when a
 valid agent code is provided.
- The Sale or Delivery smartcontract is written in Solidity and deployed to Polygon chain through remix.ethereum.org This too is relatively simple to do. However, at the moment it will need to be created for each SQMU ERC-20 token created. 
+## Deploying MultiSqmuDistributor
+1. Open [Remix](https://remix.ethereum.org) and create a new file with the contents of `MultiSqmuDistributor.sol`.
 
-The payment page is coded and deployed. It will trigger the SALE or Delivery contract residing on Polygon. The payment page is a HTML + JS code embedded with CustomHTML Block on wordpress.com, the page is treated as a single check out page for multiple functions. 
+Use `admin.html` to register agents and send SQMU manually. Set `CONTRACT_ADDR` to your `MultiSqmuDistributor` address and `APPS_SCRIPT_URL` to the deployed `record.gs` web app URL before embedding the file in WordPress.
 
 The button is also a code snippet HTML + JS that is embedded as CustomHTML Block in a page template that will be applicable for all properties of similar type. There are 2 types fractionalised and non-fractionalised.
 
