@@ -11,6 +11,17 @@
   </style>
 </head>
 <body>
+  <h3>Register Property</h3>
+  <form id="propForm">
+    <label class="required">Property Name</label>
+    <input name="property" required>
+    <label class="required">Token ID</label>
+    <input name="tokenId" required>
+    <label class="required">Token Address</label>
+    <input name="tokenAddr" pattern="^0x[a-fA-F0-9]{40}$" required>
+    <button type="submit">Add Property</button>
+  </form>
+  <pre id="propStatus"></pre>
   <h3>Register Agent</h3>
   <form id="agentForm">
     <label class="required">Property Code</label>
@@ -60,10 +71,24 @@
       const info = await dist.properties(code);
       if (!info || info.token === ethers.ZeroAddress) throw new Error('Unknown property');
       const token = new ethers.Contract(info.token, TOKEN_ABI, provider);
-      const dec = await token.decimals();
-      PROP_DECIMALS[code] = Number(dec);
-      return PROP_DECIMALS[code];
-    }
+    const dec = await token.decimals();
+    PROP_DECIMALS[code] = Number(dec);
+    return PROP_DECIMALS[code];
+  }
+
+  document.getElementById('propForm').onsubmit = (e) => {
+    e.preventDefault();
+    const f = e.target;
+    const property = f.property.value.trim();
+    const tokenId = f.tokenId.value.trim();
+    const tokenAddr = f.tokenAddr.value.trim();
+    fetch(APPS_SCRIPT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ property, token_id: tokenId, token_addr: tokenAddr })
+    });
+    document.getElementById('propStatus').textContent = 'Submitted';
+  };
 
     document.getElementById('agentForm').onsubmit = async (e) => {
       e.preventDefault();
