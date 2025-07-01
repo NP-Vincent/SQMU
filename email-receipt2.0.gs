@@ -14,6 +14,7 @@ function doPost(e) {
     const tokenAddr = e.parameter.token_addr;
     const fail = e.parameter.fail;
     const prop = e.parameter.prop;
+    const propCode = e.parameter.prop_code;
     const sqmuAmt = e.parameter.sqmu_amt;
     const agent = e.parameter.agent;
     if (!(email && txLink && usd && chain && token)) {
@@ -23,6 +24,7 @@ function doPost(e) {
       'Stablecoin tx: ' + txLink + '\n' +
       'Amount: ' + usd + ' USD paid in ' + token + ' on ' + chain + '.';
     if (prop) body += '\nProperty: ' + prop;
+    if (propCode) body += '\nProperty code: ' + propCode;
     if (sqmuAmt) body += '\nSQMU amount: ' + sqmuAmt;
     if (agent) body += '\nAgent code: ' + agent;
     if (tokenAmt && tokenId && tokenAddr) {

@@ -5,8 +5,9 @@ function doPost(e) {
     const email = e.parameter.email;
     const wallet = e.parameter.wallet;
     const code = e.parameter.code;
+    const prop = e.parameter.prop;
     if (name && email && wallet && code) {
-      sheet.appendRow([new Date(), name, email, wallet, code]);
+      sheet.appendRow([new Date(), name, email, wallet, code, prop || '']);
       return ContentService.createTextOutput('OK');
     }
   }
