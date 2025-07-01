@@ -15,7 +15,10 @@ calling `distribute` so the contract receives the correct token units.
 6. Use the new contract address in the payment widgets.
 
 
-The WPSmartContract is Wordpress plugin and the interface and process is relatively simple to create an ERC-20 SQMU token. A SQMU ERC-20 token will be created for each fractionalised property that is listed. The supply of the SQMU will be equal to the square metre of the listed property.   The Sale or Delivery smartcontract is written in Solidity and deployed to Polygon chain through remix.ethereum.org This too is relatively simple to do. However, at the moment it will need to be created for each SQMU ERC-20 token created. 
+Only the contract owner can call `distribute` after the latest update. The
+page accepts fractional SQMU amounts and pays agent commissions in USDC when a
+valid agent code is provided.
+ The Sale or Delivery smartcontract is written in Solidity and deployed to Polygon chain through remix.ethereum.org This too is relatively simple to do. However, at the moment it will need to be created for each SQMU ERC-20 token created. 
 
 The payment page is coded and deployed. It will trigger the SALE or Delivery contract residing on Polygon. The payment page is a HTML + JS code embedded with CustomHTML Block on wordpress.com, the page is treated as a single check out page for multiple functions. 
 
