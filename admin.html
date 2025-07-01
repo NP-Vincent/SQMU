@@ -56,7 +56,7 @@
 
   <script src="https://cdn.jsdelivr.net/npm/ethers@6/dist/ethers.umd.min.js"></script>
   <script>
-    const CONTRACT_ADDR = '0x05DE67Bcb469dDbddA68534c41fB5CcB7a50Fa7f';
+    const CONTRACT_ADDR = '0x105bb57603537F9e34F52F54630fC4f6C01835D6';
     const AGENT_ABI = ['function setAgentCode(string code, address agent) external'];
     const PROP_ABI = ['function setProperty(string code, address token, address treasury) external'];
     const DIST_ABI = [
@@ -64,7 +64,7 @@
       'function properties(string) view returns(address token, address treasury)'
     ];
     const TOKEN_ABI = ['function decimals() view returns(uint8)'];
-    const PROP_DECIMALS = { SQMU4: 2 };
+    const PROP_DECIMALS = { SQMU: 2 };
     const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx9WwOsCtFOEfWZH7zRK-zvjU0oRzm2Qd8zaF1ABREEWmAlJJ6SnS2HRtnWqiU-0ERv5g/exec';
 
     async function getDecimals(code) {
