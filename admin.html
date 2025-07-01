@@ -19,6 +19,8 @@
     <input name="tokenId" required>
     <label class="required">Token Address</label>
     <input name="tokenAddr" pattern="^0x[a-fA-F0-9]{40}$" required>
+    <label class="required">Treasury Address</label>
+    <input name="treasury" pattern="^0x[a-fA-F0-9]{40}$" required>
     <button type="submit">Add Property</button>
   </form>
   <pre id="propStatus"></pre>
@@ -56,6 +58,7 @@
   <script>
     const CONTRACT_ADDR = '0x05DE67Bcb469dDbddA68534c41fB5CcB7a50Fa7f';
     const AGENT_ABI = ['function setAgentCode(string code, address agent) external'];
+    const PROP_ABI = ['function setProperty(string code, address token, address treasury) external'];
     const DIST_ABI = [
       'function distribute(string code, address to, uint256 amount, string agentCode) external',
       'function properties(string) view returns(address token, address treasury)'
@@ -76,18 +79,32 @@
     return PROP_DECIMALS[code];
   }
 
-  document.getElementById('propForm').onsubmit = (e) => {
+  document.getElementById('propForm').onsubmit = async (e) => {
     e.preventDefault();
     const f = e.target;
-    const property = f.property.value.trim();
-    const tokenId = f.tokenId.value.trim();
-    const tokenAddr = f.tokenAddr.value.trim();
+    const [property, tokenId, tokenAddr, treasury] = [
+      f.property.value.trim(),
+      f.tokenId.value.trim(),
+      f.tokenAddr.value.trim(),
+      f.treasury.value.trim()
+    ];
     fetch(APPS_SCRIPT_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({ property, token_id: tokenId, token_addr: tokenAddr })
+      body: new URLSearchParams({ property, token_id: tokenId, token_addr: tokenAddr, treasury_addr: treasury })
     });
-    document.getElementById('propStatus').textContent = 'Submitted';
+    try {
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      await provider.send('eth_requestAccounts', []);
+      const signer = await provider.getSigner();
+      const dist = new ethers.Contract(CONTRACT_ADDR, PROP_ABI, signer);
+      const tx = await dist.setProperty(tokenId, tokenAddr, treasury);
+      document.getElementById('propStatus').textContent = 'Tx: ' + tx.hash;
+      await tx.wait();
+      document.getElementById('propStatus').textContent = 'Property added!';
+    } catch (err) {
+      document.getElementById('propStatus').textContent = 'Error: ' + err.message;
+    }
   };
 
     document.getElementById('agentForm').onsubmit = async (e) => {

@@ -31,7 +31,10 @@ setProperty('SQMU4', '0xTokenAddress', '0xTreasuryAddress')
 ```
 
 The admin page includes a **Register Property** form which posts the property
-name, code and token address to `record.gs` for logging.
+name, code, token and treasury addresses to `record.gs` for logging. After
+submitting it connects to MetaMask and calls `setProperty` so the contract
+stores the token and treasury on-chain. The status area shows the transaction
+hash and whether the registration succeeded.
 
 ### Setting Exchange Rates
 
