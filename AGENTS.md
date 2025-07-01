@@ -115,3 +115,4 @@ Use short, descriptive commit messages (e.g., `Add payment widget skeleton`).
 - 2025-07-01-16:18-UTC; Allow decimal SQMU amounts and parse units in admin page.
 - 2025-07-01-16:45-UTC; Added stablecoin commissions in SqmuDistributor.
 - 2025-07-01-16:50-UTC; Document SQMU amount parsing in admin interface.
+- 2025-07-01-17:00-UTC; Updated distributor deployment instructions for USDC commissions.
