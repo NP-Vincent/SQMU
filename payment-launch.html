@@ -23,9 +23,9 @@
 </head>
 <body>
   <div id="widget">
-  <h3>Buy SQMU4</h3>
-  <p>Token to receive: <b>SQMU4</b> on <b>Polygon</b></p>
-  <p>Available: <span id="avail">...</span> SQMU4</p>
+  <h3>Buy SQMU</h3>
+  <p>Token to receive: <b>SQMU</b> on <b>Polygon</b></p>
+  <p>Available: <span id="avail">...</span> SQMU</p>
   <label for="sqmu-input" class="required">SQMU Amount</label>
   <input id="sqmu-input" type="number" min="1" step="0.01" placeholder="100">
   <p>USD Amount: <span id="usd-display"></span></p>
@@ -56,16 +56,16 @@
 
   <script src="https://cdn.jsdelivr.net/npm/ethers@6/dist/ethers.umd.min.js"></script>
   <script>
-    let SALE_ADDR = '0x05DE67Bcb469dDbddA68534c41fB5CcB7a50Fa7f';
+    let SALE_ADDR = '0x105bb57603537F9e34F52F54630fC4f6C01835D6';
     const RPC = 'https://polygon-rpc.com';
     const DEFAULT_PROP = {
-      code: 'SQMU4',
+      code: 'SQMU',
       address: '0x38753025A423581aCdC1A167fd603a7EBEBfB3ad',
       decimals: 2,
       price: 0.01,
       chainId: 137
     };
-    const PROPS = { SQMU4: { ...DEFAULT_PROP } };
+    const PROPS = { SQMU: { ...DEFAULT_PROP } };
     let PROP = { ...DEFAULT_PROP };
 
     function show(msg) {
