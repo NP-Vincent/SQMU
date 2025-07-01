@@ -30,7 +30,7 @@
     <label class="required">Buyer Wallet</label>
     <input name="buyerWallet" pattern="^0x[a-fA-F0-9]{40}$" required>
     <label class="required">SQMU Amount</label>
-    <input name="amount" type="number" min="1" required>
+    <input name="amount" type="number" min="1" step="0.01" required>
     <label>Agent Code (optional)</label>
     <input name="distAgentCode">
     <button type="submit">Send Tokens</button>
@@ -76,10 +76,11 @@
         await provider.send('eth_requestAccounts', []);
         const signer = await provider.getSigner();
         const dist = new ethers.Contract(CONTRACT_ADDR, DIST_ABI, signer);
-        const tx = await dist.distribute(to, amt, code);
+        const amount = ethers.parseUnits(String(amt), 2);
+        const tx = await dist.distribute(to, amount, code);
         document.getElementById('distStatus').textContent = 'Tx: ' + tx.hash;
         await tx.wait();
-        document.getElementById('distStatus').textContent = 'SQMU sent!';
+        document.getElementById('distStatus').textContent = 'Sent ' + amt + ' SQMU';
       } catch (err) {
         document.getElementById('distStatus').textContent = 'Error: ' + err.message;
       }
