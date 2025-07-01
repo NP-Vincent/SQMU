@@ -1,5 +1,18 @@
+function parseQuery(q) {
+  const out = {};
+  if (!q) return out;
+  const pairs = q.split('&');
+  for (var i = 0; i < pairs.length; i++) {
+    var kv = pairs[i].split('=');
+    var k = decodeURIComponent(kv[0] || '');
+    var v = decodeURIComponent(kv[1] || '');
+    out[k] = v;
+  }
+  return out;
+}
+
 function doPost(e) {
-  if (!e || !e.parameter) {
+  if (!e || !e.postData) {
     return ContentService.createTextOutput('Missing POST data');
   }
   try {
@@ -8,13 +21,13 @@ function doPost(e) {
     const usd = e.parameter.usd;
     const chain = e.parameter.chain;
     const token = e.parameter.token;
+    const params = parseQuery(e.postData.contents);
     const tokenAmt = e.parameter.token_amt;
-    const tokenId = e.parameter.token_id;
+    const tokenId = params.token_id || e.parameter.token_id;
     const sqmuLink = e.parameter.sqmu_link;
-    const tokenAddr = e.parameter.token_addr;
+    const tokenAddr = params.token_addr || e.parameter.token_addr;
     const fail = e.parameter.fail;
     const prop = e.parameter.prop;
-    const propCode = e.parameter.prop_code;
     const sqmuAmt = e.parameter.sqmu_amt;
     const agent = e.parameter.agent;
     if (!(email && txLink && usd && chain && token)) {
@@ -23,8 +36,7 @@ function doPost(e) {
     let body = 'Thank you for your payment.\n' +
       'Stablecoin tx: ' + txLink + '\n' +
       'Amount: ' + usd + ' USD paid in ' + token + ' on ' + chain + '.';
-    if (prop) body += '\nProperty: ' + prop;
-    if (propCode) body += '\nProperty code: ' + propCode;
+    if (prop) body += '\nProperty code: ' + prop;
     if (sqmuAmt) body += '\nSQMU amount: ' + sqmuAmt;
     if (agent) body += '\nAgent code: ' + agent;
     if (tokenAmt && tokenId && tokenAddr) {

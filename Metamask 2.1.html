@@ -133,7 +133,7 @@
     }
 
 
-    function sendReceipt(payLink, amount, option, email, tokenAmt, tokenId, sqmuLink, fail) {
+    function sendReceipt(payLink, amount, option, email, tokenAmt, tokenId, tokenAddr, dec, sqmuLink, fail) {
       fetch(MAIL_URL, {
         method: 'POST',
         mode: 'no-cors',
@@ -146,11 +146,10 @@
           token: option.token,
           token_amt: tokenAmt,
           token_id: tokenId,
+          token_addr: tokenAddr,
+          token_dec: dec,
           sqmu_link: sqmuLink,
-          token_addr: PROP.address,
-          sale_addr: SALE_ADDR,
-          prop: gParams ? gParams.get('title') || '' : '',
-          prop_code: PROP.code,
+          prop: tokenId,
           sqmu_amt: gParams ? gParams.get('sqmu') || '' : '',
           agent: document.getElementById('agent-code-input').value.trim(),
           fail: fail ? '1' : ''
@@ -414,7 +413,7 @@
         show(`✅ Sent ${amount} ${option.token} to ${DEST} on ${option.name}\n\nView transaction: ${payLink}\nSQMU tokens will be delivered within 24 hours. Receipt will be emailed to you.`);
         txDetails.textContent = `Payment: ${payLink}`;
         postPay.style.display = '';
-        sendReceipt(payLink, amount, option, emailInput.value, tokenAmt, PROP.code, '');
+        sendReceipt(payLink, amount, option, emailInput.value, tokenAmt, PROP.code, PROP.address, PROP.decimals, '', '');
         } catch (err) {
           show('Payment failed:\n' + (err.message || err));
         }
