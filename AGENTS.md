@@ -120,3 +120,4 @@ Use short, descriptive commit messages (e.g., `Add payment widget skeleton`).
 - 2025-07-01-17:30-UTC; Introduced MultiSqmuDistributor with property registration.
 - 2025-07-01-19:57-UTC; Added property code selection and logging.
 - 2025-07-01-20:05-UTC; Added dynamic property params and supply checks.
+- 2025-07-01-20:12-UTC; Read property and sale params from query string.

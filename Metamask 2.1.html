@@ -93,7 +93,7 @@
       price: 0.01
     };
     let PROP = { ...DEFAULT_PROP };
-    const SALE_ADDR = '0x05DE67Bcb469dDbddA68534c41fB5CcB7a50Fa7f';
+    let SALE_ADDR = '0x05DE67Bcb469dDbddA68534c41fB5CcB7a50Fa7f';
 
     const CHAIN_INFO = {
       1: {
@@ -148,8 +148,9 @@
           token_id: tokenId,
           sqmu_link: sqmuLink,
           token_addr: PROP.address,
+          sale_addr: SALE_ADDR,
           prop: gParams ? gParams.get('title') || '' : '',
-          prop_code: gParams ? gParams.get('buy') || '' : '',
+          prop_code: PROP.code,
           sqmu_amt: gParams ? gParams.get('sqmu') || '' : '',
           agent: document.getElementById('agent-code-input').value.trim(),
           fail: fail ? '1' : ''
@@ -335,6 +336,7 @@
       if (params.get('sqmuAddr')) PROP.address = params.get('sqmuAddr');
       if (params.get('sqmuDec')) PROP.decimals = Number(params.get('sqmuDec'));
       if (params.get('rate')) PROP.price = parseFloat(params.get('rate'));
+      if (params.get('saleAddr')) SALE_ADDR = params.get('saleAddr');
       window.BUY_TOKEN = buyToken;
       window.BUY_CHAIN = buyChain;
 
@@ -412,7 +414,7 @@
         show(`✅ Sent ${amount} ${option.token} to ${DEST} on ${option.name}\n\nView transaction: ${payLink}\nSQMU tokens will be delivered within 24 hours. Receipt will be emailed to you.`);
         txDetails.textContent = `Payment: ${payLink}`;
         postPay.style.display = '';
-        sendReceipt(payLink, amount, option, emailInput.value, tokenAmt, window.BUY_TOKEN || PROP.code, '');
+        sendReceipt(payLink, amount, option, emailInput.value, tokenAmt, PROP.code, '');
         } catch (err) {
           show('Payment failed:\n' + (err.message || err));
         }
