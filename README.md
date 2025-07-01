@@ -1,6 +1,3 @@
-4. Deploy the contract with the SQMU token address, the USDC token address on Polygon and the treasury wallet.
-5. The treasury must hold enough USDC and approve this contract to spend it so commissions can be paid.
-6. Use the new contract address in the payment widgets.
 The following components need to seamlessly interact with each other. 
 
 - WPSmartContract - smart contract that creates and controls the supply of the SQMU - ERC-20 token for each property. For the early operations the chain used is Polygon.
@@ -10,8 +7,8 @@ The **SQMU Amount** input accepts decimal values like `14.76`. When you submit
 the form the admin page converts this string using `ethers.parseUnits` before
 calling `distribute` so the contract receives the correct token units.
 
-4. Deploy the contract with the SQMU token address, the USDC token address on Polygon and your treasury wallet.
-5. The treasury must hold enough USDC and approve the distributor to spend it so agent commissions can be paid.
+4. Deploy the contract with the SQMU token address, the USDC token address on Polygon and the treasury wallet.
+5. The treasury must hold enough USDC and approve this contract to spend it so commissions can be paid.
 6. Use the new contract address in the payment widgets.
 
 
