@@ -118,3 +118,4 @@ Use short, descriptive commit messages (e.g., `Add payment widget skeleton`).
 - 2025-07-01-17:00-UTC; Updated distributor deployment instructions for USDC commissions.
 - 2025-07-01-17:10-UTC; Document fractional SQMU and USDC commissions in README.
 - 2025-07-01-17:30-UTC; Introduced MultiSqmuDistributor with property registration.
+- 2025-07-01-19:57-UTC; Added property code selection and logging.
