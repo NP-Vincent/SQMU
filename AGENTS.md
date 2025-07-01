@@ -113,3 +113,4 @@ Use short, descriptive commit messages (e.g., `Add payment widget skeleton`).
 - 2025-06-30-16:53-UTC; Added Calendly popup integration for schedule buttons.
 - 2025-06-30-19:48-UTC; Added admin interface and owner-only distribution.
 - 2025-07-01-16:18-UTC; Allow decimal SQMU amounts and parse units in admin page.
+- 2025-07-01-16:45-UTC; Added stablecoin commissions in SqmuDistributor.
