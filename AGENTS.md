@@ -123,3 +123,4 @@ Use short, descriptive commit messages (e.g., `Add payment widget skeleton`).
 - 2025-07-01-20:12-UTC; Read property and sale params from query string.
 - 2025-07-01-20:22-UTC; Pass property code and token address in receipt emails.
 - 2025-07-01-20:40-UTC; Added property registration form and sheet logging.
+- 2025-07-01-21:00-UTC; Documented MultiSqmuDistributor and property-aware pages.
