@@ -1,4 +1,7 @@
-WPSmartContract allows as to create a token on any network for free. Gas fees for creating the smart contract applies. However, once this is done, a pre-defined supply of the ERC-20 token SQMU can then be used as a fractional representation of square metre of the property. The SQMU is transferred from the smart contract to the buyer upon payment.   The following components need to seamlessly interact with each other. 
+4. Deploy the contract with the SQMU token address, the stablecoin token address (USDC/USDT) and the treasury wallet.
+5. The treasury must approve this contract to spend both tokens.
+6. Use the new contract address in the payment widgets.
+The following components need to seamlessly interact with each other. 
 
 - WPSmartContract - smart contract that creates and controls the supply of the SQMU - ERC-20 token for each property. For the early operations the chain used is Polygon.
 - A Sale smart contract on the same chain, in this case Polygon, which is approved to interact with the WPSmartContract and functions as a sales process or delivery process contract. Sending the SQMU to the buyer based on the fixed exchange rate of SQMU to USD. Based on confirmation of payment.

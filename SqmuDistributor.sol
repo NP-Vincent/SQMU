@@ -16,6 +16,8 @@ contract SqmuDistributor {
     address public owner;
     address public treasury;
     IERC20 public immutable sqmu;
+    IERC20 public immutable stable;
+    uint256 public constant STABLE_DECIMALS = 6;
     uint256 public commissionBps = 200; // 2% commission
     mapping(string => address) public agentCodes;
 
@@ -24,15 +26,17 @@ contract SqmuDistributor {
     event OwnerChanged(address indexed newOwner);
     event AgentCodeSet(string code, address indexed agent);
     event CommissionBpsChanged(uint256 newBps);
+    event StableCommissionPaid(address indexed agent, uint256 amount);
 
     modifier onlyOwner() {
         require(msg.sender == owner, "not owner");
         _;
     }
 
-    constructor(address _sqmu, address _treasury) {
+    constructor(address _sqmu, address _stable, address _treasury) {
         owner = msg.sender;
         sqmu = IERC20(_sqmu);
+        stable = IERC20(_stable);
         treasury = _treasury;
     }
 
@@ -69,11 +73,15 @@ contract SqmuDistributor {
         address agent = agentCodes[agentCode];
         uint256 agentAmount = 0;
         uint256 buyerAmount = amount;
+        uint256 stableAmount = 0;
 
         if (agent != address(0) && commissionBps > 0) {
             agentAmount = (amount * commissionBps) / 10000;
             buyerAmount = amount - agentAmount;
+            stableAmount = (agentAmount * 10 ** STABLE_DECIMALS) / 100; // SQMU at $0.01
             require(sqmu.transferFrom(treasury, agent, agentAmount), "agent transfer failed");
+            require(stable.transferFrom(treasury, agent, stableAmount), "stable transfer failed");
+            emit StableCommissionPaid(agent, stableAmount);
         }
 
         require(sqmu.transferFrom(treasury, to, buyerAmount), "buyer transfer failed");
