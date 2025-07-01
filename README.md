@@ -1,5 +1,5 @@
-4. Deploy the contract with the SQMU token address, the stablecoin token address (USDC/USDT) and the treasury wallet.
-5. The treasury must approve this contract to spend both tokens.
+4. Deploy the contract with the SQMU token address, the USDC token address on Polygon and the treasury wallet.
+5. The treasury must hold enough USDC and approve this contract to spend it so commissions can be paid.
 6. Use the new contract address in the payment widgets.
 The following components need to seamlessly interact with each other. 
 
@@ -10,7 +10,10 @@ The **SQMU Amount** input accepts decimal values like `14.76`. When you submit
 the form the admin page converts this string using `ethers.parseUnits` before
 calling `distribute` so the contract receives the correct token units.
 
-- A button that collects information about the property, the price and in the case of SQMU the number of SQMUs being purchased and provides a USD value for the payment page to process.   
+4. Deploy the contract with the SQMU token address, the USDC token address on Polygon and your treasury wallet.
+5. The treasury must hold enough USDC and approve the distributor to spend it so agent commissions can be paid.
+6. Use the new contract address in the payment widgets.
+
 
 The WPSmartContract is Wordpress plugin and the interface and process is relatively simple to create an ERC-20 SQMU token. A SQMU ERC-20 token will be created for each fractionalised property that is listed. The supply of the SQMU will be equal to the square metre of the listed property.   The Sale or Delivery smartcontract is written in Solidity and deployed to Polygon chain through remix.ethereum.org This too is relatively simple to do. However, at the moment it will need to be created for each SQMU ERC-20 token created. 
 
