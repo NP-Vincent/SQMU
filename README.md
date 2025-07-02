@@ -28,7 +28,7 @@ After deploying `MultiSqmuDistributor` call `setProperty` for each SQMU token:
 
 ```
 // price is USD per SQMU scaled by STABLE_DECIMALS (6)
-setProperty('SQMU4', '0xTokenAddress', '0xTreasuryAddress', 1000000)
+setProperty('SQMU', '0xTokenAddress', '0xTreasuryAddress', 1000000)
 ```
 
 `1000000` represents $1.00 when `STABLE_DECIMALS` is `6`. Adjust the value
