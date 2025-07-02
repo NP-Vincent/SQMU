@@ -131,3 +131,4 @@ Use short, descriptive commit messages (e.g., `Add payment widget skeleton`).
 - 2025-07-02-03:04-UTC; Added wallet instructions and transaction details in receipt emails.
 - 2025-07-02-03:21-UTC; Allow SQMU amounts down to 0.01 in admin page.
 - 2025-07-02-15:40-UTC; Added per-property pricing and commission calculation.
+- 2025-07-02-03:57-UTC; Lowered minimum SQMU amount in payment launcher.
