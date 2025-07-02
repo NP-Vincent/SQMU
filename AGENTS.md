@@ -10,6 +10,8 @@ Metamask 1.0.html
   1. USDT on Ethereum mainnet
   2. USDC on Arbitrum One
   3. USDC on Polygon
+  4. USDT on Scroll
+  5. USDC on Scroll
 - Keep styling lightweight and rely on WordPress theme CSS.
 - Initialize the widget on `DOMContentLoaded` and read `title`, `aed`, and `usd` query parameters to populate the UI.
 - Separate wallet setup, balance lookup, and token transfer into small functions.
@@ -133,3 +135,4 @@ Use short, descriptive commit messages (e.g., `Add payment widget skeleton`).
 - 2025-07-02-15:40-UTC; Added per-property pricing and commission calculation.
 - 2025-07-02-03:57-UTC; Lowered minimum SQMU amount in payment launcher.
 - 2025-07-02-04:05-UTC; Log SQMU USD price on property sheet and remove property code from agent registration.
+- 2025-07-02-23:54-UTC; Document Scroll USDT and USDC payment options.
