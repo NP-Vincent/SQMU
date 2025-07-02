@@ -27,13 +27,18 @@ The button is also a code snippet HTML + JS that is embedded as CustomHTML Block
 After deploying `MultiSqmuDistributor` call `setProperty` for each SQMU token:
 
 ```
-setProperty('SQMU4', '0xTokenAddress', '0xTreasuryAddress')
+// price is USD per SQMU scaled by STABLE_DECIMALS (6)
+setProperty('SQMU4', '0xTokenAddress', '0xTreasuryAddress', 1000000)
 ```
+
+`1000000` represents $1.00 when `STABLE_DECIMALS` is `6`. Adjust the value
+for your property's price per SQMU.
 
 The admin page includes a **Register Property** form which posts the property
 name, code, token and treasury addresses to `record.gs` for logging. After
 submitting it connects to MetaMask and calls `setProperty` so the contract
-stores the token and treasury on-chain. The status area shows the transaction
+stores the token, treasury and price on-chain. Enter the USD price per SQMU
+so commissions can be calculated. The status area shows the transaction
 hash and whether the registration succeeded.
 
 ### Setting Exchange Rates

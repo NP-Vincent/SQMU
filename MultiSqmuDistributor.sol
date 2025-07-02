@@ -9,6 +9,7 @@ interface IERC20 {
 struct SQMUProp {
     IERC20 token;
     address treasury;
+    uint256 price; // USD per SQMU scaled by STABLE_DECIMALS
 }
 
 /**
@@ -25,7 +26,7 @@ contract MultiSqmuDistributor {
     mapping(string => SQMUProp) public properties;
     mapping(string => address) public agentCodes;
 
-    event PropertySet(string indexed code, address token, address treasury);
+    event PropertySet(string indexed code, address token, address treasury, uint256 price);
     event Distributed(string indexed code, address indexed to, uint256 buyerAmount, address indexed agent, uint256 agentAmount);
     event StableCommissionPaid(address indexed agent, uint256 amount);
     event CommissionBpsChanged(uint256 newBps);
@@ -60,12 +61,13 @@ contract MultiSqmuDistributor {
         emit AgentCodeSet(code, agent);
     }
 
-    /// @notice Register or update a property token and treasury.
-    function setProperty(string calldata code, address token, address treasury) external onlyOwner {
+    /// @notice Register or update a property token and treasury with USD price.
+    function setProperty(string calldata code, address token, address treasury, uint256 price) external onlyOwner {
         require(bytes(code).length > 0, "code");
         require(token != address(0) && treasury != address(0), "zero");
-        properties[code] = SQMUProp(IERC20(token), treasury);
-        emit PropertySet(code, token, treasury);
+        require(price > 0, "price");
+        properties[code] = SQMUProp(IERC20(token), treasury, price);
+        emit PropertySet(code, token, treasury, price);
     }
 
     /// @notice Returns the SQMU balance for a property treasury.
@@ -88,7 +90,7 @@ contract MultiSqmuDistributor {
         if (agent != address(0) && commissionBps > 0) {
             agentAmount = (amount * commissionBps) / 10000;
             buyerAmount = amount - agentAmount;
-            stableAmount = (agentAmount * 10 ** STABLE_DECIMALS) / 100; // SQMU at $0.01
+            stableAmount = (agentAmount * p.price) / 100;
             require(p.token.transferFrom(p.treasury, agent, agentAmount), "agent SQMU failed");
             require(stable.transferFrom(p.treasury, agent, stableAmount), "stable failed");
             emit StableCommissionPaid(agent, stableAmount);
