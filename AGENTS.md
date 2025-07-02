@@ -132,3 +132,4 @@ Use short, descriptive commit messages (e.g., `Add payment widget skeleton`).
 - 2025-07-02-03:21-UTC; Allow SQMU amounts down to 0.01 in admin page.
 - 2025-07-02-15:40-UTC; Added per-property pricing and commission calculation.
 - 2025-07-02-03:57-UTC; Lowered minimum SQMU amount in payment launcher.
+- 2025-07-02-04:05-UTC; Log SQMU USD price on property sheet and remove property code from agent registration.
