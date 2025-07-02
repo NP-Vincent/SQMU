@@ -129,3 +129,4 @@ Use short, descriptive commit messages (e.g., `Add payment widget skeleton`).
 - 2025-07-02-12:30-UTC; Read SQMU code and price from Estatik elements.
 - 2025-07-02-13:00-UTC; Improve Estatik parsing for property code and USD value.
 - 2025-07-02-03:04-UTC; Added wallet instructions and transaction details in receipt emails.
+- 2025-07-02-03:21-UTC; Allow SQMU amounts down to 0.01 in admin page.
