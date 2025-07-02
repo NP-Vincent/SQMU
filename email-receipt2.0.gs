@@ -39,15 +39,18 @@ function doPost(e) {
     if (prop) body += '\nProperty code: ' + prop;
     if (sqmuAmt) body += '\nSQMU amount: ' + sqmuAmt;
     if (agent) body += '\nAgent code: ' + agent;
-    if (tokenAmt && tokenId && tokenAddr) {
-      body += '\nTokens bought: ' + tokenAmt + ' ' + tokenId +
-        '\nToken contract: ' + tokenAddr;
-      if (sqmuLink) {
-        body += '\nToken purchase tx: ' + sqmuLink;
+      if (tokenAmt && tokenId && tokenAddr) {
+        body += '\nTokens bought: ' + tokenAmt + ' ' + tokenId +
+          '\nToken contract: ' + tokenAddr;
+        if (sqmuLink) {
+          body += '\nToken purchase tx: ' + sqmuLink;
+        }
+        body += '\n\nTo view your SQMU tokens:' +
+          '\n1. Switch your wallet network to Polygon (chain ID 137).' +
+          '\n2. Add a custom token using the address above.' +
+          '\n3. Set the token symbol to ' + tokenId + ' and decimals to 2.';
+        body += '\nTokens are delivered to the paying wallet within 24 hours.';
       }
-      body += '\nAdd the contract address above in your wallet to view your purchased SQMU tokens.';
-      body += '\nTokens will be sent to the paying wallet within 24 hours.';
-    }
     if (fail) {
       body += '\nThere was an issue preparing your SQMU tokens. Reply with your wallet details for assistance.';
     }
