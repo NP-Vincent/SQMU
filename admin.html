@@ -28,8 +28,6 @@
   <pre id="propStatus"></pre>
   <h3>Register Agent</h3>
   <form id="agentForm">
-    <label class="required">Property Code</label>
-    <input name="propCode" required>
     <label class="required">Agent Name</label>
     <input name="agentName" required>
     <label class="required">Email</label>
@@ -94,7 +92,7 @@
     fetch(APPS_SCRIPT_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({ property, token_id: tokenId, token_addr: tokenAddr, treasury_addr: treasury })
+      body: new URLSearchParams({ property, token_id: tokenId, token_addr: tokenAddr, treasury_addr: treasury, price })
     });
     try {
       const provider = new ethers.BrowserProvider(window.ethereum);
@@ -114,17 +112,16 @@
     document.getElementById('agentForm').onsubmit = async (e) => {
       e.preventDefault();
       const f = e.target;
-      const [name, email, wallet, code, prop] = [
+      const [name, email, wallet, code] = [
         f.agentName.value.trim(),
         f.agentEmail.value.trim(),
         f.agentWallet.value.trim(),
-        f.agentCode.value.trim(),
-        f.propCode.value.trim()
+        f.agentCode.value.trim()
       ];
       fetch(APPS_SCRIPT_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({ name, email, wallet, code, prop })
+        body: new URLSearchParams({ name, email, wallet, code })
       });
       try {
         const provider = new ethers.BrowserProvider(window.ethereum);

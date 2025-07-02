@@ -6,20 +6,20 @@ function doPost(e) {
     // Property registration
     const property = e.parameter.property;
     const tokenId = e.parameter.token_id;
-    const tokenAddr = e.parameter.token_addr;
-    if (property && tokenId && tokenAddr && propSheet) {
-      propSheet.appendRow([new Date(), property, tokenId, tokenAddr]);
-      return ContentService.createTextOutput('OK');
-    }
+  const tokenAddr = e.parameter.token_addr;
+  const price = e.parameter.price;
+  if (property && tokenId && tokenAddr && price && propSheet) {
+    propSheet.appendRow([new Date(), property, tokenId, tokenAddr, price]);
+    return ContentService.createTextOutput('OK');
+  }
 
     // Agent registration
     const name = e.parameter.name;
     const email = e.parameter.email;
     const wallet = e.parameter.wallet;
-    const code = e.parameter.code;
-    const prop = e.parameter.prop;
-    if (name && email && wallet && code && agentSheet) {
-      agentSheet.appendRow([new Date(), name, email, wallet, code, prop || '']);
+  const code = e.parameter.code;
+  if (name && email && wallet && code && agentSheet) {
+    agentSheet.appendRow([new Date(), name, email, wallet, code]);
       return ContentService.createTextOutput('OK');
     }
   }
