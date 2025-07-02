@@ -96,6 +96,25 @@
     }
 
     document.addEventListener('DOMContentLoaded', () => {
+      let estCode = '';
+      let estUsd = '';
+      document.querySelectorAll('.es-entity-field').forEach((li) => {
+        const label = li.querySelector('.es-property-field__label');
+        const value = li.querySelector('.es-property-field__value');
+        if (!label || !value) return;
+        if (label.textContent.includes('SQMU Property Code')) {
+          estCode = value.textContent.trim();
+        }
+        if (label.textContent.includes('SQMU Value in USD')) {
+          estUsd = value.textContent.trim();
+        }
+      });
+      if (estCode) PROP.code = estCode;
+      if (estUsd) {
+        PROP.price = parseFloat(estUsd.replace(/[^0-9.]/g, ''));
+      }
+      PROP.decimals = 2;
+
       let search = location.search;
       if (!search && location.hash.includes('?')) {
         search = location.hash.substring(location.hash.indexOf('?'));
