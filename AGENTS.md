@@ -126,3 +126,4 @@ Use short, descriptive commit messages (e.g., `Add payment widget skeleton`).
 - 2025-07-01-21:00-UTC; Documented MultiSqmuDistributor and property-aware pages.
 - 2025-07-01-21:30-UTC; Admin page registers properties on-chain with treasury address.
 - 2025-07-02-00:00-UTC; Updated payment pages to generic SQMU and new distributor address.
+- 2025-07-02-12:30-UTC; Read SQMU code and price from Estatik elements.

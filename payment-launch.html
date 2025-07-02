@@ -96,6 +96,16 @@
     }
 
     document.addEventListener('DOMContentLoaded', () => {
+      const codeEl = document.querySelector('.es_property-code');
+      const usdEl = document.querySelector('.es_sqmu-usd');
+      if (codeEl && codeEl.textContent) {
+        PROP.code = codeEl.textContent.trim();
+      }
+      if (usdEl && usdEl.textContent) {
+        PROP.price = parseFloat(usdEl.textContent.replace(/[^0-9.]/g, ''));
+      }
+      PROP.decimals = 2;
+
       let search = location.search;
       if (!search && location.hash.includes('?')) {
         search = location.hash.substring(location.hash.indexOf('?'));
