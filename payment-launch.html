@@ -96,13 +96,22 @@
     }
 
     document.addEventListener('DOMContentLoaded', () => {
-      const codeEl = document.querySelector('.es_property-code');
-      const usdEl = document.querySelector('.es_sqmu-usd');
-      if (codeEl && codeEl.textContent) {
-        PROP.code = codeEl.textContent.trim();
-      }
-      if (usdEl && usdEl.textContent) {
-        PROP.price = parseFloat(usdEl.textContent.replace(/[^0-9.]/g, ''));
+      let estCode = '';
+      let estUsd = '';
+      document.querySelectorAll('.es-entity-field').forEach((li) => {
+        const label = li.querySelector('.es-property-field__label');
+        const value = li.querySelector('.es-property-field__value');
+        if (!label || !value) return;
+        if (label.textContent.includes('SQMU Property Code')) {
+          estCode = value.textContent.trim();
+        }
+        if (label.textContent.includes('SQMU Value in USD')) {
+          estUsd = value.textContent.trim();
+        }
+      });
+      if (estCode) PROP.code = estCode;
+      if (estUsd) {
+        PROP.price = parseFloat(estUsd.replace(/[^0-9.]/g, ''));
       }
       PROP.decimals = 2;
 
