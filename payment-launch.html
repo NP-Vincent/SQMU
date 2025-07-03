@@ -68,6 +68,7 @@
     };
     const PROPS = { SQMU: { ...DEFAULT_PROP } };
     let PROP = { ...DEFAULT_PROP };
+    let propertyOk = false;
 
     function show(msg) {
       document.getElementById('msg').textContent = msg;
@@ -85,9 +86,14 @@
         if (p.token !== ethers.ZeroAddress) {
           PROP.address = p.token;
           PROP.price = Number(p.price) / 1e6;
+          propertyOk = true;
           return true;
         }
-      } catch (e) {}
+      } catch (e) {
+        console.error(e);
+        propertyOk = false;
+      }
+      propertyOk = false;
       PROP.price = undefined;
       show('SQMU data unavailable');
       return false;
@@ -117,6 +123,8 @@
     }
 
     document.addEventListener('DOMContentLoaded', () => {
+      const payBtn = document.getElementById('pay-btn');
+      payBtn.disabled = true;
       let estCode = '';
       document.querySelectorAll('.es-entity-field').forEach((li) => {
         const label = li.querySelector('.es-property-field__label');
@@ -146,9 +154,16 @@
       document.querySelector('h3').textContent = `Buy ${PROP.code}`;
       document.querySelector('#widget p').innerHTML = `Token to receive: <b>${PROP.code}</b> on <b>Polygon</b>`;
       document.querySelector('#avail').nextSibling.textContent = ` ${PROP.code}`;
-      fetchPropertyInfo().then(fetchAvailable);
+      fetchPropertyInfo().then((ok) => {
+        payBtn.disabled = !ok;
+        if (ok) fetchAvailable();
+      });
       document.getElementById('sqmu-input').oninput = updateUsd;
       document.getElementById('pay-btn').onclick = () => {
+        if (!propertyOk) {
+          show('Property lookup failed. Please try again later.');
+          return;
+        }
         const sqmuAmt = parseFloat(document.getElementById('sqmu-input').value);
         if (!sqmuAmt || sqmuAmt <= 0) {
           show('Enter a valid SQMU amount');
