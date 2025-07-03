@@ -34,6 +34,8 @@
       <option value="0">USDT (Ethereum)</option>
       <option value="1">USDC (Arbitrum)</option>
       <option value="2">USDC (Polygon)</option>
+      <option value="3">USDT (Scroll)</option>
+      <option value="4">USDC (Scroll)</option>
     </select>
   </div>
   <pre id="msg"></pre>
@@ -142,8 +144,8 @@
         }
         const usd = (sqmuAmt * PROP.price).toFixed(2);
         const idx = document.getElementById('network-select').value;
-        const tokens = ['USDT','USDC','USDC'];
-        const chains = [1,42161,137];
+        const tokens = ['USDT','USDC','USDC','USDT','USDC'];
+        const chains = [1,42161,137,534352,534352];
         const titleEl = document.querySelector('.property-title');
         const pageTitle = titleEl ? titleEl.textContent : document.title;
         const url = new URL('https://sqmu.net/metamask2');
