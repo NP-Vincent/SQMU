@@ -19,7 +19,7 @@ struct SQMUProp {
  */
 contract MultiSqmuDistributor {
     address public owner;
-    IERC20 public immutable stable;
+    IERC20 public stable;
     uint256 public constant STABLE_DECIMALS = 6;
     uint256 public commissionBps = 200;
 
@@ -32,6 +32,7 @@ contract MultiSqmuDistributor {
     event CommissionBpsChanged(uint256 newBps);
     event AgentCodeSet(string code, address indexed agent);
     event OwnerChanged(address indexed newOwner);
+    event StableChanged(address indexed newStable);
 
     modifier onlyOwner() {
         require(msg.sender == owner, "not owner");
@@ -46,6 +47,12 @@ contract MultiSqmuDistributor {
     function setOwner(address _owner) external onlyOwner {
         owner = _owner;
         emit OwnerChanged(_owner);
+    }
+
+    function setStable(address _stable) external onlyOwner {
+        require(_stable != address(0), "zero");
+        stable = IERC20(_stable);
+        emit StableChanged(_stable);
     }
 
     function setCommissionBps(uint256 newBps) external onlyOwner {

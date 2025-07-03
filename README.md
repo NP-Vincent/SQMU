@@ -18,7 +18,9 @@ valid agent code is provided.
 ## Deploying MultiSqmuDistributor
 1. Open [Remix](https://remix.ethereum.org) and create a new file with the contents of `MultiSqmuDistributor.sol`.
 
-Use `admin.html` to register agents and send SQMU manually. Set `CONTRACT_ADDR` to your `MultiSqmuDistributor` address and `APPS_SCRIPT_URL` to the deployed `record.gs` web app URL before embedding the file in WordPress.
+Use `admin.html` to register properties and agents, change the stablecoin and send SQMU manually. Set `CONTRACT_ADDR` to your `MultiSqmuDistributor` address and `APPS_SCRIPT_URL` to the deployed `record.gs` web app URL before embedding the file in WordPress.
+
+After deployment you can change the stablecoin token by calling `setStable` with the new token address.
 
 The button is also a code snippet HTML + JS that is embedded as CustomHTML Block in a page template that will be applicable for all properties of similar type. There are 2 types fractionalised and non-fractionalised.
 
@@ -78,7 +80,7 @@ distribute the purchased SQMU tokens.
 
 ## Admin Interface
 
-Use `admin.html` to register agents and send SQMU manually. Set `CONTRACT_ADDR` to your `SqmuDistributor` address and `APPS_SCRIPT_URL` to the deployed `record.gs` web app URL before embedding the file in WordPress.
+Use `admin.html` to register properties and agents, update the stablecoin and send SQMU manually. Set `CONTRACT_ADDR` to your `SqmuDistributor` address and `APPS_SCRIPT_URL` to the deployed `record.gs` web app URL before embedding the file in WordPress.
 
 `record.gs` appends agent details to a Google Sheet named `Agents`. Create the sheet, deploy the script as a web app, and note its `SHEET_ID` in the code.
 
