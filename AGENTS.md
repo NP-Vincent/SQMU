@@ -145,3 +145,5 @@ Use short, descriptive commit messages (e.g., `Add payment widget skeleton`).
 - 2025-07-03-01:05-UTC; Added stablecoin update form in admin interface.
 - 2025-07-03-01:13-UTC; Updated MultiSqmuDistributor address in admin and payment pages.
 - 2025-07-03-01:44-UTC; Contract-based SQMU price retrieval in payment launcher.
+- 2025-07-03-02:10-UTC; Disable Pay button until property lookup succeeds and
+  block checkout on failure.
