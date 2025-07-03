@@ -140,3 +140,4 @@ Use short, descriptive commit messages (e.g., `Add payment widget skeleton`).
 - 2025-07-03-00:10-UTC; Added Scroll stablecoin options and chain info.
 - 2025-07-03-00:17-UTC; Added Scroll networks to launcher dropdown.
 
+- 2025-07-03-00:30-UTC; Document chain IDs and RPC endpoints.
