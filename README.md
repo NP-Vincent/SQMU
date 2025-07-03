@@ -22,6 +22,8 @@ Use `admin.html` to register properties and agents, change the stablecoin and se
 
 After deployment you can change the stablecoin token by calling `setStable` with the new token address.
 
+After deployment you can change the stablecoin token by calling `setStable` with the new token address.
+
 The button is also a code snippet HTML + JS that is embedded as CustomHTML Block in a page template that will be applicable for all properties of similar type. There are 2 types fractionalised and non-fractionalised.
 
 ### Registering Properties
