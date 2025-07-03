@@ -151,3 +151,4 @@ Use short, descriptive commit messages (e.g., `Add payment widget skeleton`).
 - 2025-07-03-02:25-UTC; Init property from checkout URL in Metamask 2.1, removed token defaults.
 
 - 2025-07-03-04:08-UTC; Removed duplicate setStable instruction from README.
+- 2025-07-03-12:20-UTC; Added periodic supply refresh in payment launcher.
