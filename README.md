@@ -45,11 +45,12 @@ stores the token, treasury and price on-chain. Enter the USD price per SQMU
 so commissions can be calculated. The status area shows the transaction
 hash and whether the registration succeeded.
 
-### Setting Exchange Rates
+### Property Pricing
 
-`payment-launch.html` defines a `PROPS` object with default pricing. Add your
-property or override values via query parameters like `?price=0.02` or
-`?rate=0.02` (USD per SQMU). These parameters are forwarded to the payment page.
+`payment-launch.html` retrieves property details and pricing from the
+`MultiSqmuDistributor` contract. You can override the on-chain price by adding
+`?price=0.02` or `?rate=0.02` (USD per SQMU) to the URL. Any values supplied via
+query parameters are forwarded to the payment page.
 
 ### Updated Frontend Usage
 
@@ -68,8 +69,10 @@ the URL. Important parameters include:
 - `rate` – price per SQMU
 - `saleAddr` – your `MultiSqmuDistributor` address
 
-The payment page reads these values, switches networks and calls the contract to
-distribute the purchased SQMU tokens.
+If `sqmuAddr`, `sqmuDec` or `rate` are not provided, `payment-launch.html`
+queries `MultiSqmuDistributor` for the registered property details before
+opening the checkout page. The payment page reads these values, switches
+networks and calls the contract to distribute the purchased SQMU tokens.
 
 ## Deploying SqmuDistributor
 
