@@ -48,9 +48,7 @@ hash and whether the registration succeeded.
 ### Property Pricing
 
 `payment-launch.html` retrieves property details and pricing from the
-`MultiSqmuDistributor` contract. You can override the on-chain price by adding
-`?price=0.02` or `?rate=0.02` (USD per SQMU) to the URL. Any values supplied via
-query parameters are forwarded to the payment page.
+`MultiSqmuDistributor` contract.
 
 ### Updated Frontend Usage
 
