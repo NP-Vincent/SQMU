@@ -68,13 +68,16 @@
     const PAYMENT_OPTIONS = [
       { token: 'USDT', name: 'Ethereum', chainId: 1, rpc: 'https://rpc.ankr.com/eth', address: '0xdAC17F958D2ee523a2206206994597C13D831ec7', decimals: 6 },
       { token: 'USDC', name: 'Arbitrum', chainId: 42161, rpc: 'https://arb1.arbitrum.io/rpc', address: '0xaf88d065e77c8cC2239327C5EDb3A432268e5831', decimals: 6 },
-      { token: 'USDC', name: 'Polygon', chainId: 137, rpc: 'https://polygon-rpc.com', address: '0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359', decimals: 6 }
+      { token: 'USDC', name: 'Polygon', chainId: 137, rpc: 'https://polygon-rpc.com', address: '0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359', decimals: 6 },
+      { token: 'USDT', name: 'Scroll', chainId: 534352, rpc: 'https://rpc.scroll.io', address: '0xf55BEC9cafDbE8730f096Aa55dad6D22d44099Df', decimals: 6 },
+      { token: 'USDC', name: 'Scroll', chainId: 534352, rpc: 'https://rpc.scroll.io', address: '0x06eFdBFf2a14a7c8E15944D1F4A48F9F95F663A4', decimals: 6 }
     ];
 
     const EXPLORERS = {
       1: 'https://etherscan.io',
       42161: 'https://arbiscan.io',
-      137: 'https://polygonscan.com'
+      137: 'https://polygonscan.com',
+      534352: 'https://scrollscan.com'
     };
 
     const DEST = '0x43F3f03d89290358034993aE3B3938D056D76De2';
@@ -97,6 +100,12 @@
         rpcUrls: ['https://arb1.arbitrum.io/rpc'],
         nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
         blockExplorerUrls: ['https://arbiscan.io']
+      },
+      534352: {
+        chainName: 'Scroll',
+        rpcUrls: ['https://rpc.scroll.io'],
+        nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
+        blockExplorerUrls: ['https://scrollscan.com']
       }
     };
 
