@@ -147,3 +147,4 @@ Use short, descriptive commit messages (e.g., `Add payment widget skeleton`).
 - 2025-07-03-01:44-UTC; Contract-based SQMU price retrieval in payment launcher.
 - 2025-07-03-02:10-UTC; Disable Pay button until property lookup succeeds and
   block checkout on failure.
+- 2025-07-03-02:20-UTC; Removed default property data from payment launcher.
