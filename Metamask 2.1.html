@@ -89,12 +89,7 @@
     };
 
     const DEST = '0x43F3f03d89290358034993aE3B3938D056D76De2';
-    const DEFAULT_PROP = {
-      code: 'SQMU',
-      address: '0x38753025A423581aCdC1A167fd603a7EBEBfB3ad',
-      decimals: 2,
-      price: 0.01
-    };
+    const DEFAULT_PROP = { decimals: 2, price: 0.01 };
     let PROP = { ...DEFAULT_PROP };
     let SALE_ADDR = '0x366F9A71E8d392126531C7E0348fCB47AEDa14e3';
 
@@ -280,7 +275,7 @@
       const distAbi = ['function getAvailable(string) view returns(uint256)'];
       const dist = new ethers.Contract(SALE_ADDR, distAbi, readProv);
       const bal = await dist.getAvailable(PROP.code);
-      const tokensNeeded = usdAmount / PROP.price;
+      const tokensNeeded = PROP.price ? usdAmount / PROP.price : 0;
       const needed = ethers.parseUnits(String(tokensNeeded), PROP.decimals);
       return bal >= needed;
     }
@@ -298,7 +293,7 @@
       const abi = ['function distribute(string,address,uint256,string)'];
       const sale = new ethers.Contract(SALE_ADDR, abi, signer);
       const to = await signer.getAddress();
-      const tokenAmt = usdPaid / PROP.price;
+      const tokenAmt = PROP.price ? usdPaid / PROP.price : 0;
       const tx = await sale.distribute(PROP.code, to, ethers.parseUnits(String(tokenAmt), PROP.decimals), code);
       return tx.wait();
     }
@@ -338,12 +333,14 @@
       document.getElementById('purchase-info').textContent = sqmuVal ? `You are purchasing ${sqmuVal} SQMU tokens.` : '';
       agentInput.value = params.get('agent') || params.get('ref') || '';
 
-      const buyToken = params.get('buy') || params.get('code');
+      const buyToken = params.get('buy') || params.get('code') || '';
       const buyChain = Number(params.get('buyChain'));
-      if (buyToken) PROP.code = buyToken;
-      if (params.get('sqmuAddr')) PROP.address = params.get('sqmuAddr');
-      if (params.get('sqmuDec')) PROP.decimals = Number(params.get('sqmuDec'));
-      if (params.get('rate')) PROP.price = parseFloat(params.get('rate'));
+      PROP = {
+        code: buyToken,
+        address: params.get('sqmuAddr') || '',
+        decimals: params.get('sqmuDec') ? Number(params.get('sqmuDec')) : DEFAULT_PROP.decimals,
+        price: params.get('rate') ? parseFloat(params.get('rate')) : DEFAULT_PROP.price
+      };
       if (params.get('saleAddr')) SALE_ADDR = params.get('saleAddr');
       window.BUY_TOKEN = buyToken;
       window.BUY_CHAIN = buyChain;
@@ -418,7 +415,7 @@
         show(`Sending ${amount} ${option.token} to ${DEST} on chain ${network.chainId}...`);
         const receipt = await sendToken(option, DEST, amount);
         const payLink = `${EXPLORERS[option.chainId]}/tx/${receipt.hash}`;
-        const tokenAmt = amount / PROP.price;
+        const tokenAmt = PROP.price ? amount / PROP.price : '';
         show(`✅ Sent ${amount} ${option.token} to ${DEST} on ${option.name}\n\nView transaction: ${payLink}\nSQMU tokens will be delivered within 24 hours. Receipt will be emailed to you.`);
         txDetails.textContent = `Payment: ${payLink}`;
         postPay.style.display = '';
