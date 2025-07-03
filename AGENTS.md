@@ -136,3 +136,5 @@ Use short, descriptive commit messages (e.g., `Add payment widget skeleton`).
 - 2025-07-02-03:57-UTC; Lowered minimum SQMU amount in payment launcher.
 - 2025-07-02-04:05-UTC; Log SQMU USD price on property sheet and remove property code from agent registration.
 - 2025-07-02-23:54-UTC; Document Scroll USDT and USDC payment options.
+- 2025-07-02-23:59-UTC; Document addresses for Ethereum USDT and Arbitrum/Polygon USDC.
+
