@@ -160,3 +160,4 @@ Use short, descriptive commit messages (e.g., `Add payment widget skeleton`).
 - 2025-07-04-03:46-UTC; Fixed layout nesting in Metamask 2.1 for two-column view.
 
 - 2025-07-04-03:57-UTC; Balanced widget/info width at 40/60.
+- 2025-07-04-04:26-UTC; Updated email receipt URL in Metamask 2.1.
