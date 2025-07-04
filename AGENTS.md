@@ -156,3 +156,5 @@ Use short, descriptive commit messages (e.g., `Add payment widget skeleton`).
 - 2025-07-04-02:50-UTC; Simplified payment UI and consolidated instructions.
 - 2025-07-04-03:08-UTC; Updated launcher and payment page instructions layout.
 - 2025-07-04-03:15-UTC; Switched payment instructions to two-column layout.
+- 2025-07-04-03:34-UTC; Payment form left, instructions right in single column.
+
