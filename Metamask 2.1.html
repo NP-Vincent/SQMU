@@ -30,71 +30,44 @@
   <div id="layout">
     <div id="widget">
   <h3 id="prop-title"></h3>
-  <p id="price-aed"></p>
-  <p id="price-usd"></p>
+  <div id="summary">
+    <p id="price-usd"></p>
+    <p id="price-aed"></p>
+    <p id="purchase-info"></p>
+  </div>
   <div id="qr"></div>
+  <div id="form">
+    <select id="network-select"></select>
+    <label for="email-input" class="required">Email (for receipt &amp; updates)</label>
+    <input id="email-input" type="email" placeholder="Email" required>
+    <label for="agent-code-input">Agent Code (optional)</label>
+    <input id="agent-code-input" type="text" placeholder="Referral code">
+    <button id="connect-btn" class="wp-block-button__link">Connect Wallet</button>
+    <button id="disconnect-btn" class="wp-block-button__link" style="display:none;">Disconnect</button>
+    <button id="pay-btn" class="wp-block-button__link" disabled>Pay</button>
+  </div>
   <pre id="msg"></pre>
-  <select id="network-select"></select>
-  <div id="sqmu-payment-guide" style="max-width: 640px; text-align: left; margin: 0 auto 2em auto;">
-    <h3>Payment Instructions</h3>
-    <p>You are completing a payment to register your <strong>Expression of Interest</strong> in purchasing SQMU tokens for this property.</p>
-    <p>Each SQMU represents one square metre. You are paying <strong>10 USD per SQMU</strong> to signal your interest only. No final purchase is made at this stage.</p>
-    <p>When this property is open for full investment, you will be notified by email and invited to complete the acquisition.</p>
-
-    <h4>How to Pay</h4>
-    <ol>
-      <li>Connect your wallet. MetaMask on Chrome provides the best experience.</li>
-      <li>Select your preferred token and network.</li>
-      <li>Enter your email address. This is required to:
-        <ul>
-          <li>Receive your receipt</li>
-          <li>Be notified when the investment opens</li>
-          <li>Get follow-up assistance</li>
-        </ul>
-      </li>
-      <li>Confirm the transaction.</li>
-    </ol>
-    <p>If you use the QR code to pay manually, no email receipt will be sent.</p>
-
-    <h4>After Payment</h4>
-    <ul>
-      <li>Transaction confirmation will be displayed on screen</li>
-      <li>A receipt will be emailed to you</li>
-      <li>You may schedule a follow-up call</li>
-      <li>You will receive a blockchain transaction link for your records</li>
-    </ul>
-    <p>Tokens will be delivered manually within 24 hours once investment opens and the final purchase is confirmed.</p>
-  </div>
-  <button id="connect-btn" class="wp-block-button__link">Connect Wallet</button>
-  <button id="disconnect-btn" class="wp-block-button__link" style="display:none;">Disconnect</button>
-  <label for="email-input" class="required">Email</label>
-  <input id="email-input" type="email" placeholder="Email for receipt" required>
-  <label for="agent-code-input">Agent Code (optional)</label>
-  <input id="agent-code-input" type="text" placeholder="Agent code">
-  <p id="purchase-info"></p>
-  <p id="mobile-info">For best results open this page in the MetaMask app. Most
-    wallet browsers also work.</p>
-  <p id="email-info">Payment details will be emailed to you. SQMU tokens are
-    delivered manually to the paying wallet within 24 hours.</p>
-  <button id="pay-btn" class="wp-block-button__link" disabled>Pay</button>
   <div id="post-pay" style="display:none;">
+    <div id="tx-details"></div>
     <button id="schedule-btn" class="wp-block-button__link">Schedule Call</button>
-    <pre id="tx-details"></pre>
-    <button id="copy-btn" class="wp-block-button__link">Copy Details</button>
+    <button id="copy-btn" class="wp-block-button__link">Copy Payment Details</button>
+    <p>
+      Thank you! Your Expression of Interest is recorded.<br>
+      SQMU tokens will be delivered once the investment round opens.<br>
+      A receipt has been emailed. Need help? <a href="mailto:support@sqmu.net">Contact support</a>.
+    </p>
   </div>
-    </div>
-    <div id="info">
-      <h4>SQMU Token Purchase Payment Page</h4>
-      <p>This page accepts:</p>
+  <div id="info" style="margin-top:2em;">
+    <details>
+      <summary>How does this work?</summary>
       <ul>
-        <li>USDT (Ethereum)</li>
-        <li>USDC (Arbitrum &amp; Polygon)</li>
+        <li>You’re placing an <b>Expression of Interest</b> at $10/SQMU. This is not a final purchase.</li>
+        <li>After payment, you’ll get an email receipt and follow-up instructions.</li>
+        <li>Tokens are delivered when the investment round opens (you will be notified by email).</li>
       </ul>
-      <p>Transaction details (property name, number of SQMUs, payment amount, chosen token/network) will be auto-filled from the previous step.</p>
-      <p>Email is required — it will be used to:<br>
-      • Send your payment receipt<br>
-      • Confirm delivery and provide any required support</p>
-      <p>Optional: Agent Referral Code — enter if you have one.<br>Tokens will be manually delivered to your wallet within 24 hours.<br>For support, reply to the confirmation email or reach out via the contact details on the website.</p>
+    </details>
+    <p style="font-size:0.95em;color:#888;">Tip: For mobile, use MetaMask app browser for smoothest experience.</p>
+  </div>
     </div>
 
   <script src="https://cdn.jsdelivr.net/npm/ethers@6/dist/ethers.umd.min.js"></script>
@@ -332,6 +305,8 @@
     document.addEventListener('DOMContentLoaded', async () => {
       const postPay = document.getElementById('post-pay');
       const txDetails = document.getElementById('tx-details');
+      const form = document.getElementById('form');
+      const infoPanel = document.getElementById('info');
       const agentInput = document.getElementById('agent-code-input');
       const emailInput = document.getElementById('email-input');
       emailInput.oninput = () => enablePayBtn(!!(provider && signer));
@@ -449,6 +424,8 @@
         show(`✅ Sent ${amount} ${option.token} to ${DEST} on ${option.name}\n\nView transaction: ${payLink}\nSQMU tokens will be delivered within 24 hours. Receipt will be emailed to you.`);
         txDetails.textContent = `Payment: ${payLink}`;
         postPay.style.display = '';
+        if (form) form.style.display = 'none';
+        if (infoPanel) infoPanel.style.display = 'none';
         sendReceipt(payLink, amount, option, emailInput.value, tokenAmt, PROP.code, PROP.address, PROP.decimals, '', '');
         } catch (err) {
           show('Payment failed:\n' + (err.message || err));
