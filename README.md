@@ -67,8 +67,34 @@ the URL. Important parameters include:
 
 If `sqmuAddr`, `sqmuDec` or `rate` are not provided, `payment-launch.html`
 queries `MultiSqmuDistributor` for the registered property details before
+
 opening the checkout page. The payment page reads these values, switches
 networks and calls the contract to distribute the purchased SQMU tokens.
+
+## Customer Journey – Expression of Interest with SQMU
+
+### 1. Listing Page (`payment-launch.html`)
+- User views the property listing.
+- The SQMU selector lets them choose how many square metres they are interested in.
+- Price is fixed at 10 USD per SQMU as an expression of interest.
+- Instructions are provided to clarify:
+  - This is not a purchase yet.
+  - Users should open the page in a wallet browser if on mobile.
+
+### 2. Payment Page (`Metamask 2.1.html`)
+- User connects their wallet and selects the token/network.
+- Enters their email address to receive confirmation and updates.
+- Payment is made via wallet or QR code.
+- On success:
+  - On-screen confirmation is shown.
+  - A receipt is sent via email.
+  - Option to schedule a call is offered.
+  - User receives blockchain transaction link.
+- Tokens will be manually delivered upon opening the investment round.
+
+### 3. Post-Payment Follow-Up
+- When the property is open for actual investment, the user is notified by email.
+- Final purchase is made through the same wallet and flow, with updated pricing and instructions.
 
 ## Deploying SqmuDistributor
 

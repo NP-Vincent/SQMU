@@ -152,3 +152,4 @@ Use short, descriptive commit messages (e.g., `Add payment widget skeleton`).
 
 - 2025-07-03-04:08-UTC; Removed duplicate setStable instruction from README.
 - 2025-07-03-12:20-UTC; Added periodic supply refresh in payment launcher.
+- 2025-07-04-02:04-UTC; Added customer journey messaging to payment pages and README.
