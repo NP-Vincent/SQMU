@@ -8,8 +8,8 @@
   <style>
     /* match layout tweaks from Metamask 2.0 */
     #layout { display:flex; flex-wrap:wrap; gap:1em; justify-content:center; align-items:flex-start; }
-    #info { max-width:320px; flex:1 1 300px; }
-    #widget { text-align:center; flex:1 1 300px; }
+    #info { flex:1 1 60%; min-width:300px; }
+    #widget { text-align:center; flex:1 1 40%; min-width:280px; }
     #sqmu-payment-guide { margin:0 auto; max-width:640px; }
     #widget > * { margin:0.6em 0; }
     label { display:block; margin:0.5em 0 0.2em; }
@@ -57,6 +57,7 @@
       SQMU tokens will be delivered once the investment round opens.<br>
       A receipt has been emailed. Need help? <a href="mailto:vincent@sqmu.net">Contact support</a>.
     </p>
+  </div>
   </div>
   <div id="info" style="margin-top:2em;">
     <div id="sqmu-payment-guide" style="max-width: 640px; text-align: left; margin: 0 auto 2em auto;">
@@ -474,8 +475,6 @@
       // Disconnect
       document.getElementById('disconnect-btn').onclick = disconnectWallet;
     });
-  </script>
-  </div>
-  </div>
+</script>
 </body>
 </html>

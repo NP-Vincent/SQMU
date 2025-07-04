@@ -157,4 +157,6 @@ Use short, descriptive commit messages (e.g., `Add payment widget skeleton`).
 - 2025-07-04-03:08-UTC; Updated launcher and payment page instructions layout.
 - 2025-07-04-03:15-UTC; Switched payment instructions to two-column layout.
 - 2025-07-04-03:34-UTC; Payment form left, instructions right in single column.
+- 2025-07-04-03:46-UTC; Fixed layout nesting in Metamask 2.1 for two-column view.
 
+- 2025-07-04-03:57-UTC; Balanced widget/info width at 40/60.
