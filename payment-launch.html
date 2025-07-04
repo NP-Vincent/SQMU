@@ -5,7 +5,6 @@
   <meta charset="UTF-8">
   <title>SQMU Purchase</title>
   <style>
-    #sqmu-info { max-width:320px; margin-bottom:1em; }
     #widget { text-align:center; }
     #widget > * { margin:0.6em 0; }
     label { display:block; margin:0.5em 0 0.2em; }
@@ -24,6 +23,17 @@
 <body>
   <div id="widget">
   <h3>Buy SQMU</h3>
+  <div id="instructions" style="max-width:420px;margin-bottom:1.5em;">
+    <h4>How It Works</h4>
+    <p>Each SQMU equals one square metre. You are registering an
+      <strong>Expression of Interest</strong> at <strong>10&nbsp;USD per SQMU</strong>.</p>
+    <ol>
+      <li>Enter your desired SQMU amount.</li>
+      <li>Select your payment token and network.</li>
+      <li>Click <em>Continue to Pay</em>.</li>
+    </ol>
+    <p style="font-size:0.9em;color:#666;">Tip: open this page in your wallet app (e.g. MetaMask) for smoothest mobile experience.</p>
+  </div>
   <p>Token to receive: <b>SQMU</b> on <b>Polygon</b></p>
   <p>Available: <span id="avail">...</span> SQMU</p>
   <label for="sqmu-input" class="required">SQMU Amount</label>
@@ -39,33 +49,10 @@
     </select>
   </div>
   <pre id="msg"></pre>
-  <div id="sqmu-brief" style="max-width: 420px; margin-bottom: 1.5em;">
-    <h4>Own a Share of This Property</h4>
-    <p>Each SQMU equals one square metre of the property.</p>
-    <p>You are placing an <strong>Expression of Interest</strong> at <strong>10 USD per SQMU</strong>. This is not a final purchase.</p>
-    <p>To proceed:</p>
-    <ol>
-      <li>Select how many SQMU you are interested in.</li>
-      <li>Click “Continue to Pay” to complete the crypto payment on the next page.</li>
-    </ol>
-    <p><strong>Note for mobile users:</strong> For best results, open this listing inside your wallet app (e.g. MetaMask) so the correct details carry over.</p>
-  </div>
-  <p id="manual-info">After clicking Continue you will confirm payment on the
-    next page. Details will be emailed and your SQMU tokens will be delivered
-    to the paying wallet within 24 hours.</p>
+  <p id="manual-info">After continuing you will confirm payment on the next page. A receipt will be emailed and SQMU tokens delivered once the investment round opens.</p>
   <button id="pay-btn" class="wp-block-button__link">Continue to Pay</button>
   </div>
 
-  <div id="sqmu-info">
-    <h4>How Fractional Purchase Works – Buy SQMU Securely</h4>
-    <ol>
-      <li><strong>Choose Your Investment</strong><br>Select the number of SQMU tokens (1 SQMU = 1 square metre) you want from the property listing.</li>
-      <li><strong>Pay with Crypto</strong><br>Pick your preferred token and network. Click Continue to Pay — this opens the secure payment interface.</li>
-      <li><strong>Confirm &amp; Complete</strong><br>You'll see the property name, number of SQMUs, and total USD value. Pay directly from your wallet (best on MetaMask app).</li>
-      <li><strong>Manual Delivery, Full Trust</strong><br>Tokens are sent to your wallet within 24 hours. A confirmation email will include all transaction details.</li>
-    </ol>
-    <p>Have a referral code? Enter it before payment.<br>Need help? Just reply to your confirmation email or contact support.</p>
-  </div>
 
   <script src="https://cdn.jsdelivr.net/npm/ethers@6/dist/ethers.umd.min.js"></script>
   <script>
