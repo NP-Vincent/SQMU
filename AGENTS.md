@@ -154,3 +154,4 @@ Use short, descriptive commit messages (e.g., `Add payment widget skeleton`).
 - 2025-07-03-12:20-UTC; Added periodic supply refresh in payment launcher.
 - 2025-07-04-02:04-UTC; Added customer journey messaging to payment pages and README.
 - 2025-07-04-02:50-UTC; Simplified payment UI and consolidated instructions.
+- 2025-07-04-03:08-UTC; Updated launcher and payment page instructions layout.

@@ -23,18 +23,7 @@
 <body>
   <div id="widget">
   <h3>Buy SQMU</h3>
-  <div id="instructions" style="max-width:420px;margin-bottom:1.5em;">
-    <h4>How It Works</h4>
-    <p>Each SQMU equals one square metre. You are registering an
-      <strong>Expression of Interest</strong> at <strong>10&nbsp;USD per SQMU</strong>.</p>
-    <ol>
-      <li>Enter your desired SQMU amount.</li>
-      <li>Select your payment token and network.</li>
-      <li>Click <em>Continue to Pay</em>.</li>
-    </ol>
-    <p style="font-size:0.9em;color:#666;">Tip: open this page in your wallet app (e.g. MetaMask) for smoothest mobile experience.</p>
-  </div>
-  <p>Token to receive: <b>SQMU</b> on <b>Polygon</b></p>
+  <p id="token-info">Token to receive: <b>SQMU</b> on <b>Polygon</b></p>
   <p>Available: <span id="avail">...</span> SQMU</p>
   <label for="sqmu-input" class="required">SQMU Amount</label>
   <input id="sqmu-input" type="number" min="0.01" step="0.01" placeholder="100">
@@ -51,6 +40,17 @@
   <pre id="msg"></pre>
   <p id="manual-info">After continuing you will confirm payment on the next page. A receipt will be emailed and SQMU tokens delivered once the investment round opens.</p>
   <button id="pay-btn" class="wp-block-button__link">Continue to Pay</button>
+  <div id="sqmu-brief" style="max-width: 420px; margin-bottom: 1.5em;">
+    <h4>Own a Share of This Property</h4>
+    <p>Each SQMU equals one square metre of the property.</p>
+    <p>You are placing an <strong>Expression of Interest</strong> at <strong>10 USD per SQMU</strong>. This is not a final purchase.</p>
+    <p>To proceed:</p>
+    <ol>
+      <li>Select how many SQMU you are interested in.</li>
+      <li>Click “Continue to Pay” to complete the crypto payment on the next page.</li>
+    </ol>
+    <p><strong>Note for mobile users:</strong> For best results, open this listing inside your wallet app (e.g. MetaMask) so the correct details carry over.</p>
+  </div>
   </div>
 
 
@@ -140,7 +140,7 @@
       if (params.get('price')) PROP.price = parseFloat(params.get('price'));
       if (params.get('saleAddr')) SALE_ADDR = params.get('saleAddr');
       document.querySelector('h3').textContent = `Buy ${PROP.code}`;
-      document.querySelector('#widget p').innerHTML = `Token to receive: <b>${PROP.code}</b> on <b>Polygon</b>`;
+      document.getElementById('token-info').innerHTML = `Token to receive: <b>${PROP.code}</b> on <b>Polygon</b>`;
       document.querySelector('#avail').nextSibling.textContent = ` ${PROP.code}`;
       fetchPropertyInfo().then((ok) => {
         payBtn.disabled = !ok;
