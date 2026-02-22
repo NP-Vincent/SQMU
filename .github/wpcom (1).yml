@@ -1,0 +1,37 @@
+name: WordPress.com Deploy
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Stage plugin
+        run: |
+          mkdir -p wpcom-stage/metamask-dapp/assets
+          cp plugin/metamask-dapp.php wpcom-stage/metamask-dapp/metamask-dapp.php
+          cp plugin/readme.txt wpcom-stage/metamask-dapp/readme.txt
+          cp dist/metamask-dapp.js wpcom-stage/metamask-dapp/assets/metamask-dapp.js
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: wpcom
+          path: wpcom-stage/metamask-dapp
