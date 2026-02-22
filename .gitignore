@@ -1,0 +1,15 @@
+# Local/editor/system artifacts
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# Logs and temporary runtime output
+*.log
+*.tmp
+tmp/
+
+# Never ignore compliance/legal docs
+!LICENSE
+!NOTICE
