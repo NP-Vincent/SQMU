@@ -129,7 +129,7 @@ export function initPortfolioWidget(mount, config = {}) {
     value: 'Listings not loaded.'
   });
 
-  const connectButton = renderButton('Connect MetaMask', 'connect');
+  const connectButton = renderButton('Connect Wallet', 'connect');
   const disconnectButton = renderButton('Disconnect wallet', 'disconnect');
 
   const loadPortfolioButton = renderButton(
@@ -195,7 +195,7 @@ export function initPortfolioWidget(mount, config = {}) {
 
   const ensureConnected = () => {
     if (!state.connected) {
-      throw new Error('Connect MetaMask first.');
+      throw new Error('Connect Wallet first.');
     }
   };
 
@@ -560,7 +560,7 @@ export function initPortfolioWidget(mount, config = {}) {
   };
 
   connectButton.button.addEventListener('click', async () => {
-    setUiState('connect', 'Connecting to MetaMask...');
+    setUiState('connect', 'Connecting wallet...');
     try {
       await state.connect();
       renderStatus(actionStatus, 'Connected.');

@@ -39,7 +39,7 @@ const parseDatasetConfig = (dataset) => {
   return config;
 };
 
-export function initMetaMaskDapp(config = {}) {
+export function initSQMU(config = {}) {
   const globalConfig = config.global ?? config;
   const mountConfigs = config.mounts ?? {};
   const mounts = document.querySelectorAll('[data-mmwp-widget]');
@@ -63,7 +63,7 @@ export function initMetaMaskDapp(config = {}) {
       ...datasetConfig
     };
 
-    if (widget === 'metamask-dapp') {
+    if (widget === 'sqmu') {
       const state = createWalletState(mergedConfig);
       mountDappUI(mount, state, mergedConfig);
       states.push(state);

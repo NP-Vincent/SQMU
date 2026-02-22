@@ -278,7 +278,7 @@ export function mountDappUI(mount, state, config = {}) {
   const accountLine = document.createElement('p');
   const chainLine = document.createElement('p');
 
-  const connectButton = renderButton('Connect MetaMask', 'connect');
+  const connectButton = renderButton('Connect Wallet', 'connect');
   const disconnectButton = renderButton('Disconnect wallet', 'disconnect');
 
   const contractAddressInput = renderInput({
@@ -334,7 +334,7 @@ export function mountDappUI(mount, state, config = {}) {
 
   const ensureConnected = () => {
     if (!state.signer) {
-      throw new Error('Connect MetaMask first.');
+      throw new Error('Connect Wallet first.');
     }
   };
 
@@ -390,7 +390,7 @@ export function mountDappUI(mount, state, config = {}) {
   };
 
   connectButton.button.addEventListener('click', async () => {
-    renderStatus(actionStatus, 'Connecting to MetaMask...');
+    renderStatus(actionStatus, 'Connecting wallet...');
     try {
       await state.connect();
       renderStatus(actionStatus, 'Connected.');
@@ -573,7 +573,7 @@ export function mountDappUI(mount, state, config = {}) {
 }
 
 export function mountUI(state, config = {}) {
-  const mountSelector = config.mountSelector || '#metamask-dapp';
+  const mountSelector = config.mountSelector || '#sqmu';
   const mount = config.mountEl || document.querySelector(mountSelector);
   return mountDappUI(mount, state, config);
 }
