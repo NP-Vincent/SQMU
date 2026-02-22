@@ -163,3 +163,4 @@ Use short, descriptive commit messages (e.g., `Add payment widget skeleton`).
 - 2025-07-04-04:26-UTC; Updated email receipt URL in Metamask 2.1.
 - 2025-07-04-04:35-UTC; Updated Apps Script URL across HTML files.
 - 2026-02-22-06:13-UTC; Added .gitignore with explicit LICENSE and NOTICE keep rules.
+- 2026-02-22-07:32-UTC; Expanded macOS artifact ignore rules to prevent syncing Finder/system binary metadata files.

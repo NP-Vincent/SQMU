@@ -1,5 +1,13 @@
 # Local/editor/system artifacts
 .DS_Store
+.AppleDouble
+.LSOverride
+Icon?
+._*
+.Spotlight-V100/
+.Trashes/
+.fseventsd/
+.TemporaryItems/
 Thumbs.db
 *.swp
 *.swo
