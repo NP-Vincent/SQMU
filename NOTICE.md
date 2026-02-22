@@ -1,6 +1,6 @@
 SQMU Reference Implementation
 
-Copyright 2026 Niranjan Paul Vincent 
+Copyright 2024-2026 Niranjan Paul Vincent 
 
 This product includes software developed by Niranjan Paul Vincent.
 
