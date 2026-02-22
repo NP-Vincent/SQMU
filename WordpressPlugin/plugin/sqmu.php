@@ -126,7 +126,7 @@ function metamask_dapp_register_mount($widget, $atts) {
     $attributes = array(
         'id' => esc_attr($mount_id),
         'data-mmwp-widget' => esc_attr($widget),
-        'class' => 'sqmu-widget'
+        'class' => 'sqmu-widget wp-block-group is-layout-flow'
     );
 
     foreach ($config as $key => $value) {

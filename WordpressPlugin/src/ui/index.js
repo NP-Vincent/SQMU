@@ -34,7 +34,7 @@ export const renderButton = (label, action, variant) => {
 
   const button = document.createElement('button');
   button.type = 'button';
-  button.className = 'wp-block-button__link';
+  button.className = 'wp-block-button__link wp-element-button';
   button.dataset.action = config.action;
   button.textContent = config.label;
 

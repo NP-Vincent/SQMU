@@ -128,13 +128,11 @@ minimal, framework-agnostic JavaScript core. Current and upcoming priorities:
    inherited typography and WordPress preset tokens (spacing, color, etc.)
    instead of coupling widget styles to a specific reference theme snapshot.
 
-### Theme Reference Policy
+### Theme Inheritance Policy
 
-- The plugin should inherit from whichever theme is active on the site.
-- `references/wordpress/theme/masu-wpcom` is optional historical reference material,
-  not a runtime dependency for shortcode widgets.
-- New widget styling decisions should prefer WordPress theme tokens and semantic
-  classes over theme-specific copied CSS.
+- The plugin must inherit from whichever theme is active on the site.
+- Widget styles are layout-only and should rely on WordPress/theme typography, color, and button defaults.
+- New styling decisions should prefer WordPress preset tokens and semantic block classes over copied theme CSS.
 
 Anything that breaks these constraints should be treated as experimental and
 requires explicit review.
