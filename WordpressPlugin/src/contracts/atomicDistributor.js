@@ -1,5 +1,5 @@
 import { Contract } from 'ethers';
-import distributorDefinition from '../../contracts/abi/AtomicSQMUDistributor.json';
+import distributorDefinition from '../../../SQMU/ABI/AtomicSQMUDistributor.json';
 
 export const distributorAbi = distributorDefinition.abi;
 export const defaultDistributorAddress = distributorDefinition.address;
