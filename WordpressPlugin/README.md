@@ -124,8 +124,17 @@ minimal, framework-agnostic JavaScript core. Current and upcoming priorities:
 1. Expand SQMU listing + portfolio UX within the existing widget model.
 2. Keep wallet/contract logic isolated from WordPress-specific concerns.
 3. Preserve the single initializer + deterministic build pipeline.
-4. Align UI styling with Masu theme references in
-   `references/wordpress/theme/masu-wpcom`.
+4. Align UI styling with the **active WordPress theme defaults** by using
+   inherited typography and WordPress preset tokens (spacing, color, etc.)
+   instead of coupling widget styles to a specific reference theme snapshot.
+
+### Theme Reference Policy
+
+- The plugin should inherit from whichever theme is active on the site.
+- `references/wordpress/theme/masu-wpcom` is optional historical reference material,
+  not a runtime dependency for shortcode widgets.
+- New widget styling decisions should prefer WordPress theme tokens and semantic
+  classes over theme-specific copied CSS.
 
 Anything that breaks these constraints should be treated as experimental and
 requires explicit review.
