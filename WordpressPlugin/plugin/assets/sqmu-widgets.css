@@ -1,106 +1,74 @@
-/* Global widget shell */
+/* Layout-only widget shell that intentionally inherits active theme typography/colors. */
 .sqmu-widget {
   display: grid;
   gap: var(--wp--preset--spacing--30, 1rem);
   font: inherit;
+  color: inherit;
 }
 
 .sqmu-widget .sqmu-card {
   display: grid;
   gap: var(--wp--preset--spacing--30, 1rem);
   padding: var(--wp--preset--spacing--40, 1.25rem);
-  border: 1px solid rgba(0, 0, 0, 0.12);
-  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, currentColor 18%, transparent);
+  border-radius: var(--wp--custom--border-radius, 12px);
+  background: var(--wp--preset--color--base, transparent);
 }
 
-/* Header + status */
-.sqmu-widget .sqmu-header {
-  display: grid;
-  gap: 0.35rem;
-}
-
-.sqmu-widget .sqmu-title {
-  font: inherit;
-  font-weight: 600;
-  margin: 0;
-}
-
-.sqmu-widget .sqmu-status {
-  font-size: 0.95em;
-  opacity: 0.9;
-  display: grid;
-  gap: 0.25rem;
-}
-
-/* Single-column form primitives */
-.sqmu-widget .sqmu-form {
-  display: grid;
-  gap: var(--wp--preset--spacing--20, 0.75rem);
-}
-
-.sqmu-widget .sqmu-field {
-  display: grid;
-  gap: 0.35rem;
-}
-
-.sqmu-widget .sqmu-label {
-  font: inherit;
-  opacity: 0.85;
-}
-
-/* Controls */
-.sqmu-widget .wp-block-input,
-.sqmu-widget .wp-block-select {
-  width: 100%;
-  font: inherit;
-  padding: 0.65em 0.75em;
-  line-height: 1.2;
-  min-height: 44px;
-  box-sizing: border-box;
-}
-
-.sqmu-widget input[readonly],
-.sqmu-widget input[disabled],
-.sqmu-widget select[disabled] {
-  opacity: 0.75;
-}
-
-/* Buttons: full-width and consistent height, without overriding theme colors */
-.sqmu-widget .wp-block-buttons {
-  margin: 0;
-}
-
-.sqmu-widget .wp-block-button__link {
-  width: 100%;
-  min-height: 44px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  box-sizing: border-box;
-  font: inherit;
-}
-
-/* Section grouping */
+.sqmu-widget .sqmu-header,
+.sqmu-widget .sqmu-form,
+.sqmu-widget .sqmu-actions,
+.sqmu-widget .sqmu-field,
+.sqmu-widget .sqmu-grid,
+.sqmu-widget .sqmu-status,
 .sqmu-widget .sqmu-section {
   display: grid;
   gap: var(--wp--preset--spacing--20, 0.75rem);
-  padding-top: var(--wp--preset--spacing--20, 0.75rem);
-  border-top: 1px solid rgba(0, 0, 0, 0.08);
 }
 
-.sqmu-widget .sqmu-section-title {
+.sqmu-widget .sqmu-title,
+.sqmu-widget .sqmu-section-title,
+.sqmu-widget .sqmu-label {
   font: inherit;
-  font-weight: 600;
+  color: inherit;
   margin: 0;
 }
 
-/* Action rows */
-.sqmu-widget .sqmu-actions {
-  display: grid;
-  gap: 0.5rem;
+.sqmu-widget .sqmu-title,
+.sqmu-widget .sqmu-section-title {
+  font-weight: 600;
 }
 
-/* Tables: make them usable in narrow columns */
+.sqmu-widget .wp-block-input,
+.sqmu-widget .wp-block-select,
+.sqmu-widget input,
+.sqmu-widget select,
+.sqmu-widget textarea {
+  width: 100%;
+  font: inherit;
+  color: inherit;
+  background: inherit;
+  border-color: currentColor;
+  box-sizing: border-box;
+}
+
+.sqmu-widget .wp-block-buttons,
+.sqmu-widget .wp-block-button,
+.sqmu-widget .wp-block-button__link {
+  font: inherit;
+}
+
+.sqmu-widget .wp-block-button__link,
+.sqmu-widget .wp-element-button,
+.sqmu-widget button {
+  min-height: 44px;
+}
+
+.sqmu-widget .sqmu-section {
+  padding-top: var(--wp--preset--spacing--20, 0.75rem);
+  border-top: 1px solid color-mix(in srgb, currentColor 14%, transparent);
+}
+
 .sqmu-widget .sqmu-table-wrap {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
@@ -109,32 +77,20 @@
 .sqmu-widget table {
   width: 100%;
   border-collapse: collapse;
-  min-width: 560px; /* prevents columns crushing */
+  min-width: 560px;
 }
 
 .sqmu-widget th,
 .sqmu-widget td {
   text-align: left;
   padding: 0.6em 0.65em;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  border-bottom: 1px solid color-mix(in srgb, currentColor 14%, transparent);
   vertical-align: top;
 }
 
-.sqmu-widget th {
-  font-weight: 600;
-  opacity: 0.9;
-}
-
-/* Small helper text */
 .sqmu-widget .sqmu-help {
   font-size: 0.92em;
   opacity: 0.8;
-}
-
-/* Compatibility helpers */
-.sqmu-widget .sqmu-grid {
-  display: grid;
-  gap: var(--wp--preset--spacing--20, 0.75rem);
 }
 
 .sqmu-widget .sqmu-pre {
