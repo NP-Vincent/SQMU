@@ -35,3 +35,8 @@ They define responsibilities and interactions for developers, operators, and end
 3. Add compliance checkpoints for minting, transfers, rental events, and reporting.
 4. Validate behavior in a staging environment before production rollout.
 5. Maintain versioned integration notes whenever contract interfaces change.
+
+## Module AGENTS References
+- `SQMU/AGENTS.md` - contract and ABI module responsibilities, integration points, and change workflow.
+- `WordpressPlugin/AGENTS.md` - WordPress plugin responsibilities and contract-integration guidance.
+- `GoogleAppScript/AGENTS.md` - Google Apps Script receipt automation responsibilities and dependencies.

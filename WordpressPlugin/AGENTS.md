@@ -1,21 +1,27 @@
-# Agent Guidelines
+# WordPress Plugin Agent Guide
 
 ## Purpose
-This repository defines a clean baseline for a MetaMask WordPress dApp plugin
-with SQMU listing and portfolio widgets. Follow the architecture and deployment
-model described in `README.md`.
+This folder provides the WordPress integration layer for SQMU wallet and asset workflows.
+It maps shortcode-rendered UI components to contract operations while keeping WordPress-specific behavior inside plugin PHP code.
 
-## General Rules
-- Keep JavaScript framework-agnostic and DOM-light.
-- Avoid WordPress-specific logic in JavaScript; keep it in PHP.
-- Do not commit build output in `dist/`.
-- Use deterministic builds and a single public JS initializer.
-- Prefer small, focused files with clear responsibilities.
-- Theme reference files live in `references/wordpress/theme/masu-wpcom` for
-  Masu-specific UI alignment.
-- Maintain the shortcode-driven widget mounting model
-  (`metamask_dapp`, `sqmu_listing`, `sqmu_portfolio`).
+## Owning Agent
+- **WordPress Agent** (primary owner)
+  - Exposes administrator and end-user interaction points in WordPress.
+  - Connects wallet actions and UI events to contract methods/events.
 
-## Pull Request Notes
-- Summarize changes and tests in the PR body.
-- Reference any new scripts, workflows, or dependencies.
+## Responsibilities in this folder
+- Keep shortcode/widget mounting stable (`metamask_dapp`, `sqmu_listing`, `sqmu_portfolio`).
+- Keep JavaScript framework-agnostic and focused on contract interaction behavior.
+- Keep WordPress-specific routing/configuration in PHP/plugin boundaries.
+- Track dependencies on contract ABI/event changes and version notes.
+
+## Integration points
+- Depends on **Contract Agent** outputs (deployed addresses, ABI compatibility, event semantics).
+- Can trigger/support **GoogleAppScript Agent** communication workflows via backend hooks for receipts or notifications.
+
+## Change workflow
+1. Map user journey and identify shortcode/widget touchpoints.
+2. Confirm required contract methods/events and plugin hooks.
+3. Implement UI + plugin changes with clear separation of concerns.
+4. Validate in a WordPress staging environment with wallet flows.
+5. Document integration/version updates.
