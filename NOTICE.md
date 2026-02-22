@@ -11,5 +11,6 @@ Additional notices (if applicable) may be added below as part of attribution:
 
 * SQMU core contracts
 * WordPress plugin for SQMU deployment
+* OpenZeppelin contracts [MIT License](https://github.com/OpenZeppelin/openzeppelin-contracts-upgradeable/blob/master/LICENSE)
 
 All derivative works must retain this NOTICE file and clearly indicate modifications where applicable.
