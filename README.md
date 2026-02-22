@@ -16,9 +16,9 @@ The goal is to enable developers and organizations to adopt, integrate, and buil
 
 ## Repository Layout
 
-- `SQMU/` — Core contract artifacts and ABI resources.
-- `WordpressPlugin/` — WordPress plugin source, build configuration, and reference UI assets.
-- `GoogleAppScript/` — Optional email receipt scripts for listing, payments, governance, escrow, and rent flows.
+- `SQMU/` — Core contract artifacts and ABI resources ([module README](SQMU/README.md)).
+- `WordpressPlugin/` — WordPress plugin source, build configuration, and reference UI assets ([module README](WordpressPlugin/README.md)).
+- `GoogleAppScript/` — Optional email receipt scripts for listing, payments, governance, escrow, and rent flows ([module README](GoogleAppScript/README.md)).
 
 ## Getting Started / Installation
 
@@ -43,6 +43,12 @@ Deploy the contracts with your preferred Solidity tooling (for example Hardhat, 
    - `metamask_dapp`
    - `sqmu_listing`
    - `sqmu_portfolio`
+
+## Module Documentation
+
+- Contracts & ABI: [`SQMU/README.md`](SQMU/README.md)
+- WordPress Plugin: [`WordpressPlugin/README.md`](WordpressPlugin/README.md)
+- Google Apps Script receipts: [`GoogleAppScript/README.md`](GoogleAppScript/README.md)
 
 ## Usage Examples
 
