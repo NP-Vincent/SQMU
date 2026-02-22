@@ -129,3 +129,14 @@ minimal, framework-agnostic JavaScript core. Current and upcoming priorities:
 
 Anything that breaks these constraints should be treated as experimental and
 requires explicit review.
+
+---
+
+## SQMU Module Reference
+
+This folder is the **WordPress integration layer** for SQMU. It owns shortcode-rendered user journeys and wallet-connected contract interactions while keeping WordPress-specific behavior in plugin PHP boundaries.
+
+Key shortcodes:
+- `[metamask_dapp]`
+- `[sqmu_listing]`
+- `[sqmu_portfolio]`
