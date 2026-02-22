@@ -29,3 +29,8 @@ Primary responsibilities:
 3. Regenerate/update ABIs.
 4. Document migration or compatibility notes.
 5. Validate in staging before production deployment.
+
+## Licensing
+
+- SQMU contracts in `Contracts/` are licensed under **Apache-2.0** (see SPDX headers and repository `LICENSE`).
+- Imported OpenZeppelin dependencies (including upgradeable contracts) remain under their upstream **MIT** license.
