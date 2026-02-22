@@ -4,10 +4,17 @@ on:
   push:
     branches:
       - main
+    paths:
+      - '.github/workflows/wpcom.yml'
+      - 'WordpressPlugin/**'
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: WordpressPlugin
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -16,6 +23,8 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: npm
+          cache-dependency-path: WordpressPlugin/package-lock.json
 
       - name: Install dependencies
         run: npm ci
@@ -25,10 +34,11 @@ jobs:
 
       - name: Stage plugin
         run: |
-          mkdir -p wpcom-stage/metamask-dapp/assets
-          cp plugin/metamask-dapp.php wpcom-stage/metamask-dapp/metamask-dapp.php
-          cp plugin/readme.txt wpcom-stage/metamask-dapp/readme.txt
-          cp dist/metamask-dapp.js wpcom-stage/metamask-dapp/assets/metamask-dapp.js
+          mkdir -p ../wpcom-stage/metamask-dapp/assets
+          cp plugin/metamask-dapp.php ../wpcom-stage/metamask-dapp/metamask-dapp.php
+          cp plugin/readme.txt ../wpcom-stage/metamask-dapp/readme.txt
+          cp plugin/assets/sqmu-widgets.css ../wpcom-stage/metamask-dapp/assets/sqmu-widgets.css
+          cp dist/metamask-dapp.js ../wpcom-stage/metamask-dapp/assets/metamask-dapp.js
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
