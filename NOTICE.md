@@ -9,7 +9,7 @@ You may obtain a copy of the License at [Apache License, Version 2.0](http://www
 
 Additional notices as part of attribution:
 
-* SQMU core contracts
+* SQMU Solidity smart contracts
 * SQMU Plugin for WordPress
 * OpenZeppelin contracts [MIT License](https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/LICENSE) and upgradeable contracts  [MIT License](https://github.com/OpenZeppelin/openzeppelin-contracts-upgradeable/blob/master/LICENSE)
 
