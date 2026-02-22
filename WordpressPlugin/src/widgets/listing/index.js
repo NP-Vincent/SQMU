@@ -163,7 +163,7 @@ export function initListingWidget(mount, config = {}) {
     statusLines: [connectionStatus, actionStatus]
   });
 
-  const connectButton = renderButton('Connect MetaMask', 'connect');
+  const connectButton = renderButton('Connect Wallet', 'connect');
   const disconnectButton = renderButton('Disconnect wallet', 'disconnect');
 
   const accountInput = renderInput({ readOnly: true, value: 'N/A' });
@@ -237,7 +237,7 @@ export function initListingWidget(mount, config = {}) {
 
   const contractForWrite = async () => {
     if (!state.signer) {
-      throw new Error('Connect MetaMask first.');
+      throw new Error('Connect Wallet first.');
     }
     await state.ensureChain?.(config.chainId);
     enforceChain(state, config);
@@ -269,7 +269,7 @@ export function initListingWidget(mount, config = {}) {
   };
 
   connectButton.button.addEventListener('click', async () => {
-    renderStatus(actionStatus, 'Connecting to MetaMask...');
+    renderStatus(actionStatus, 'Connecting wallet...');
     try {
       await state.connect();
       renderStatus(actionStatus, 'Connected.');

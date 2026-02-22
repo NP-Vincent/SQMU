@@ -1,8 +1,8 @@
-# MetaMask WordPress dApp – SQMU Widgets Baseline
+# SQMU WordPress Plugin – SQMU Widgets Baseline
 
 ## Purpose
 
-This repository defines a **WordPress-first MetaMask dApp plugin** that ships a
+This repository defines a **WordPress-first SQMU plugin** that ships a
 single JavaScript bundle and a set of SQMU-focused widgets. The current scope is
 centered on:
 
@@ -40,7 +40,7 @@ metamask-wp-dapp/
 │  ├─ config.js            # On-chain addresses + mail endpoints
 │  └─ index.js             # Public JS initializer
 ├─ plugin/
-│  ├─ metamask-dapp.php    # WordPress plugin bootstrap + shortcodes
+│  ├─ sqmu.php            # WordPress plugin bootstrap + shortcodes
 │  ├─ assets/
 │  │  └─ sqmu-widgets.css  # Widget styling
 │  └─ readme.txt
@@ -57,23 +57,23 @@ metamask-wp-dapp/
 The JavaScript bundle exposes **one initializer**:
 
 ```js
-export function initMetaMaskDapp(config) {
+export function initSQMU(config) {
   // config injected by WordPress
 }
 ```
 
 Runtime configuration is injected by PHP and passed to
-`window.MetaMaskWP.initMetaMaskDapp`.
+`window.SQMUWP.initSQMU`.
 
 ### Mounting behavior
 
-- If no widget mounts exist, the baseline MetaMask dApp UI mounts.
+- If no widget mounts exist, the baseline SQMU plugin UI mounts.
 - If mounts exist, the initializer looks for `data-mmwp-widget` on each mount
   and loads the matching widget.
 
 Supported widget keys:
 
-- `metamask-dapp`
+- `sqmu`
 - `sqmu-listing`
 - `sqmu-portfolio`
 
@@ -94,7 +94,7 @@ Shortcodes available:
 - `[sqmu_portfolio]` – SQMU holdings/portfolio view
 
 Configuration values are passed via shortcode attributes and injected into the
-bundle via `window.METAMASK_DAPP_CONFIG`.
+bundle via `window.SQMU_CONFIG`.
 
 ---
 
@@ -103,13 +103,13 @@ bundle via `window.METAMASK_DAPP_CONFIG`.
 Build output is always a single bundle:
 
 ```
-dist/metamask-dapp.js
+dist/sqmu.js
 ```
 
 The WordPress.com workflow stages that output into:
 
 ```
-wpcom-stage/metamask-dapp/assets/metamask-dapp.js
+wpcom-stage/sqmu/assets/sqmu.js
 ```
 
 The CSS companion file lives in `plugin/assets/sqmu-widgets.css`.

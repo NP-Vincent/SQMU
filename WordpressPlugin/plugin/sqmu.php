@@ -1,7 +1,7 @@
 <?php
 /**
- * Plugin Name: MetaMask WordPress dApp
- * Description: Boots the MetaMask WordPress dApp assets and mount point.
+ * Plugin Name: SQMU WordPress Plugin
+ * Description: Boots the SQMU WordPress Plugin assets and mount point.
  * Version: 0.1.0
  * Author: SQMU
  */
@@ -29,11 +29,11 @@ function metamask_dapp_should_enqueue_widget_assets() {
 }
 
 function metamask_dapp_enqueue_assets() {
-    $asset_file = plugin_dir_path(__FILE__) . 'assets/metamask-dapp.js';
-    $asset_path = plugin_dir_url(__FILE__) . 'assets/metamask-dapp.js';
+    $asset_file = plugin_dir_path(__FILE__) . 'assets/sqmu.js';
+    $asset_path = plugin_dir_url(__FILE__) . 'assets/sqmu.js';
     $asset_version = file_exists($asset_file) ? filemtime($asset_file) : '0.1.0';
 
-    wp_register_script('metamask-dapp', $asset_path, array(), $asset_version, true);
+    wp_register_script('sqmu', $asset_path, array(), $asset_version, true);
 
     $global_config = array(
         'chainId' => null
@@ -49,14 +49,14 @@ function metamask_dapp_enqueue_assets() {
     );
 
     wp_add_inline_script(
-        'metamask-dapp',
-        'window.METAMASK_DAPP_CONFIG = ' . wp_json_encode($config) . ';',
+        'sqmu',
+        'window.SQMU_CONFIG = ' . wp_json_encode($config) . ';',
         'before'
     );
 
     wp_add_inline_script(
-        'metamask-dapp',
-        'window.MetaMaskWP && window.MetaMaskWP.initMetaMaskDapp(window.METAMASK_DAPP_CONFIG || {});',
+        'sqmu',
+        'window.SQMUWP && window.SQMUWP.initSQMU(window.SQMU_CONFIG || {});',
         'after'
     );
 
@@ -69,7 +69,7 @@ function metamask_dapp_enqueue_assets() {
         );
     }
 
-    wp_enqueue_script('metamask-dapp');
+    wp_enqueue_script('sqmu');
 }
 add_action('wp_enqueue_scripts', 'metamask_dapp_enqueue_assets');
 
@@ -146,7 +146,7 @@ function metamask_dapp_register_mount($widget, $atts) {
     return $html;
 }
 
-function metamask_dapp_shortcode($atts) {
+function sqmu_shortcode($atts) {
     $atts = shortcode_atts(
         array(
             'chain_id' => '',
@@ -164,9 +164,10 @@ function metamask_dapp_shortcode($atts) {
         'metamask_dapp'
     );
 
-    return metamask_dapp_register_mount('metamask-dapp', $atts);
+    return metamask_dapp_register_mount('sqmu', $atts);
 }
-add_shortcode('metamask_dapp', 'metamask_dapp_shortcode');
+add_shortcode('metamask_dapp', 'sqmu_shortcode');
+add_shortcode('sqmu', 'sqmu_shortcode');
 
 function sqmu_listing_shortcode($atts) {
     $atts = shortcode_atts(
