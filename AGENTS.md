@@ -8,25 +8,34 @@ They define responsibilities and interactions for developers, operators, and end
 ## Core Agents
 
 - **Contract Agent**
-  - Controls contract deployment, upgrade planning, and initial system configuration.
-  - Maintains authoritative references for deployed addresses and governance settings.
+  - Owns the on-chain layer (`SQMU/Contracts`) and versioned ABI artifacts (`SQMU/ABI`).
+  - Controls deployment and upgrade planning, including migration/interface impact notes.
+  - Maintains authoritative references for deployed addresses, governance settings, and event/method semantics consumed downstream.
 
 - **WordPress Agent**
-  - Serves as the interface layer for administrators and users through the plugin UI.
-  - Connects shortcode-driven widgets and wallet interactions to contract operations.
+  - Owns the WordPress integration layer (`WordpressPlugin`) for admin and end-user journeys.
+  - Connects shortcode/widget wallet interactions (`metamask_dapp`, `sqmu_listing`, `sqmu_portfolio`) to contract operations.
+  - Keeps WordPress-specific logic in PHP/plugin boundaries while keeping JavaScript framework-agnostic.
+
+- **GoogleAppScript Agent**
+  - Owns receipt and communication automation scripts in `GoogleAppScript`.
+  - Translates verified workflow/event payloads into template-driven user notifications.
+  - Maintains script-level assumptions for trigger source, payload fields, and recipient routing.
 
 ## Agent Interactions
 
-- Contract Agent deploys/configures contracts -> provides ABI and other interactive elements
-- WordPress Agent captures user actions
+- Contract Agent deploys/configures contracts and publishes ABI + interface compatibility notes.
+- WordPress Agent consumes contract outputs to drive wallet-connected UI actions and plugin hooks.
+- GoogleAppScript Agent consumes workflow/event data (typically through WordPress or backend mediation) to send transactional communications.
 
 ## Integration Guidelines
 
 - Keep each agent responsibility modular and documented.
 - Map every new feature to the owning agent before implementation.
-- Reuse standardized contract events and ABI interfaces across UI and automation components.
+- Reuse standardized contract events and ABI interfaces across plugin UI and automation components.
 - Isolate WordPress-specific logic in PHP/plugin layers and keep JavaScript framework-agnostic.
-- Document dependencies between agents, especially where compliance or payment workflows are involved.
+- Keep automation scripts focused per workflow and document required payload fields/recipient logic.
+- Document cross-agent dependencies whenever contract interfaces, plugin hooks, or receipt payloads change.
 
 ## Workflow Recommendations
 
