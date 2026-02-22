@@ -64,4 +64,4 @@ See `CONTRIBUTING.md` for contribution guidelines. If no contributing guide is p
 
 ## Support / Contact
 
-For questions, implementation support, or partnership inquiries, contact Niranjan Paul Vincent or the SQMU team.
+For questions, implementation support, or partnership inquiries, contact N P Vincent or the SQMU team.
