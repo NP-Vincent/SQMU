@@ -34,14 +34,14 @@ jobs:
 
       - name: Stage plugin
         run: |
-          mkdir -p ../wpcom-stage/metamask-dapp/assets
-          cp plugin/metamask-dapp.php ../wpcom-stage/metamask-dapp/metamask-dapp.php
-          cp plugin/readme.txt ../wpcom-stage/metamask-dapp/readme.txt
-          cp plugin/assets/sqmu-widgets.css ../wpcom-stage/metamask-dapp/assets/sqmu-widgets.css
-          cp dist/metamask-dapp.js ../wpcom-stage/metamask-dapp/assets/metamask-dapp.js
+          mkdir -p ../wpcom-stage/sqmu/assets
+          cp plugin/sqmu.php ../wpcom-stage/sqmu/sqmu.php
+          cp plugin/readme.txt ../wpcom-stage/sqmu/readme.txt
+          cp plugin/assets/sqmu-widgets.css ../wpcom-stage/sqmu/assets/sqmu-widgets.css
+          cp dist/sqmu.js ../wpcom-stage/sqmu/assets/sqmu.js
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: wpcom
-          path: wpcom-stage/metamask-dapp
+          path: wpcom-stage/sqmu
