@@ -7,32 +7,18 @@ They define responsibilities and interactions for developers, operators, and end
 
 ## Core Agents
 
-- **Owner Agent**
+- **Contract Agent**
   - Controls contract deployment, upgrade planning, and initial system configuration.
   - Maintains authoritative references for deployed addresses and governance settings.
-
-- **Asset Agent**
-  - Handles asset onboarding, verification workflows, and SQMU token minting.
-  - Publishes token metadata and ownership state changes through standard events.
-
-- **R3NT Agent (Optional)**
-  - Manages rental/payment lifecycle flows associated with tokenized assets.
-  - Coordinates recurring and event-driven rental logic where enabled.
 
 - **WordPress Agent**
   - Serves as the interface layer for administrators and users through the plugin UI.
   - Connects shortcode-driven widgets and wallet interactions to contract operations.
 
-- **Compliance Agent**
-  - Verifies process integrity, certification evidence, and reporting requirements.
-  - Reviews on-chain/off-chain activity against applicable regulatory constraints.
-
 ## Agent Interactions
 
-- Owner Agent deploys/configures contracts → Asset Agent mints and manages tokens.
-- Asset Agent emits events → WordPress Agent surfaces updates in listing/portfolio experiences.
-- Compliance Agent validates transaction and audit trails → R3NT Agent enforces rental logic when active.
-- WordPress Agent captures user actions → routes approved operations to the appropriate on-chain contract functions.
+- Contract Agent deploys/configures contracts -> provides ABI and other interactive elements
+- WordPress Agent captures user actions
 
 ## Integration Guidelines
 
