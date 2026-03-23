@@ -1,9 +1,9 @@
 import { build } from 'esbuild';
 
 await build({
-  entryPoints: ['src/index.js'],
+  entryPoints: ['src/index.jsx'],
   bundle: true,
-  outfile: 'dist/sqmu.js',
+  outfile: 'plugin/assets/sqmu.js',
   format: 'iife',
   platform: 'browser',
   target: ['es2020'],

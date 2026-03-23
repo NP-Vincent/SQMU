@@ -32,13 +32,16 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Verify plugin bundle
+        run: test -f plugin/assets/sqmu.js
+
       - name: Stage plugin
         run: |
           mkdir -p ../wpcom-stage/sqmu/assets
           cp plugin/sqmu.php ../wpcom-stage/sqmu/sqmu.php
           cp plugin/readme.txt ../wpcom-stage/sqmu/readme.txt
           cp plugin/assets/sqmu-widgets.css ../wpcom-stage/sqmu/assets/sqmu-widgets.css
-          cp dist/sqmu.js ../wpcom-stage/sqmu/assets/sqmu.js
+          cp plugin/assets/sqmu.js ../wpcom-stage/sqmu/assets/sqmu.js
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4

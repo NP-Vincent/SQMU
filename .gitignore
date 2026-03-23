@@ -17,6 +17,9 @@ Thumbs.db
 *.log
 *.tmp
 tmp/
+WordpressPlugin/node_modules/
+WordpressPlugin/plugin/assets/sqmu.js
+WordpressPlugin/plugin/assets/sqmu.js.map
 
 # Never ignore compliance/legal docs
 !LICENSE
