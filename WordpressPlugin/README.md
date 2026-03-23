@@ -29,7 +29,7 @@ The plugin keeps a clear boundary between WordPress and the frontend bundle:
   - wallet connection
   - chain switching
   - contract reads and writes
-  - buy, listing, and portfolio views
+  - buy and portfolio views
 
 Runtime is direct browser-to-chain. WordPress is not used as a REST proxy in this version.
 
@@ -40,14 +40,14 @@ Runtime is direct browser-to-chain. WordPress is not used as a REST proxy in thi
 The only public shortcode is:
 
 ```text
-[sqmu_app view="buy|listing|portfolio" property_code="OPTIONAL_CODE"]
+[sqmu_app view="buy|portfolio" property_code="OPTIONAL_CODE"]
 ```
 
 ### Attributes
 
 - `view`
   - Selects the frontend view.
-  - Allowed values: `buy`, `listing`, `portfolio`
+  - Allowed values: `buy`, `portfolio`
 - `property_code`
   - Optional in general.
   - Use it on property-specific pages so the plugin resolves the matching WordPress property record and injects that property into the frontend config.
@@ -66,10 +66,10 @@ Property-specific buy page:
 [sqmu_app view="buy" property_code="SQMU-DXB-001"]
 ```
 
-Property-specific listing page:
+Property-specific portfolio workspace:
 
 ```text
-[sqmu_app view="listing" property_code="SQMU-DXB-001"]
+[sqmu_app view="portfolio" property_code="SQMU-DXB-001"]
 ```
 
 Portfolio page:
@@ -109,14 +109,14 @@ The admin screen is the source of truth for:
 - accepted payment tokens
 - per-view defaults
   - default chain ID
-  - feature flags for buy, listing, portfolio, and sell behavior
+  - feature flags for buy, portfolio, and sell behavior
 
 ### Supported settings model
 
 The plugin uses:
 
 - one global base configuration
-- per-view defaults for `buy`, `listing`, and `portfolio`
+- per-view defaults for `buy` and `portfolio`
 
 PHP assembles the final runtime config for each mount and passes it to the frontend.
 
@@ -195,6 +195,8 @@ WordpressPlugin/
 - Configure chains with valid `rpcUrl` values. The frontend performs direct reads from the browser.
 - Keep contract addresses up to date with the current deployed environment.
 - Use `property_code` on property-specific pages instead of maintaining per-page config.
+- `buy` is the distributor purchase flow.
+- `portfolio` is the combined holdings, marketplace, buy-from-listing, and listing-management workspace.
 - If a view renders a configuration error, check:
   - plugin settings
   - matching property post meta

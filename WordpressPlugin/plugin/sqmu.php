@@ -58,27 +58,16 @@ function sqmu_app_default_settings() {
                 'defaultChainId' => 59144,
                 'features' => array(
                     'buy' => true,
-                    'listing' => true,
                     'portfolio' => true,
                     'sell' => false
-                )
-            ),
-            'listing' => array(
-                'defaultChainId' => 59144,
-                'features' => array(
-                    'buy' => true,
-                    'listing' => true,
-                    'portfolio' => true,
-                    'sell' => true
                 )
             ),
             'portfolio' => array(
                 'defaultChainId' => 59144,
                 'features' => array(
                     'buy' => true,
-                    'listing' => true,
                     'portfolio' => true,
-                    'sell' => false
+                    'sell' => true
                 )
             )
         )
@@ -86,7 +75,7 @@ function sqmu_app_default_settings() {
 }
 
 function sqmu_app_allowed_views() {
-    return array('buy', 'listing', 'portfolio');
+    return array('buy', 'portfolio');
 }
 
 function sqmu_app_get_settings() {
@@ -140,7 +129,6 @@ function sqmu_app_sanitize_view_defaults($input, $defaults) {
                 : (int) $view_defaults['defaultChainId'],
             'features' => array(
                 'buy' => sqmu_app_sanitize_bool($features_input['buy'] ?? null, $view_defaults['features']['buy']),
-                'listing' => sqmu_app_sanitize_bool($features_input['listing'] ?? null, $view_defaults['features']['listing']),
                 'portfolio' => sqmu_app_sanitize_bool($features_input['portfolio'] ?? null, $view_defaults['features']['portfolio']),
                 'sell' => sqmu_app_sanitize_bool($features_input['sell'] ?? null, $view_defaults['features']['sell'])
             )
@@ -285,11 +273,6 @@ function sqmu_app_render_settings_page() {
                                 <?php sqmu_app_render_checkbox(SQMU_APP_OPTION_KEY . "[viewDefaults][{$view}][features][buy]", $settings['viewDefaults'][$view]['features']['buy']); ?>
                                 <?php echo ' '; ?>
                                 <span>Buy</span>
-                            </p>
-                            <p>
-                                <?php sqmu_app_render_checkbox(SQMU_APP_OPTION_KEY . "[viewDefaults][{$view}][features][listing]", $settings['viewDefaults'][$view]['features']['listing']); ?>
-                                <?php echo ' '; ?>
-                                <span>Listings</span>
                             </p>
                             <p>
                                 <?php sqmu_app_render_checkbox(SQMU_APP_OPTION_KEY . "[viewDefaults][{$view}][features][portfolio]", $settings['viewDefaults'][$view]['features']['portfolio']); ?>

@@ -17,7 +17,7 @@ Bootstraps the SQMU wallet application and provides an admin-configured shortcod
 4. Add the [sqmu_app] shortcode to a page.
 
 == Shortcode ==
-[sqmu_app view="buy|listing|portfolio" property_code="OPTIONAL_CODE"]
+[sqmu_app view="buy|portfolio" property_code="OPTIONAL_CODE"]
 
 == Property meta keys ==
 _sqmu_property_code

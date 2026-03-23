@@ -65,8 +65,7 @@ const erc20Abi = [
 
 const VIEW_TITLES = {
   buy: 'Buy SQMU',
-  listing: 'SQMU Listings',
-  portfolio: 'SQMU Portfolio'
+  portfolio: 'SQMU Portfolio & Market'
 };
 
 const maskAddress = (value) =>
@@ -185,7 +184,6 @@ const normalizeConfig = (config = {}) => {
 
   const features = {
     buy: config.features?.buy !== false,
-    listing: config.features?.listing !== false,
     portfolio: config.features?.portfolio !== false,
     sell: config.features?.sell !== false
   };
@@ -977,8 +975,18 @@ function ListingsView({ appConfig }) {
 }
 
 function PortfolioView({ appConfig }) {
-  const { address, isConnected } = useAccount();
+  const { address, isConnected, chainId } = useAccount();
+  const { switchChainAsync } = useSwitchChain();
+  const { data: walletClient } = useWalletClient();
+  const publicClient = usePublicClient({ chainId: appConfig.defaultChainId });
   const properties = appConfig.properties;
+  const [selectedListingId, setSelectedListingId] = useState('');
+  const [buyAmount, setBuyAmount] = useState('1.00');
+  const [sellPropertyCode, setSellPropertyCode] = useState(appConfig.propertyCode || appConfig.properties[0]?.propertyCode || '');
+  const [sellAmount, setSellAmount] = useState('1.00');
+  const [paymentTokenAddress, setPaymentTokenAddress] = useState(appConfig.paymentTokens[0]?.address ?? '');
+  const [status, setStatus] = useState('Ready.');
+  const [busy, setBusy] = useState(false);
   const { data: ownedBalances } = useReadContract({
     address: appConfig.contracts.sqmu,
     abi: sqmuAbi,
@@ -1013,6 +1021,58 @@ function PortfolioView({ appConfig }) {
     }
   });
 
+  const { data: contractPaymentTokens } = useReadContract({
+    address: appConfig.contracts.distributor,
+    abi: distributorAbi,
+    functionName: 'getPaymentTokens',
+    chainId: appConfig.defaultChainId,
+    query: {
+      enabled: Boolean(appConfig.contracts.distributor)
+    }
+  });
+
+  const listingPaymentTokenCandidates = useMemo(() => {
+    const configured = appConfig.paymentTokens.map((token) => token.address.toLowerCase());
+    const merged = [...appConfig.paymentTokens];
+    (contractPaymentTokens ?? []).forEach((addressValue) => {
+      if (!configured.includes(addressValue.toLowerCase())) {
+        merged.push({ address: addressValue });
+      }
+    });
+    return merged;
+  }, [appConfig.paymentTokens, contractPaymentTokens]);
+
+  const paymentTokenMetadata = useReadContracts({
+    contracts: listingPaymentTokenCandidates.flatMap((token) => [
+      {
+        address: token.address,
+        abi: erc20Abi,
+        functionName: 'symbol',
+        chainId: appConfig.defaultChainId
+      },
+      {
+        address: token.address,
+        abi: erc20Abi,
+        functionName: 'decimals',
+        chainId: appConfig.defaultChainId
+      }
+    ]),
+    query: {
+      enabled: listingPaymentTokenCandidates.length > 0
+    }
+  });
+
+  const paymentTokens = useMemo(
+    () => mergeTokenMetadata(listingPaymentTokenCandidates, paymentTokenMetadata.data),
+    [listingPaymentTokenCandidates, paymentTokenMetadata.data]
+  );
+
+  useEffect(() => {
+    if (!paymentTokenAddress && paymentTokens[0]?.address) {
+      setPaymentTokenAddress(paymentTokens[0].address);
+    }
+  }, [paymentTokenAddress, paymentTokens]);
+
   const portfolioRows = useMemo(() => {
     return properties.map((property, index) => {
       const info = propertyInfoReads.data?.[index]?.status === 'success'
@@ -1030,14 +1090,181 @@ function PortfolioView({ appConfig }) {
     });
   }, [properties, propertyInfoReads.data, ownedBalances]);
 
+  const listingRecords = activeListings ?? [];
+  const selectedListing = listingRecords.find((listing) => String(listing.listingId) === selectedListingId) ?? listingRecords[0] ?? null;
+
+  useEffect(() => {
+    if (!selectedListingId && listingRecords[0]?.listingId !== undefined) {
+      setSelectedListingId(String(listingRecords[0].listingId));
+    }
+  }, [selectedListingId, listingRecords]);
+
+  const listingPropertyCodes = useMemo(() => {
+    const codes = new Set();
+    listingRecords.forEach((listing) => {
+      if (listing.propertyCode) codes.add(listing.propertyCode);
+    });
+    return [...codes];
+  }, [listingRecords]);
+
+  const listingPropertyReads = useReadContracts({
+    contracts: listingPropertyCodes.map((propertyCode) => ({
+      address: appConfig.contracts.distributor,
+      abi: distributorAbi,
+      functionName: 'getPropertyInfo',
+      args: [propertyCode],
+      chainId: appConfig.defaultChainId
+    })),
+    query: {
+      enabled: Boolean(appConfig.contracts.distributor && listingPropertyCodes.length)
+    }
+  });
+
+  const propertyInfoMap = useMemo(() => {
+    const map = new Map();
+    listingPropertyCodes.forEach((propertyCode, index) => {
+      const result = listingPropertyReads.data?.[index];
+      if (result?.status === 'success') {
+        map.set(propertyCode, result.result);
+      }
+    });
+    return map;
+  }, [listingPropertyCodes, listingPropertyReads.data]);
+
+  const selectedPaymentToken = paymentTokens.find(
+    (token) => token.address.toLowerCase() === paymentTokenAddress.toLowerCase()
+  );
+  const buyAmountUnits = parseSqmuUnits(buyAmount);
+  const listingQuote = selectedListing && selectedPaymentToken && buyAmountUnits !== null
+    ? calculateTokenAmount(propertyInfoMap.get(selectedListing.propertyCode)?.priceUSD ?? 0n, buyAmountUnits, selectedPaymentToken.decimals)
+    : null;
+
+  const selectedCreateProperty = appConfig.properties.find((property) => property.propertyCode === sellPropertyCode) ?? appConfig.properties[0] ?? null;
+  const sellAmountUnits = parseSqmuUnits(sellAmount);
   const personalListings = (activeListings ?? []).filter(
     (listing) => address && listing.seller.toLowerCase() === address.toLowerCase()
   );
 
+  const ensureReady = async () => {
+    if (!isConnected || !walletClient || !address) {
+      throw new Error('Connect a wallet before submitting a marketplace action.');
+    }
+    if (chainId !== appConfig.defaultChainId) {
+      if (!switchChainAsync) {
+        throw new Error('Switch to the configured chain in your wallet.');
+      }
+      await switchChainAsync({ chainId: appConfig.defaultChainId });
+    }
+  };
+
+  const buyListing = async () => {
+    if (!selectedListing || !selectedPaymentToken || buyAmountUnits === null || !listingQuote) {
+      setStatus('Select a listing, payment token, and valid SQMU amount.');
+      return;
+    }
+
+    setBusy(true);
+    try {
+      await ensureReady();
+      const allowance = await publicClient.readContract({
+        address: selectedPaymentToken.address,
+        abi: erc20Abi,
+        functionName: 'allowance',
+        args: [address, appConfig.contracts.trade]
+      });
+
+      if (allowance < listingQuote) {
+        setStatus(`Approving ${selectedPaymentToken.symbol} for marketplace purchase...`);
+        const approvalHash = await walletClient.writeContract({
+          address: selectedPaymentToken.address,
+          abi: erc20Abi,
+          functionName: 'approve',
+          args: [appConfig.contracts.trade, listingQuote],
+          account: address,
+          chain: walletClient.chain
+        });
+        await publicClient.waitForTransactionReceipt({ hash: approvalHash });
+      }
+
+      setStatus('Submitting marketplace purchase...');
+      const purchaseHash = await walletClient.writeContract({
+        address: appConfig.contracts.trade,
+        abi: tradeAbi,
+        functionName: 'buy',
+        args: [selectedListing.listingId, buyAmountUnits, selectedPaymentToken.address],
+        account: address,
+        chain: walletClient.chain
+      });
+      await publicClient.waitForTransactionReceipt({ hash: purchaseHash });
+      setStatus(`Marketplace purchase confirmed: ${purchaseHash}`);
+    } catch (error) {
+      setStatus(error?.shortMessage || error?.message || 'Marketplace purchase failed.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const createListing = async () => {
+    if (!selectedCreateProperty || sellAmountUnits === null) {
+      setStatus('Select a property and valid SQMU amount to list.');
+      return;
+    }
+
+    const propertyInfo = propertyInfoMap.get(selectedCreateProperty.propertyCode);
+    const tokenAddress = selectedCreateProperty.tokenAddress || propertyInfo?.tokenAddress || appConfig.contracts.sqmu;
+    const tokenId = selectedCreateProperty.tokenId ?? Number(propertyInfo?.tokenId ?? 0);
+
+    if (!tokenAddress || !tokenId) {
+      setStatus('The selected property is missing token metadata.');
+      return;
+    }
+
+    setBusy(true);
+    try {
+      await ensureReady();
+
+      const isApproved = await publicClient.readContract({
+        address: tokenAddress,
+        abi: sqmuAbi,
+        functionName: 'isApprovedForAll',
+        args: [address, appConfig.contracts.trade]
+      });
+
+      if (!isApproved) {
+        setStatus('Approving SQMU transfers for the marketplace...');
+        const approvalHash = await walletClient.writeContract({
+          address: tokenAddress,
+          abi: sqmuAbi,
+          functionName: 'setApprovalForAll',
+          args: [appConfig.contracts.trade, true],
+          account: address,
+          chain: walletClient.chain
+        });
+        await publicClient.waitForTransactionReceipt({ hash: approvalHash });
+      }
+
+      setStatus('Creating listing...');
+      const listingHash = await walletClient.writeContract({
+        address: appConfig.contracts.trade,
+        abi: tradeAbi,
+        functionName: 'listToken',
+        args: [selectedCreateProperty.propertyCode, tokenAddress, BigInt(tokenId), sellAmountUnits],
+        account: address,
+        chain: walletClient.chain
+      });
+      await publicClient.waitForTransactionReceipt({ hash: listingHash });
+      setStatus(`Listing created: ${listingHash}`);
+    } catch (error) {
+      setStatus(error?.shortMessage || error?.message || 'Listing creation failed.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <div className="sqmu-stack">
-      <WalletPanel appConfig={appConfig} desiredChainId={appConfig.defaultChainId} busy={false} onEnsureReady={async (switchChain) => switchChain?.({ chainId: appConfig.defaultChainId })} />
-      <Section title="Portfolio Holdings" help="Portfolio balances are resolved from the SQMU ERC-1155 contract for the configured property catalog.">
+      <WalletPanel appConfig={appConfig} desiredChainId={appConfig.defaultChainId} busy={busy} onEnsureReady={async (switchChain) => switchChain?.({ chainId: appConfig.defaultChainId })} />
+      <Section title="Portfolio Holdings" help="Holdings are resolved from the SQMU ERC-1155 contract for the configured property catalog.">
         {isConnected ? (
           <div className="sqmu-table-wrap">
             <table>
@@ -1067,7 +1294,109 @@ function PortfolioView({ appConfig }) {
           <p className="sqmu-help">Connect a wallet to load on-chain holdings.</p>
         )}
       </Section>
-      <Section title="Your Active Listings" help="Marketplace listings are filtered to the connected wallet.">
+      <Section title="Active Marketplace Listings" help="Browse live listings, buy from existing offers, and use the marketplace from the same portfolio workspace.">
+        {listingRecords.length ? (
+          <div className="sqmu-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Listing</th>
+                  <th>Property</th>
+                  <th>Seller</th>
+                  <th>Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                {listingRecords.map((listing) => (
+                  <tr key={String(listing.listingId)} className={selectedListing && selectedListing.listingId === listing.listingId ? 'is-selected' : ''}>
+                    <td>
+                      <button type="button" className="sqmu-link-button" onClick={() => setSelectedListingId(String(listing.listingId))}>
+                        #{String(listing.listingId)}
+                      </button>
+                    </td>
+                    <td>{listing.propertyCode}</td>
+                    <td>{maskAddress(listing.seller)}</td>
+                    <td>{formatSqmuUnits(listing.amountListed)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p className="sqmu-help">No active listings are currently available.</p>
+        )}
+      </Section>
+      <Section
+        title="Buy From Listing"
+        actions={
+          <button type="button" className="wp-element-button" onClick={buyListing} disabled={busy || !selectedListing}>
+            {busy ? 'Submitting...' : 'Buy From Listing'}
+          </button>
+        }
+      >
+        <div className="sqmu-form-grid">
+          <Field label="Listing">
+            <select value={selectedListingId} onChange={(event) => setSelectedListingId(event.target.value)}>
+              {listingRecords.map((listing) => (
+                <option key={String(listing.listingId)} value={String(listing.listingId)}>
+                  #{String(listing.listingId)} - {listing.propertyCode}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label="SQMU Amount">
+            <input value={buyAmount} onChange={(event) => setBuyAmount(event.target.value)} inputMode="decimal" />
+          </Field>
+          <Field label="Payment Token">
+            <select value={paymentTokenAddress} onChange={(event) => setPaymentTokenAddress(event.target.value)}>
+              {paymentTokens.map((token) => (
+                <option key={token.address} value={token.address}>
+                  {token.symbol}
+                </option>
+              ))}
+            </select>
+          </Field>
+        </div>
+        <div className="sqmu-stats">
+          <div className="sqmu-stat">
+            <span className="sqmu-stat-label">Selected Listing</span>
+            <strong>{selectedListing ? `#${String(selectedListing.listingId)}` : '—'}</strong>
+          </div>
+          <div className="sqmu-stat">
+            <span className="sqmu-stat-label">Estimated Quote</span>
+            <strong>
+              {selectedPaymentToken && listingQuote !== null
+                ? `${formatTokenAmount(listingQuote, selectedPaymentToken.decimals)} ${selectedPaymentToken.symbol}`
+                : '—'}
+            </strong>
+          </div>
+        </div>
+      </Section>
+      <Section
+        title="List Your Holdings"
+        help="Create a marketplace listing from your SQMU holdings in this same portfolio workspace."
+        actions={
+          <button type="button" className="wp-element-button" onClick={createListing} disabled={busy || !appConfig.features.sell}>
+            {busy ? 'Submitting...' : 'Create Listing'}
+          </button>
+        }
+      >
+        <div className="sqmu-form-grid">
+          <Field label="Property">
+            <select value={sellPropertyCode} onChange={(event) => setSellPropertyCode(event.target.value)}>
+              {appConfig.properties.map((property) => (
+                <option key={property.propertyCode} value={property.propertyCode}>
+                  {property.propertyCode}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label="SQMU Amount">
+            <input value={sellAmount} onChange={(event) => setSellAmount(event.target.value)} inputMode="decimal" />
+          </Field>
+        </div>
+      </Section>
+      <Section title="Your Active Listings" help="Listings owned by the connected wallet are shown here for quick monitoring.">
         {isConnected ? (
           personalListings.length ? (
             <div className="sqmu-table-wrap">
@@ -1097,6 +1426,7 @@ function PortfolioView({ appConfig }) {
           <p className="sqmu-help">Connect a wallet to load your listings.</p>
         )}
       </Section>
+      <p className="sqmu-status-line">{status}</p>
     </div>
   );
 }
@@ -1146,9 +1476,7 @@ function App({ mountConfig }) {
   const queryClient = getQueryClient(cacheKey);
 
   let content = null;
-  if (view === 'listing') {
-    content = <ListingsView appConfig={appConfig} />;
-  } else if (view === 'portfolio') {
+  if (view === 'portfolio') {
     content = <PortfolioView appConfig={appConfig} />;
   } else {
     content = <BuyView appConfig={appConfig} />;

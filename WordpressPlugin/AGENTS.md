@@ -33,7 +33,7 @@ It maps shortcode-rendered React views to on-chain wallet operations while keepi
 
 ## Shortcode contract
 - Primary shortcode:
-  - `[sqmu_app view="buy|listing|portfolio" property_code="OPTIONAL_CODE"]`
+  - `[sqmu_app view="buy|portfolio" property_code="OPTIONAL_CODE"]`
 - `view` selects the frontend view.
 - `property_code` is the explicit page-level property target when a page is tied to one property.
 - Site operators configure chains/contracts/tokens in wp-admin rather than in shortcode content.
