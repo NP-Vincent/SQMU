@@ -1,239 +1,154 @@
-# SQMU WordPress Plugin – React + Wagmi Wallet App
+# SQMU WordPress Plugin – Admin-Configured Wallet App
 
 ## Purpose
 
-This repository defines a **WordPress-first SQMU plugin** that ships a
-single JavaScript bundle and a shortcode-mounted React application. The current scope is
-centered on:
+This folder contains the WordPress integration layer for the SQMU wallet application.
+It serves one compiled React + Wagmi bundle through a PHP plugin, keeps runtime
+configuration in WordPress admin settings, and uses a lightweight shortcode only
+to place a view into page content.
 
-- MetaMask and injected-wallet connection helpers
-- SQMU distributor buy flows
-- SQMU trade listing flows
-- SQMU portfolio readouts
-- WordPress shortcode mounts for each view
+The plugin is designed so that:
 
-The project keeps all WordPress integration in PHP and all wallet/contract logic
-in the browser bundle to preserve a clean separation of concerns.
+- site operators configure chains, contracts, payment tokens, and view defaults once in wp-admin
+- content editors place views with a short shortcode
+- property-specific pages reference a property code instead of embedding raw JSON
 
 ---
 
-## Design Principles
+## Architecture
 
-1. **Single bundle, single initializer** – one public JavaScript entrypoint.
-2. **No runtime Node.js in production** – Node is build-time only.
-3. **Deterministic builds** – esbuild creates a consistent output bundle.
-4. **Strict separation of concerns**
-   - JavaScript: React UI + wallet + contract logic
-   - PHP: WordPress glue, configuration, rendering
-5. **WordPress only receives compiled assets** (JS/CSS)
+The plugin keeps a clear boundary between WordPress and the frontend bundle:
 
----
+- PHP owns:
+  - shortcode registration
+  - asset enqueueing
+  - admin settings UI
+  - property lookup from WordPress post meta
+  - normalized runtime config injection
+- React + Wagmi owns:
+  - wallet connection
+  - chain switching
+  - contract reads and writes
+  - buy, listing, and portfolio views
 
-## Repository Structure (Current)
-
-```
-WordpressPlugin/
-├─ src/
-│  ├─ contracts/           # Contract ABIs + default addresses
-│  ├─ config.js            # Default chain/payment token settings
-│  └─ index.jsx            # React + Wagmi entrypoint
-├─ plugin/
-│  ├─ sqmu.php            # WordPress plugin bootstrap + shortcodes
-│  ├─ assets/
-│  │  ├─ sqmu-widgets.css  # Application styling
-│  │  └─ sqmu.js           # Build output (generated)
-│  └─ readme.txt
-├─ esbuild.config.mjs
-├─ package.json
-└─ README.md
-```
+Runtime is direct browser-to-chain. WordPress is not used as a REST proxy in this version.
 
 ---
 
-## Public JavaScript API
+## Shortcode
 
-The JavaScript bundle exposes **one initializer**:
-
-```js
-export function initSQMU(config) {
-  // config injected by WordPress
-}
-```
-
-Runtime configuration is injected by PHP and passed to
-`window.SQMUWP.initSQMU`.
-
-### Mounting behavior
-
-- WordPress renders shortcode mount elements with `data-sqmu-app`.
-- The initializer reads the mount `view` and the normalized config injected by PHP.
-- Each mount renders one React view.
-
-Supported views:
-
-- `buy`
-- `listing`
-- `portfolio`
-
----
-
-## WordPress Plugin Responsibilities
-
-The WordPress plugin provides:
-
-- Shortcodes that render widget mount points
-- Script/style enqueueing
-- Runtime configuration injection (PHP → JS)
-
-Shortcode available:
-
-- `[sqmu_app view="buy|listing|portfolio" config='{"version":1,...}']`
-
-Configuration values are passed via shortcode attributes and injected into the
-bundle via `window.SQMU_CONFIG`.
-
-## Shortcode Usage
-
-The plugin now uses one primary shortcode:
+The only public shortcode is:
 
 ```text
-[sqmu_app view="buy|listing|portfolio" config='{"version":1,...}']
+[sqmu_app view="buy|listing|portfolio" property_code="OPTIONAL_CODE"]
 ```
 
 ### Attributes
 
 - `view`
-  - Required in practice.
-  - Selects which React view to render.
+  - Selects the frontend view.
   - Allowed values: `buy`, `listing`, `portfolio`
-- `config`
-  - JSON string passed to the frontend runtime.
-  - Should contain the chain, contract, payment-token, and feature configuration needed by the selected view.
+- `property_code`
+  - Optional in general.
+  - Use it on property-specific pages so the plugin resolves the matching WordPress property record and injects that property into the frontend config.
 
-### Config shape
+### Examples
 
-The `config` JSON is normalized around these top-level keys:
-
-```json
-{
-  "version": 1,
-  "app": {
-    "name": "SQMU Wallet",
-    "url": "https://example.com/",
-    "infuraApiKey": "optional-infura-key"
-  },
-  "defaultChainId": 59144,
-  "chains": [
-    {
-      "id": 59144,
-      "name": "Linea",
-      "rpcUrl": "https://linea.infura.io/v3/YOUR_KEY",
-      "blockExplorerUrl": "https://lineascan.build",
-      "nativeCurrency": {
-        "name": "Ether",
-        "symbol": "ETH",
-        "decimals": 18
-      }
-    }
-  ],
-  "contracts": {
-    "distributor": "0x...",
-    "trade": "0x...",
-    "sqmu": "0x..."
-  },
-  "paymentTokens": [
-    {
-      "address": "0x...",
-      "symbol": "USDC",
-      "decimals": 6
-    }
-  ],
-  "properties": [
-    {
-      "propertyCode": "SQMU-DXB-001",
-      "tokenId": 1,
-      "tokenAddress": "0x..."
-    }
-  ],
-  "features": {
-    "buy": true,
-    "listing": true,
-    "portfolio": true,
-    "sell": true
-  }
-}
-```
-
-### Minimum requirements by view
-
-- `buy`
-  - `chains`
-  - `defaultChainId`
-  - `contracts.distributor`
-  - `contracts.sqmu`
-  - `paymentTokens`
-  - `properties` or a property code entered manually in the UI
-- `listing`
-  - `chains`
-  - `defaultChainId`
-  - `contracts.trade`
-  - `contracts.distributor`
-  - `contracts.sqmu`
-  - `paymentTokens`
-  - `properties` for creating listings
-- `portfolio`
-  - `chains`
-  - `defaultChainId`
-  - `contracts.trade`
-  - `contracts.distributor`
-  - `contracts.sqmu`
-  - `properties`
-
-### Example shortcodes
-
-Buy flow:
+Generic buy view:
 
 ```text
-[sqmu_app
-  view="buy"
-  config='{"version":1,"app":{"name":"SQMU Wallet","url":"https://example.com/"},"defaultChainId":59144,"chains":[{"id":59144,"name":"Linea","rpcUrl":"https://linea.infura.io/v3/YOUR_KEY","blockExplorerUrl":"https://lineascan.build","nativeCurrency":{"name":"Ether","symbol":"ETH","decimals":18}}],"contracts":{"distributor":"0x19d8D25DD4C85264B2AC502D66aEE113955b8A07","trade":"0x4F1BFDC7EBba77e7ec76C6AEbE81C0e84d28470B","sqmu":"0xd0b895e975f24045e43d788d42BD938b78666EC8"},"paymentTokens":[{"address":"0x06eFdBFf2a14a7c8E15944D1F4A48F9F95F663A4","symbol":"USDC","decimals":6},{"address":"0xf55BEC9cafDbE8730f096Aa55dad6D22d44099Df","symbol":"USDT","decimals":6}],"properties":[{"propertyCode":"SQMU-DXB-001","tokenId":1,"tokenAddress":"0xd0b895e975f24045e43d788d42BD938b78666EC8"}],"features":{"buy":true,"listing":true,"portfolio":true,"sell":true}}']
+[sqmu_app view="buy"]
 ```
 
-Portfolio flow:
+Property-specific buy page:
 
 ```text
-[sqmu_app
-  view="portfolio"
-  config='{"version":1,"defaultChainId":59144,"chains":[{"id":59144,"name":"Linea","rpcUrl":"https://linea.infura.io/v3/YOUR_KEY","blockExplorerUrl":"https://lineascan.build","nativeCurrency":{"name":"Ether","symbol":"ETH","decimals":18}}],"contracts":{"distributor":"0x19d8D25DD4C85264B2AC502D66aEE113955b8A07","trade":"0x4F1BFDC7EBba77e7ec76C6AEbE81C0e84d28470B","sqmu":"0xd0b895e975f24045e43d788d42BD938b78666EC8"},"properties":[{"propertyCode":"SQMU-DXB-001","tokenId":1,"tokenAddress":"0xd0b895e975f24045e43d788d42BD938b78666EC8"},{"propertyCode":"SQMU-DXB-002","tokenId":2,"tokenAddress":"0xd0b895e975f24045e43d788d42BD938b78666EC8"}]}']
+[sqmu_app view="buy" property_code="SQMU-DXB-001"]
 ```
 
-### Authoring notes
+Property-specific listing page:
 
-- The `config` attribute must be valid JSON.
-- Keep the whole JSON inside single quotes in the shortcode so the JSON can keep double quotes.
-- Each configured chain should include an `rpcUrl`, because the frontend performs direct browser-to-chain reads.
-- `properties` should be treated as the WordPress-side catalog for buy, listing, and portfolio views.
-- If the config is malformed or missing required contract/chain information, the app renders a configuration error card in the page.
+```text
+[sqmu_app view="listing" property_code="SQMU-DXB-001"]
+```
+
+Portfolio page:
+
+```text
+[sqmu_app view="portfolio"]
+```
+
+### What the shortcode no longer does
+
+The shortcode is no longer responsible for:
+
+- chain IDs
+- RPC URLs
+- contract addresses
+- payment token lists
+- feature flags
+- raw JSON config blobs
+
+That configuration is now owned by the plugin admin settings screen.
 
 ---
 
-## Build System (esbuild)
+## Admin Configuration
 
-Build output is a single browser bundle staged directly into the plugin asset path:
+After activating the plugin, configure it in:
 
-```
-plugin/assets/sqmu.js
-```
-
-The WordPress.com workflow copies the plugin assets into:
-
-```
-wpcom-stage/sqmu/assets/sqmu.js
+```text
+Settings > SQMU App
 ```
 
-The CSS companion file lives in `plugin/assets/sqmu-widgets.css`.
+The admin screen is the source of truth for:
 
-### Local build
+- application metadata
+- accepted chains
+- distributor, trade, and SQMU contract addresses
+- accepted payment tokens
+- per-view defaults
+  - default chain ID
+  - feature flags for buy, listing, portfolio, and sell behavior
+
+### Supported settings model
+
+The plugin uses:
+
+- one global base configuration
+- per-view defaults for `buy`, `listing`, and `portfolio`
+
+PHP assembles the final runtime config for each mount and passes it to the frontend.
+
+---
+
+## Property Meta Contract
+
+Property-specific pages resolve property details from WordPress post meta.
+
+The plugin expects these fixed meta keys:
+
+```text
+_sqmu_property_code
+_sqmu_token_id
+_sqmu_token_address
+```
+
+### Behavior
+
+- The shortcode uses `property_code` to find a published WordPress post with matching `_sqmu_property_code`.
+- If exactly one post matches, the plugin injects that property into the frontend config.
+- If no post matches, more than one post matches, or required token metadata is missing, the frontend renders a clear configuration error card.
+
+### Expectations
+
+- property codes must be unique across published content
+- `_sqmu_token_id` must be numeric
+- `_sqmu_token_address` must be present for property-specific flows
+
+---
+
+## Build And Packaging
 
 From `WordpressPlugin/`:
 
@@ -242,41 +157,52 @@ npm install
 npm run build
 ```
 
-This writes the compiled bundle to:
+This generates:
 
 ```text
 plugin/assets/sqmu.js
 ```
 
-At runtime, WordPress serves only the compiled plugin assets. Node is not required on the WordPress host.
+The WordPress plugin enqueues that built asset directly. Node is build-time only and is not required on the WordPress host.
+
+The WordPress.com workflow also verifies that the generated bundle exists at the same path the plugin enqueues.
 
 ---
 
-## Development Direction
+## Repo Layout
 
-The repository is evolving into a focused SQMU wallet application with a React +
-Wagmi frontend. Current priorities:
-
-1. Keep wallet/contract logic isolated from WordPress-specific concerns.
-2. Preserve the single initializer + deterministic build pipeline.
-3. Align UI styling with the **active WordPress theme defaults** by using
-   inherited typography and WordPress preset tokens (spacing, color, etc.)
-   instead of coupling widget styles to a specific reference theme snapshot.
-
-### Theme Inheritance Policy
-
-- The plugin must inherit from whichever theme is active on the site.
-- Widget styles are layout-only and should rely on WordPress/theme typography, color, and button defaults.
-- New styling decisions should prefer WordPress preset tokens and semantic block classes over copied theme CSS.
-
-Anything that breaks these constraints should be treated as experimental and
-requires explicit review.
+```text
+WordpressPlugin/
+├─ src/
+│  ├─ contracts/      # ABI exports and default addresses
+│  ├─ config.js       # Frontend defaults
+│  └─ index.jsx       # React + Wagmi entrypoint
+├─ plugin/
+│  ├─ sqmu.php        # WordPress bootstrap, admin UI, shortcode, config assembly
+│  ├─ assets/
+│  │  ├─ sqmu-widgets.css
+│  │  └─ sqmu.js
+│  └─ readme.txt
+├─ esbuild.config.mjs
+├─ package.json
+└─ README.md
+```
 
 ---
 
-## SQMU Module Reference
+## Operator Notes
 
-This folder is the **WordPress integration layer** for SQMU. It owns shortcode-rendered user journeys and wallet-connected contract interactions while keeping WordPress-specific behavior in plugin PHP boundaries.
+- Configure chains with valid `rpcUrl` values. The frontend performs direct reads from the browser.
+- Keep contract addresses up to date with the current deployed environment.
+- Use `property_code` on property-specific pages instead of maintaining per-page config.
+- If a view renders a configuration error, check:
+  - plugin settings
+  - matching property post meta
+  - duplicate property codes
 
-Key shortcode:
-- `[sqmu_app]`
+---
+
+## Module Reference
+
+This folder is the WordPress-owned integration layer for SQMU.
+It is responsible for keeping the admin-configured runtime model stable and exposing the `[sqmu_app]` shortcode cleanly to editors and operators.

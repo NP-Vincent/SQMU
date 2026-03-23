@@ -399,7 +399,7 @@ function BuyView({ appConfig }) {
   const { data: walletClient } = useWalletClient();
   const publicClient = usePublicClient({ chainId: appConfig.defaultChainId });
   const propertyOptions = appConfig.properties;
-  const [propertyCode, setPropertyCode] = useState(propertyOptions[0]?.propertyCode ?? '');
+  const [propertyCode, setPropertyCode] = useState(appConfig.propertyCode || propertyOptions[0]?.propertyCode || '');
   const [sqmuAmount, setSqmuAmount] = useState('1.00');
   const [paymentTokenAddress, setPaymentTokenAddress] = useState(appConfig.paymentTokens[0]?.address ?? '');
   const [agentCode, setAgentCode] = useState('');
@@ -630,7 +630,7 @@ function ListingsView({ appConfig }) {
   const publicClient = usePublicClient({ chainId: appConfig.defaultChainId });
   const [selectedListingId, setSelectedListingId] = useState('');
   const [buyAmount, setBuyAmount] = useState('1.00');
-  const [sellPropertyCode, setSellPropertyCode] = useState(appConfig.properties[0]?.propertyCode ?? '');
+  const [sellPropertyCode, setSellPropertyCode] = useState(appConfig.propertyCode || appConfig.properties[0]?.propertyCode || '');
   const [sellAmount, setSellAmount] = useState('1.00');
   const [status, setStatus] = useState('Ready.');
   const [busy, setBusy] = useState(false);
@@ -1116,7 +1116,7 @@ function ConfigError({ issues }) {
 
 function App({ mountConfig }) {
   const appConfig = normalizeConfig(mountConfig.config);
-  const issues = [];
+  const issues = [...(mountConfig.errors ?? [])];
   if (!appConfig.chains.length) {
     issues.push('At least one chain configuration is required.');
   }
@@ -1179,6 +1179,7 @@ const mergeMountConfig = (payload, mount) => {
   const mountConfig = mountId ? payload.mounts?.[mountId] ?? {} : {};
   return {
     view: mountConfig.view || mount.dataset.sqmuView || 'buy',
+    errors: Array.isArray(mountConfig.errors) ? mountConfig.errors : [],
     config: {
       ...(payload.global ?? {}),
       ...(mountConfig.config ?? {})
