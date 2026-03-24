@@ -507,18 +507,31 @@ function sqmu_app_render_settings_page() {
                 display: grid;
                 gap: 12px;
                 margin: 12px 0;
+                justify-content: start;
             }
 
             .sqmu-add-grid-chains {
-                grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+                grid-template-columns: minmax(0, 420px);
             }
 
             .sqmu-add-grid-tokens {
-                grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+                grid-template-columns: minmax(0, 420px);
             }
 
             .sqmu-add-grid p {
                 margin: 0;
+            }
+
+            .sqmu-add-grid label {
+                display: block;
+                text-align: left;
+            }
+
+            .sqmu-add-grid .large-text,
+            .sqmu-add-grid .regular-text,
+            .sqmu-add-grid .small-text {
+                width: 100%;
+                max-width: 420px;
             }
 
             .sqmu-settings-table {
@@ -552,6 +565,7 @@ function sqmu_app_render_settings_page() {
 
             .sqmu-add-actions {
                 margin: 0 0 16px;
+                text-align: left;
             }
         </style>
         <form method="post" action="options.php">
