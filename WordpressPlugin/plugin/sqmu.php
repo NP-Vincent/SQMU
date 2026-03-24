@@ -33,6 +33,10 @@ function sqmu_app_allowed_views() {
     return array('buy', 'portfolio', 'crowdfund', 'rent', 'rent_distribution', 'escrow');
 }
 
+function sqmu_app_property_bound_views() {
+    return array('buy', 'portfolio', 'rent', 'rent_distribution', 'escrow');
+}
+
 function sqmu_app_default_view_defaults() {
     return array(
         'buy' => array(
@@ -888,6 +892,80 @@ function sqmu_app_build_property_record($post) {
     );
 }
 
+function sqmu_app_post_has_property_context($post) {
+    if (!($post instanceof WP_Post)) {
+        return false;
+    }
+
+    $meta_keys = array(
+        SQMU_PROPERTY_CODE_META_KEY,
+        SQMU_PROPERTY_TOKEN_ID_META_KEY,
+        SQMU_PROPERTY_TOKEN_ADDRESS_META_KEY,
+        SQMU_PROPERTY_ID_META_KEY,
+        SQMU_PROPERTY_REF_META_KEY
+    );
+
+    foreach ($meta_keys as $meta_key) {
+        $value = get_post_meta($post->ID, $meta_key, true);
+        if (!sqmu_app_value_is_blank($value)) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+function sqmu_app_get_current_property_context_post() {
+    $queried = get_queried_object();
+    if ($queried instanceof WP_Post) {
+        return $queried;
+    }
+
+    global $post;
+    if ($post instanceof WP_Post) {
+        return $post;
+    }
+
+    return null;
+}
+
+function sqmu_app_discover_property_code_for_view($view, $property_code = '') {
+    $property_code = sanitize_text_field($property_code);
+    if ($property_code !== '') {
+        return array(
+            'propertyCode' => $property_code,
+            'source' => 'shortcode',
+            'pageContextDetected' => false
+        );
+    }
+
+    if (!in_array($view, sqmu_app_property_bound_views(), true)) {
+        return array(
+            'propertyCode' => '',
+            'source' => 'none',
+            'pageContextDetected' => false
+        );
+    }
+
+    $post = sqmu_app_get_current_property_context_post();
+    if (!($post instanceof WP_Post)) {
+        return array(
+            'propertyCode' => '',
+            'source' => 'none',
+            'pageContextDetected' => false
+        );
+    }
+
+    $page_context_detected = sqmu_app_post_has_property_context($post);
+    $record = sqmu_app_build_property_record($post);
+
+    return array(
+        'propertyCode' => $record['propertyCode'],
+        'source' => $record['propertyCode'] !== '' ? 'post_meta' : 'none',
+        'pageContextDetected' => $page_context_detected
+    );
+}
+
 function sqmu_app_get_property_catalog() {
     static $catalog = null;
 
@@ -1037,7 +1115,8 @@ function sqmu_app_get_runtime_global_config($context = 'public') {
         'contracts' => $settings['contracts'],
         'paymentTokens' => $settings['paymentTokens'],
         'viewDefaults' => $settings['viewDefaults'],
-        'properties' => $catalog['properties']
+        'properties' => $catalog['properties'],
+        'duplicatePropertyCodes' => $catalog['duplicateCodes']
     );
 }
 
@@ -1048,7 +1127,10 @@ function sqmu_app_build_mount_config($view, $property_code, $escrow_address = ''
         : $settings['viewDefaults']['buy'];
 
     $catalog = sqmu_app_get_property_catalog();
-    $property_result = sqmu_app_find_property_by_code($property_code);
+    $property_bound = in_array($view, sqmu_app_property_bound_views(), true);
+    $property_discovery = sqmu_app_discover_property_code_for_view($view, $property_code);
+    $resolved_property_code = $property_discovery['propertyCode'];
+    $property_result = sqmu_app_find_property_by_code($resolved_property_code);
     $selected_property = $property_result['property'];
     $errors = $property_result['errors'];
     $properties = $selected_property ? array($selected_property) : $catalog['properties'];
@@ -1069,8 +1151,16 @@ function sqmu_app_build_mount_config($view, $property_code, $escrow_address = ''
         'contracts' => $settings['contracts'],
         'paymentTokens' => $settings['paymentTokens'],
         'properties' => $properties,
+        'duplicatePropertyCodes' => $catalog['duplicateCodes'],
         'features' => $view_defaults['features'],
-        'propertyCode' => $property_code !== '' ? $property_code : null,
+        'propertyCode' => $resolved_property_code !== '' ? $resolved_property_code : null,
+        'propertyLocked' => $property_bound && $selected_property !== null && $resolved_property_code !== '',
+        'propertyDiscovery' => array(
+            'propertyBound' => $property_bound,
+            'source' => $property_discovery['source'],
+            'pageContextDetected' => (bool) $property_discovery['pageContextDetected'],
+            'explicitOverride' => $property_code !== ''
+        ),
         'escrowAddress' => $view === 'escrow' && $escrow_address !== '' ? sanitize_text_field($escrow_address) : null
     );
 

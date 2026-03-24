@@ -36,6 +36,8 @@ rent_distribution = read-only per-property rent balances
 escrow = create or manage escrow instances
 
 == Notes ==
+- property_code is optional and works as an explicit override
+- on Estatik property pages, property-bound views can auto-discover the property from WordPress post meta with DOM/URL fallback
 - escrow_address is only used with view="escrow"
 - rent_distribution is intentionally read-only in this release
 - owner/admin actions intentionally exclude upgrades and ownership transfer

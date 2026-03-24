@@ -44,6 +44,8 @@ const ESCROW_STAGES = [
   { value: 1, label: 'Deposit' },
   { value: 2, label: 'Final' }
 ];
+const PROPERTY_BOUND_VIEWS = new Set(['buy', 'portfolio', 'rent', 'rent_distribution', 'escrow']);
+const PROPERTY_CODE_LABEL_PATTERN = /^sqmu property code$/i;
 const ESCROW_STATE_LABELS = ['Created', 'Active', 'Completed', 'Cancelled', 'Expired'];
 const ESCROW_SETTLEMENT_LABELS = ['Unsettled', 'Released', 'Refunded'];
 const ESCROW_ACTION_LABELS = ['Release', 'Refund'];
@@ -109,6 +111,9 @@ const maskAddress = (value) =>
   value ? `${value.slice(0, 6)}...${value.slice(-4)}` : 'Not connected';
 
 const safeString = (value) => (typeof value === 'string' ? value.trim() : '');
+
+const uniqueStrings = (values) =>
+  Array.from(new Set((Array.isArray(values) ? values : []).map((value) => safeString(value)).filter(Boolean)));
 
 const toBigInt = (value, fallback = 0n) => {
   if (typeof value === 'bigint') return value;
@@ -286,9 +291,210 @@ const normalizeConfig = (config = {}) => {
     contracts,
     paymentTokens,
     properties,
+    duplicatePropertyCodes: uniqueStrings(config.duplicatePropertyCodes),
     features,
     propertyCode: safeString(config.propertyCode),
+    propertyLocked: Boolean(config.propertyLocked),
+    propertyDiscovery: {
+      propertyBound: Boolean(config.propertyDiscovery?.propertyBound),
+      source: safeString(config.propertyDiscovery?.source) || 'none',
+      pageContextDetected: Boolean(config.propertyDiscovery?.pageContextDetected),
+      explicitOverride: Boolean(config.propertyDiscovery?.explicitOverride)
+    },
     escrowAddress: safeString(config.escrowAddress)
+  };
+};
+
+const isPropertyBoundView = (view) => PROPERTY_BOUND_VIEWS.has(view);
+
+const formatPropertyLabel = (property, fallbackCode = '') => {
+  const propertyCode = safeString(property?.propertyCode) || safeString(fallbackCode);
+  const postTitle = safeString(property?.postTitle);
+  if (postTitle && propertyCode) {
+    return `${postTitle} (${propertyCode})`;
+  }
+  return postTitle || propertyCode || '—';
+};
+
+const getDiscoveryRoots = (mount) => {
+  if (typeof document === 'undefined') {
+    return [];
+  }
+
+  const roots = [
+    mount,
+    mount?.closest?.('[data-sqmu-property-code]'),
+    mount?.closest?.('article'),
+    mount?.closest?.('.entry-content'),
+    mount?.closest?.('main'),
+    document
+  ];
+
+  return Array.from(new Set(roots.filter(Boolean)));
+};
+
+const readPropertyCodeFromDataAttribute = (root) => {
+  if (!root) return '';
+  if (typeof root.getAttribute === 'function') {
+    const direct = safeString(root.getAttribute('data-sqmu-property-code'));
+    if (direct) return direct;
+  }
+  if (typeof root.querySelector === 'function') {
+    const match = root.querySelector('[data-sqmu-property-code]');
+    const nested = safeString(match?.getAttribute?.('data-sqmu-property-code'));
+    if (nested) return nested;
+  }
+  return '';
+};
+
+const readPropertyCodeFromEstatikDom = (root) => {
+  if (!root || typeof root.querySelectorAll !== 'function') {
+    return '';
+  }
+
+  const fields = root.querySelectorAll('.es-entity-field, .es-property-field');
+  for (const field of fields) {
+    const label = safeString(
+      field.querySelector('.es-property-field__label, .es-entity-field__label, [class*="field__label"]')?.textContent
+    );
+    if (!PROPERTY_CODE_LABEL_PATTERN.test(label)) {
+      continue;
+    }
+
+    const value = safeString(
+      field.querySelector('.es-property-field__value, .es-entity-field__value, [class*="field__value"]')?.textContent
+    );
+    if (value) {
+      return value;
+    }
+  }
+
+  return '';
+};
+
+const readPropertyCodeFromUrl = () => {
+  if (typeof window === 'undefined') {
+    return '';
+  }
+  return safeString(new URLSearchParams(window.location.search).get('code'));
+};
+
+const discoverPropertyCodeForMount = (mount) => {
+  for (const root of getDiscoveryRoots(mount)) {
+    const dataCode = readPropertyCodeFromDataAttribute(root);
+    if (dataCode) {
+      return { propertyCode: dataCode, source: 'dom_data_attribute' };
+    }
+  }
+
+  for (const root of getDiscoveryRoots(mount)) {
+    const estatikCode = readPropertyCodeFromEstatikDom(root);
+    if (estatikCode) {
+      return { propertyCode: estatikCode, source: 'estatik_dom' };
+    }
+  }
+
+  const urlCode = readPropertyCodeFromUrl();
+  if (urlCode) {
+    return { propertyCode: urlCode, source: 'url_query' };
+  }
+
+  return { propertyCode: '', source: 'none' };
+};
+
+const resolvePropertyFromCatalog = (propertyCode, config) => {
+  const normalizedCode = safeString(propertyCode);
+  if (!normalizedCode) {
+    return { property: null, errors: [] };
+  }
+
+  if (uniqueStrings(config.duplicatePropertyCodes).includes(normalizedCode)) {
+    return {
+      property: null,
+      errors: [`Property code "${normalizedCode}" matched multiple WordPress posts. Property codes must be unique.`]
+    };
+  }
+
+  const property = (Array.isArray(config.properties) ? config.properties : []).find(
+    (entry) => safeString(entry?.propertyCode) === normalizedCode
+  );
+
+  if (!property) {
+    return {
+      property: null,
+      errors: [`Property code "${normalizedCode}" could not be resolved from WordPress content.`]
+    };
+  }
+
+  return { property, errors: [] };
+};
+
+const resolveMountPropertyContext = (view, config, mount) => {
+  if (!isPropertyBoundView(view)) {
+    return { config, errors: [] };
+  }
+
+  let propertyCode = safeString(config.propertyCode);
+  let source = safeString(config.propertyDiscovery?.source) || (propertyCode ? 'shortcode' : 'none');
+  let pageContextDetected = Boolean(config.propertyDiscovery?.pageContextDetected);
+
+  if (!propertyCode) {
+    const discovered = discoverPropertyCodeForMount(mount);
+    propertyCode = discovered.propertyCode;
+    if (propertyCode) {
+      source = discovered.source;
+      pageContextDetected = true;
+    }
+  }
+
+  if (propertyCode) {
+    const resolution = resolvePropertyFromCatalog(propertyCode, config);
+    if (resolution.property) {
+      return {
+        config: {
+          ...config,
+          properties: [resolution.property],
+          propertyCode,
+          propertyLocked: true,
+          propertyDiscovery: {
+            ...config.propertyDiscovery,
+            propertyBound: true,
+            source,
+            pageContextDetected
+          }
+        },
+        errors: []
+      };
+    }
+
+    return {
+      config: {
+        ...config,
+        propertyCode,
+        propertyDiscovery: {
+          ...config.propertyDiscovery,
+          propertyBound: true,
+          source,
+          pageContextDetected
+        }
+      },
+      errors: resolution.errors
+    };
+  }
+
+  return {
+    config: {
+      ...config,
+      propertyDiscovery: {
+        ...config.propertyDiscovery,
+        propertyBound: true,
+        source: source || 'none',
+        pageContextDetected
+      }
+    },
+    errors: pageContextDetected
+      ? ['This page appears to be property-bound, but no SQMU property code could be discovered from the current WordPress post, Estatik page markup, or the URL.']
+      : []
   };
 };
 
@@ -575,6 +781,55 @@ function Field({ label, children, hint }) {
   );
 }
 
+function PropertySelectorField({
+  properties,
+  value,
+  onChange,
+  selectedProperty,
+  locked = false,
+  allowManualInput = false,
+  allowEmptyOption = false,
+  emptyOptionLabel = 'No property prefill',
+  placeholder = 'Property code'
+}) {
+  if (locked) {
+    return (
+      <Field label="Property">
+        <input value={formatPropertyLabel(selectedProperty, value)} readOnly />
+      </Field>
+    );
+  }
+
+  if (properties.length) {
+    return (
+      <Field label="Property">
+        <select value={value} onChange={(event) => onChange(event.target.value)}>
+          {allowEmptyOption ? <option value="">{emptyOptionLabel}</option> : null}
+          {properties.map((property) => (
+            <option key={property.propertyCode} value={property.propertyCode}>
+              {formatPropertyLabel(property)}
+            </option>
+          ))}
+        </select>
+      </Field>
+    );
+  }
+
+  if (allowManualInput) {
+    return (
+      <Field label="Property">
+        <input value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} />
+      </Field>
+    );
+  }
+
+  return (
+    <Field label="Property">
+      <input value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} />
+    </Field>
+  );
+}
+
 function StatusPill({ tone = 'neutral', children }) {
   return <span className={`sqmu-pill sqmu-pill-${tone}`}>{children}</span>;
 }
@@ -725,6 +980,7 @@ function BuyView({ appConfig }) {
   const [status, setStatus] = useState('Ready.');
   const [busy, setBusy] = useState(false);
   const selectedPropertyCode = propertyCode || propertyOptions[0]?.propertyCode || '';
+  const selectedProperty = propertyOptions.find((property) => property.propertyCode === selectedPropertyCode) ?? propertyOptions[0] ?? null;
 
   const { data: propertyInfo } = useReadContract({
     address: appConfig.contracts.distributor,
@@ -828,19 +1084,14 @@ function BuyView({ appConfig }) {
         }
       >
         <div className="sqmu-form-grid">
-          <Field label="Property">
-            {propertyOptions.length ? (
-              <select value={selectedPropertyCode} onChange={(event) => setPropertyCode(event.target.value)}>
-                {propertyOptions.map((property) => (
-                  <option key={property.propertyCode} value={property.propertyCode}>
-                    {property.postTitle ? `${property.postTitle} (${property.propertyCode})` : property.propertyCode}
-                  </option>
-                ))}
-              </select>
-            ) : (
-              <input value={propertyCode} onChange={(event) => setPropertyCode(event.target.value)} placeholder="Property code" />
-            )}
-          </Field>
+          <PropertySelectorField
+            properties={propertyOptions}
+            value={selectedPropertyCode}
+            onChange={setPropertyCode}
+            selectedProperty={selectedProperty}
+            locked={appConfig.propertyLocked}
+            allowManualInput
+          />
           <Field label="SQMU Amount">
             <input value={sqmuAmount} onChange={(event) => setSqmuAmount(event.target.value)} inputMode="decimal" />
           </Field>
@@ -860,7 +1111,7 @@ function BuyView({ appConfig }) {
         <div className="sqmu-stats">
           <div className="sqmu-stat">
             <span className="sqmu-stat-label">Property</span>
-            <strong>{propertyInfo?.name || selectedPropertyCode || 'N/A'}</strong>
+            <strong>{propertyInfo?.name || formatPropertyLabel(selectedProperty, selectedPropertyCode)}</strong>
           </div>
           <div className="sqmu-stat">
             <span className="sqmu-stat-label">Available</span>
@@ -952,14 +1203,25 @@ function PortfolioView({ appConfig }) {
     });
   }, [properties, propertyInfoMap, ownedBalances]);
 
-  const listingRecords = activeListings ?? [];
+  const listingRecords = useMemo(() => {
+    const records = activeListings ?? [];
+    if (appConfig.propertyLocked && appConfig.propertyCode) {
+      return records.filter((listing) => safeString(listing.propertyCode) === appConfig.propertyCode);
+    }
+    return records;
+  }, [activeListings, appConfig.propertyCode, appConfig.propertyLocked]);
   const selectedListing = listingRecords.find((listing) => String(listing.listingId) === selectedListingId) ?? listingRecords[0] ?? null;
 
   useEffect(() => {
-    if (!selectedListingId && listingRecords[0]?.listingId !== undefined) {
-      setSelectedListingId(String(listingRecords[0].listingId));
+    if (selectedListing) {
+      return;
     }
-  }, [selectedListingId, listingRecords]);
+    if (listingRecords[0]?.listingId !== undefined) {
+      setSelectedListingId(String(listingRecords[0].listingId));
+      return;
+    }
+    setSelectedListingId('');
+  }, [selectedListing, listingRecords]);
 
   const listingPropertyCodes = useMemo(() => {
     const codes = new Set();
@@ -1186,15 +1448,13 @@ function PortfolioView({ appConfig }) {
         }
       >
         <div className="sqmu-form-grid">
-          <Field label="Property">
-            <select value={sellPropertyCode} onChange={(event) => setSellPropertyCode(event.target.value)}>
-              {properties.map((property) => (
-                <option key={property.propertyCode} value={property.propertyCode}>
-                  {property.postTitle ? `${property.postTitle} (${property.propertyCode})` : property.propertyCode}
-                </option>
-              ))}
-            </select>
-          </Field>
+          <PropertySelectorField
+            properties={properties}
+            value={sellPropertyCode}
+            onChange={setSellPropertyCode}
+            selectedProperty={selectedCreateProperty}
+            locked={appConfig.propertyLocked}
+          />
           <Field label="SQMU Amount">
             <input value={sellAmount} onChange={(event) => setSellAmount(event.target.value)} inputMode="decimal" />
           </Field>
@@ -1521,15 +1781,13 @@ function RentView({ appConfig }) {
       <WalletPanel appConfig={appConfig} desiredChainId={appConfig.defaultChainId} busy={busy} />
       <Section title="Property Rent Status" help="Reads tenant deposit and rental state directly from the SQMU Rent contract.">
         <div className="sqmu-form-grid">
-          <Field label="Property">
-            <select value={propertyCode} onChange={(event) => setPropertyCode(event.target.value)}>
-              {properties.map((property) => (
-                <option key={property.propertyCode} value={property.propertyCode}>
-                  {property.postTitle ? `${property.postTitle} (${property.propertyCode})` : property.propertyCode}
-                </option>
-              ))}
-            </select>
-          </Field>
+          <PropertySelectorField
+            properties={properties}
+            value={propertyCode}
+            onChange={setPropertyCode}
+            selectedProperty={selectedProperty}
+            locked={appConfig.propertyLocked}
+          />
         </div>
         <div className="sqmu-stats">
           <div className="sqmu-stat">
@@ -1645,15 +1903,13 @@ function RentDistributionView({ appConfig }) {
       <WalletPanel appConfig={appConfig} desiredChainId={appConfig.defaultChainId} busy={false} />
       <Section title="Distribution Balances" help="This view reads per-property rent balances from the SQMU Rent Distribution contract. Write-capable distribution is deferred in this pass because the current SQMU contract does not enumerate holders.">
         <div className="sqmu-form-grid">
-          <Field label="Property">
-            <select value={propertyCode} onChange={(event) => setPropertyCode(event.target.value)}>
-              {properties.map((property) => (
-                <option key={property.propertyCode} value={property.propertyCode}>
-                  {property.postTitle ? `${property.postTitle} (${property.propertyCode})` : property.propertyCode}
-                </option>
-              ))}
-            </select>
-          </Field>
+          <PropertySelectorField
+            properties={properties}
+            value={propertyCode}
+            onChange={setPropertyCode}
+            selectedProperty={selectedProperty}
+            locked={appConfig.propertyLocked}
+          />
         </div>
         <div className="sqmu-stats">
           <div className="sqmu-stat">
@@ -2206,16 +2462,14 @@ function EscrowCreatePanel({ appConfig }) {
         }
       >
         <div className="sqmu-form-grid">
-          <Field label="Property">
-            <select value={propertyCode} onChange={(event) => setPropertyCode(event.target.value)}>
-              <option value="">No property prefill</option>
-              {properties.map((property) => (
-                <option key={property.propertyCode} value={property.propertyCode}>
-                  {property.postTitle ? `${property.postTitle} (${property.propertyCode})` : property.propertyCode}
-                </option>
-              ))}
-            </select>
-          </Field>
+          <PropertySelectorField
+            properties={properties}
+            value={propertyCode}
+            onChange={setPropertyCode}
+            selectedProperty={selectedProperty}
+            locked={appConfig.propertyLocked}
+            allowEmptyOption={!appConfig.propertyLocked}
+          />
           <Field label="Property Ref">
             <input value={propertyRef} onChange={(event) => setPropertyRef(event.target.value)} placeholder="0x..." />
           </Field>
@@ -2870,13 +3124,17 @@ function App({ mountConfig }) {
 const mergeMountConfig = (payload, mount) => {
   const mountId = mount.id;
   const mountConfig = mountId ? payload.mounts?.[mountId] ?? {} : {};
+  const view = mountConfig.view || mount.dataset.sqmuView || 'buy';
+  const baseConfig = {
+    ...(payload.global ?? {}),
+    ...(mountConfig.config ?? {})
+  };
+  const resolved = resolveMountPropertyContext(view, baseConfig, mount);
+
   return {
-    view: mountConfig.view || mount.dataset.sqmuView || 'buy',
-    errors: Array.isArray(mountConfig.errors) ? mountConfig.errors : [],
-    config: {
-      ...(payload.global ?? {}),
-      ...(mountConfig.config ?? {})
-    }
+    view,
+    errors: Array.from(new Set([...(Array.isArray(mountConfig.errors) ? mountConfig.errors : []), ...resolved.errors])),
+    config: resolved.config
   };
 };
 

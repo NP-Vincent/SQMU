@@ -49,7 +49,8 @@ The only public shortcode is:
   - Allowed values: `buy`, `portfolio`, `crowdfund`, `rent`, `rent_distribution`, `escrow`
 - `property_code`
   - Optional in general.
-  - Use it for property-bound pages so the plugin resolves the matching WordPress property record.
+  - Acts as the highest-priority manual override when you want to force a specific property.
+  - On Estatik property pages, you can usually omit it and let the plugin auto-discover the property from the current WordPress post.
 - `escrow_address`
   - Only used for `view="escrow"`.
   - If provided, the escrow view opens an existing escrow instance.
@@ -82,6 +83,12 @@ Property-specific portfolio page:
 
 ```text
 [sqmu_app view="portfolio" property_code="SQMU-DXB-001"]
+```
+
+Estatik property page with automatic discovery:
+
+```text
+[sqmu_app view="buy"]
 ```
 
 Crowdfund page:
@@ -208,7 +215,13 @@ _sqmu_property_ref
 
 ### Behavior
 
-- `property_code` is used to find a published WordPress post with matching `_sqmu_property_code`
+- `property_code` is used first when you want an explicit override
+- if `property_code` is omitted on a property-bound view, the plugin tries to discover the property in this order:
+  - current queried WordPress post meta
+  - `[data-sqmu-property-code]`
+  - Estatik label/value HTML for `SQMU Property Code`
+  - `?code=...` in the page URL
+- once a property code is discovered, the plugin resolves the full property record from WordPress content and locks the widget to that property
 - property codes must be unique across published content
 - if the selected property is missing required meta for the chosen view, the widget renders a clear configuration error
 

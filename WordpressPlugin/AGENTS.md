@@ -22,6 +22,7 @@ WordPress-specific behavior inside plugin PHP code and wp-admin settings.
   It should stay field-driven in wp-admin rather than raw JSON textareas.
 - Maintain the restricted admin operations page for browser-signed owner/admin actions
 - Resolve property-specific details from WordPress post meta using the fixed SQMU meta keys
+  Property-bound views should auto-discover from the current WordPress post first, then fall back to `[data-sqmu-property-code]`, Estatik DOM markup, and `?code=...` when needed.
 - Track dependencies on contract ABI and interface changes
 - Keep build output and plugin enqueue paths aligned at `plugin/assets/sqmu.js`
 - Keep generated runtime chunks in `plugin/assets/chunks/` packaged with the plugin
@@ -55,9 +56,10 @@ WordPress-specific behavior inside plugin PHP code and wp-admin settings.
 - Public shortcode:
   - `[sqmu_app view="buy|portfolio|crowdfund|rent|rent_distribution|escrow" property_code="OPTIONAL_CODE" escrow_address="OPTIONAL_ADDRESS"]`
 - `view` selects the workflow
-- `property_code` is the explicit property target when a page is tied to one property
+- `property_code` is the explicit override when a page should force one property
 - `escrow_address` is only for loading an existing escrow instance in `view="escrow"`
 - Site operators configure chains, contracts, and tokens in wp-admin rather than in page content
+- On Estatik property pages, property-bound views should usually work without `property_code`
 
 ## wp-admin Surfaces
 
@@ -101,6 +103,7 @@ View expectations:
 - `buy` and `portfolio` use token metadata
 - `rent` and `rent_distribution` use `_sqmu_property_id`
 - `escrow` uses `_sqmu_property_ref` for property-bound creation defaults
+- When property discovery succeeds, the widget should lock to that one property instead of offering cross-property switching on the same page
 
 ## Change Workflow
 
