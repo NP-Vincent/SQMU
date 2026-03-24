@@ -130,6 +130,8 @@ This page is the source of truth for:
 - accepted payment tokens
 - per-view defaults
 
+Accepted chains and payment tokens are managed as add-fields plus editable tables in wp-admin, so operators can add, review, edit, and delete entries without hand-editing JSON.
+
 The plugin also adds a browser-signed operations page:
 
 ```text

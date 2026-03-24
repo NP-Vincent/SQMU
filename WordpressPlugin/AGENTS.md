@@ -19,6 +19,7 @@ WordPress-specific behavior inside plugin PHP code and wp-admin settings.
 - Keep WordPress-specific routing and config assembly in PHP/plugin boundaries
 - Maintain the normalized runtime config contract assembled from plugin settings
 - Maintain the admin settings UI for chains, contracts, payment tokens, and per-view defaults
+  It should stay field-driven in wp-admin rather than raw JSON textareas.
 - Maintain the restricted admin operations page for browser-signed owner/admin actions
 - Resolve property-specific details from WordPress post meta using the fixed SQMU meta keys
 - Track dependencies on contract ABI and interface changes

@@ -160,6 +160,157 @@ function sqmu_app_parse_json_textarea($value, $fallback) {
     return is_array($decoded) ? $decoded : $fallback;
 }
 
+function sqmu_app_add_settings_notice($message, $code = 'settings_error', $type = 'error') {
+    add_settings_error(SQMU_APP_OPTION_KEY, $code, $message, $type);
+}
+
+function sqmu_app_value_is_blank($value) {
+    if (is_array($value)) {
+        foreach ($value as $nested_value) {
+            if (!sqmu_app_value_is_blank($nested_value)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    return trim((string) $value) === '';
+}
+
+function sqmu_app_sanitize_chain_rows($input, $fallback, $legacy_json = '') {
+    if (!is_array($input)) {
+        $decoded = sqmu_app_parse_json_textarea($legacy_json, null);
+        if (is_array($decoded)) {
+            $input = $decoded;
+        } else {
+            return $fallback;
+        }
+    }
+
+    $chains = array();
+
+    foreach ($input as $index => $row) {
+        if (!is_array($row)) {
+            continue;
+        }
+
+        $native_currency = isset($row['nativeCurrency']) && is_array($row['nativeCurrency'])
+            ? $row['nativeCurrency']
+            : array();
+
+        if (
+            sqmu_app_value_is_blank($row['id'] ?? '') &&
+            sqmu_app_value_is_blank($row['name'] ?? '') &&
+            sqmu_app_value_is_blank($row['rpcUrl'] ?? '') &&
+            sqmu_app_value_is_blank($row['blockExplorerUrl'] ?? '') &&
+            sqmu_app_value_is_blank($native_currency)
+        ) {
+            continue;
+        }
+
+        $display_index = is_numeric($index) ? (int) $index + 1 : 1;
+        $id = $row['id'] ?? '';
+
+        if ($id === '' || !is_numeric($id)) {
+            sqmu_app_add_settings_notice(
+                sprintf('Accepted chain row %d was skipped because Chain ID must be numeric.', $display_index),
+                'invalid_chain_' . $display_index
+            );
+            continue;
+        }
+
+        $chains[] = array(
+            'id' => (int) $id,
+            'name' => sanitize_text_field($row['name'] ?? ''),
+            'rpcUrl' => esc_url_raw($row['rpcUrl'] ?? ''),
+            'blockExplorerUrl' => esc_url_raw($row['blockExplorerUrl'] ?? ''),
+            'nativeCurrency' => array(
+                'name' => sanitize_text_field($native_currency['name'] ?? ''),
+                'symbol' => sanitize_text_field($native_currency['symbol'] ?? ''),
+                'decimals' => isset($native_currency['decimals']) && $native_currency['decimals'] !== '' && is_numeric($native_currency['decimals'])
+                    ? (int) $native_currency['decimals']
+                    : 18
+            )
+        );
+    }
+
+    if (!empty($chains)) {
+        return array_values($chains);
+    }
+
+    sqmu_app_add_settings_notice(
+        'At least one accepted chain is required. The previous accepted chain settings were kept.',
+        'missing_chains'
+    );
+
+    return $fallback;
+}
+
+function sqmu_app_sanitize_payment_token_rows($input, $fallback, $legacy_json = '') {
+    if (!is_array($input)) {
+        $decoded = sqmu_app_parse_json_textarea($legacy_json, null);
+        if (is_array($decoded)) {
+            $input = $decoded;
+        } else {
+            return $fallback;
+        }
+    }
+
+    $tokens = array();
+
+    foreach ($input as $index => $row) {
+        if (!is_array($row)) {
+            continue;
+        }
+
+        if (
+            sqmu_app_value_is_blank($row['address'] ?? '') &&
+            sqmu_app_value_is_blank($row['symbol'] ?? '') &&
+            sqmu_app_value_is_blank($row['decimals'] ?? '')
+        ) {
+            continue;
+        }
+
+        $display_index = is_numeric($index) ? (int) $index + 1 : 1;
+        $address = sanitize_text_field($row['address'] ?? '');
+        $decimals = $row['decimals'] ?? '';
+
+        if ($address === '') {
+            sqmu_app_add_settings_notice(
+                sprintf('Payment token row %d was skipped because the token address is required.', $display_index),
+                'invalid_payment_token_address_' . $display_index
+            );
+            continue;
+        }
+
+        if ($decimals === '' || !is_numeric($decimals)) {
+            sqmu_app_add_settings_notice(
+                sprintf('Payment token row %d was skipped because decimals must be numeric.', $display_index),
+                'invalid_payment_token_decimals_' . $display_index
+            );
+            continue;
+        }
+
+        $tokens[] = array(
+            'address' => $address,
+            'symbol' => sanitize_text_field($row['symbol'] ?? ''),
+            'decimals' => (int) $decimals
+        );
+    }
+
+    if (!empty($tokens)) {
+        return array_values($tokens);
+    }
+
+    sqmu_app_add_settings_notice(
+        'At least one accepted payment token is required. The previous payment token settings were kept.',
+        'missing_payment_tokens'
+    );
+
+    return $fallback;
+}
+
 function sqmu_app_sanitize_bool($value, $default = false) {
     if (is_bool($value)) {
         return $value;
@@ -207,6 +358,7 @@ function sqmu_app_sanitize_contracts($contracts_input, $defaults) {
 
 function sqmu_app_sanitize_settings($input) {
     $defaults = sqmu_app_default_settings();
+    $current = sqmu_app_get_settings();
 
     if (!is_array($input)) {
         return $defaults;
@@ -222,9 +374,17 @@ function sqmu_app_sanitize_settings($input) {
             'url' => esc_url_raw($app_input['url'] ?? $defaults['app']['url']),
             'infuraApiKey' => sanitize_text_field($app_input['infuraApiKey'] ?? '')
         ),
-        'chains' => sqmu_app_parse_json_textarea($input['chains_json'] ?? '', $defaults['chains']),
+        'chains' => sqmu_app_sanitize_chain_rows(
+            $input['chains'] ?? null,
+            $current['chains'] ?? $defaults['chains'],
+            $input['chains_json'] ?? ''
+        ),
         'contracts' => sqmu_app_sanitize_contracts($contracts_input, $defaults['contracts']),
-        'paymentTokens' => sqmu_app_parse_json_textarea($input['payment_tokens_json'] ?? '', $defaults['paymentTokens']),
+        'paymentTokens' => sqmu_app_sanitize_payment_token_rows(
+            $input['paymentTokens'] ?? null,
+            $current['paymentTokens'] ?? $defaults['paymentTokens'],
+            $input['payment_tokens_json'] ?? ''
+        ),
         'viewDefaults' => sqmu_app_sanitize_view_defaults($input['viewDefaults'] ?? array(), $defaults['viewDefaults'])
     );
 }
@@ -274,15 +434,61 @@ function sqmu_app_render_checkbox($name, $checked) {
     );
 }
 
+function sqmu_app_get_chain_row_markup($index, $chain = array()) {
+    $native_currency = isset($chain['nativeCurrency']) && is_array($chain['nativeCurrency'])
+        ? $chain['nativeCurrency']
+        : array();
+    $option_name = esc_attr(SQMU_APP_OPTION_KEY);
+
+    ob_start();
+    ?>
+    <tr data-sqmu-repeatable-item>
+        <td><input name="<?php echo $option_name; ?>[chains][<?php echo esc_attr($index); ?>][id]" type="number" class="small-text" value="<?php echo esc_attr($chain['id'] ?? ''); ?>" data-sqmu-row-field="id" /></td>
+        <td><input name="<?php echo $option_name; ?>[chains][<?php echo esc_attr($index); ?>][name]" type="text" class="regular-text" value="<?php echo esc_attr($chain['name'] ?? ''); ?>" data-sqmu-row-field="name" /></td>
+        <td><input name="<?php echo $option_name; ?>[chains][<?php echo esc_attr($index); ?>][rpcUrl]" type="url" class="large-text" value="<?php echo esc_attr($chain['rpcUrl'] ?? ''); ?>" data-sqmu-row-field="rpcUrl" /></td>
+        <td><input name="<?php echo $option_name; ?>[chains][<?php echo esc_attr($index); ?>][blockExplorerUrl]" type="url" class="large-text" value="<?php echo esc_attr($chain['blockExplorerUrl'] ?? ''); ?>" data-sqmu-row-field="blockExplorerUrl" /></td>
+        <td><input name="<?php echo $option_name; ?>[chains][<?php echo esc_attr($index); ?>][nativeCurrency][name]" type="text" class="regular-text" value="<?php echo esc_attr($native_currency['name'] ?? ''); ?>" data-sqmu-row-field="nativeName" /></td>
+        <td><input name="<?php echo $option_name; ?>[chains][<?php echo esc_attr($index); ?>][nativeCurrency][symbol]" type="text" class="small-text" value="<?php echo esc_attr($native_currency['symbol'] ?? ''); ?>" data-sqmu-row-field="nativeSymbol" /></td>
+        <td><input name="<?php echo $option_name; ?>[chains][<?php echo esc_attr($index); ?>][nativeCurrency][decimals]" type="number" class="small-text" value="<?php echo esc_attr($native_currency['decimals'] ?? 18); ?>" data-sqmu-row-field="nativeDecimals" /></td>
+        <td><button type="button" class="button-link-delete" data-sqmu-repeatable-remove>Delete</button></td>
+    </tr>
+    <?php
+
+    return (string) ob_get_clean();
+}
+
+function sqmu_app_get_payment_token_row_markup($index, $token = array()) {
+    $option_name = esc_attr(SQMU_APP_OPTION_KEY);
+
+    ob_start();
+    ?>
+    <tr data-sqmu-repeatable-item>
+        <td><input name="<?php echo $option_name; ?>[paymentTokens][<?php echo esc_attr($index); ?>][address]" type="text" class="large-text code" value="<?php echo esc_attr($token['address'] ?? ''); ?>" data-sqmu-row-field="address" /></td>
+        <td><input name="<?php echo $option_name; ?>[paymentTokens][<?php echo esc_attr($index); ?>][symbol]" type="text" class="small-text" value="<?php echo esc_attr($token['symbol'] ?? ''); ?>" data-sqmu-row-field="symbol" /></td>
+        <td><input name="<?php echo $option_name; ?>[paymentTokens][<?php echo esc_attr($index); ?>][decimals]" type="number" class="small-text" value="<?php echo esc_attr($token['decimals'] ?? 18); ?>" data-sqmu-row-field="decimals" /></td>
+        <td><button type="button" class="button-link-delete" data-sqmu-repeatable-remove>Delete</button></td>
+    </tr>
+    <?php
+
+    return (string) ob_get_clean();
+}
+
 function sqmu_app_render_settings_page() {
     if (!current_user_can('manage_options')) {
         return;
     }
 
     $settings = sqmu_app_get_settings();
+    $chains = !empty($settings['chains']) && is_array($settings['chains'])
+        ? array_values($settings['chains'])
+        : array();
+    $payment_tokens = !empty($settings['paymentTokens']) && is_array($settings['paymentTokens'])
+        ? array_values($settings['paymentTokens'])
+        : array();
     ?>
     <div class="wrap">
         <h1>SQMU App Settings</h1>
+        <?php settings_errors(SQMU_APP_OPTION_KEY); ?>
         <p>Configure accepted chains, contract addresses, payment tokens, and per-view defaults for the shortcode-driven wallet application.</p>
         <p><strong>Property meta keys:</strong>
             <code><?php echo esc_html(SQMU_PROPERTY_CODE_META_KEY); ?></code>,
@@ -291,6 +497,63 @@ function sqmu_app_render_settings_page() {
             <code><?php echo esc_html(SQMU_PROPERTY_ID_META_KEY); ?></code>,
             <code><?php echo esc_html(SQMU_PROPERTY_REF_META_KEY); ?></code>
         </p>
+        <style>
+            .sqmu-settings-table-wrap {
+                margin: 12px 0 24px;
+                overflow-x: auto;
+            }
+
+            .sqmu-add-grid {
+                display: grid;
+                gap: 12px;
+                margin: 12px 0;
+            }
+
+            .sqmu-add-grid-chains {
+                grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            }
+
+            .sqmu-add-grid-tokens {
+                grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            }
+
+            .sqmu-add-grid p {
+                margin: 0;
+            }
+
+            .sqmu-settings-table {
+                width: 100%;
+                border-collapse: collapse;
+                background: #fff;
+            }
+
+            .sqmu-settings-table th,
+            .sqmu-settings-table td {
+                padding: 10px 8px;
+                vertical-align: top;
+                border-bottom: 1px solid #dcdcde;
+            }
+
+            .sqmu-settings-table th {
+                text-align: left;
+            }
+
+            .sqmu-settings-table .large-text,
+            .sqmu-settings-table .regular-text,
+            .sqmu-settings-table .small-text {
+                width: 100%;
+            }
+
+            .sqmu-empty-row td {
+                color: #646970;
+                font-style: italic;
+                text-align: center;
+            }
+
+            .sqmu-add-actions {
+                margin: 0 0 16px;
+            }
+        </style>
         <form method="post" action="options.php">
             <?php settings_fields('sqmu_app_settings_group'); ?>
 
@@ -321,12 +584,126 @@ function sqmu_app_render_settings_page() {
             </table>
 
             <h2>Accepted chains</h2>
-            <p>Enter a JSON array. Each chain should include <code>id</code>, <code>name</code>, <code>rpcUrl</code>, <code>blockExplorerUrl</code>, and <code>nativeCurrency</code>.</p>
-            <textarea name="<?php echo esc_attr(SQMU_APP_OPTION_KEY); ?>[chains_json]" rows="12" class="large-text code"><?php echo esc_textarea(wp_json_encode($settings['chains'], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)); ?></textarea>
+            <p>Add a chain using the fields below, then review or edit the saved chains in the table.</p>
+            <div data-sqmu-repeatable data-next-index="<?php echo esc_attr(count($chains)); ?>">
+                <div class="sqmu-add-grid sqmu-add-grid-chains">
+                    <p>
+                        <label>
+                            Chain ID<br />
+                            <input type="number" class="small-text" data-sqmu-add-field="id" />
+                        </label>
+                    </p>
+                    <p>
+                        <label>
+                            Chain Name<br />
+                            <input type="text" class="regular-text" data-sqmu-add-field="name" />
+                        </label>
+                    </p>
+                    <p>
+                        <label>
+                            RPC URL<br />
+                            <input type="url" class="large-text" data-sqmu-add-field="rpcUrl" />
+                        </label>
+                    </p>
+                    <p>
+                        <label>
+                            Block Explorer URL<br />
+                            <input type="url" class="large-text" data-sqmu-add-field="blockExplorerUrl" />
+                        </label>
+                    </p>
+                    <p>
+                        <label>
+                            Native Currency Name<br />
+                            <input type="text" class="regular-text" data-sqmu-add-field="nativeName" />
+                        </label>
+                    </p>
+                    <p>
+                        <label>
+                            Native Currency Symbol<br />
+                            <input type="text" class="small-text" data-sqmu-add-field="nativeSymbol" />
+                        </label>
+                    </p>
+                    <p>
+                        <label>
+                            Native Currency Decimals<br />
+                            <input type="number" class="small-text" data-sqmu-add-field="nativeDecimals" value="18" />
+                        </label>
+                    </p>
+                </div>
+                <p class="sqmu-add-actions"><button type="button" class="button" data-sqmu-repeatable-add>Add chain</button></p>
+                <div class="sqmu-settings-table-wrap">
+                    <table class="widefat striped sqmu-settings-table">
+                        <thead>
+                            <tr>
+                                <th>Chain ID</th>
+                                <th>Name</th>
+                                <th>RPC URL</th>
+                                <th>Block Explorer URL</th>
+                                <th>Native Name</th>
+                                <th>Native Symbol</th>
+                                <th>Native Decimals</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody data-sqmu-repeatable-list>
+                            <?php foreach ($chains as $index => $chain) : ?>
+                                <?php echo sqmu_app_get_chain_row_markup($index, $chain); ?>
+                            <?php endforeach; ?>
+                            <tr class="sqmu-empty-row" data-sqmu-empty-row hidden>
+                                <td colspan="8">No chains added yet.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <template><?php echo sqmu_app_get_chain_row_markup('__INDEX__', array()); ?></template>
+            </div>
 
             <h2>Payment tokens</h2>
-            <p>Enter a JSON array. Each payment token should include <code>address</code>, <code>symbol</code>, and <code>decimals</code>.</p>
-            <textarea name="<?php echo esc_attr(SQMU_APP_OPTION_KEY); ?>[payment_tokens_json]" rows="12" class="large-text code"><?php echo esc_textarea(wp_json_encode($settings['paymentTokens'], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)); ?></textarea>
+            <p>Add a payment token using the fields below, then review or edit the saved tokens in the table.</p>
+            <div data-sqmu-repeatable data-next-index="<?php echo esc_attr(count($payment_tokens)); ?>">
+                <div class="sqmu-add-grid sqmu-add-grid-tokens">
+                    <p>
+                        <label>
+                            Token Address<br />
+                            <input type="text" class="large-text code" data-sqmu-add-field="address" />
+                        </label>
+                    </p>
+                    <p>
+                        <label>
+                            Symbol<br />
+                            <input type="text" class="small-text" data-sqmu-add-field="symbol" />
+                        </label>
+                    </p>
+                    <p>
+                        <label>
+                            Decimals<br />
+                            <input type="number" class="small-text" data-sqmu-add-field="decimals" value="18" />
+                        </label>
+                    </p>
+                </div>
+                <p class="sqmu-add-actions"><button type="button" class="button" data-sqmu-repeatable-add>Add payment token</button></p>
+                <div class="sqmu-settings-table-wrap">
+                    <table class="widefat striped sqmu-settings-table">
+                        <thead>
+                            <tr>
+                                <th>Address</th>
+                                <th>Symbol</th>
+                                <th>Decimals</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody data-sqmu-repeatable-list>
+                            <?php foreach ($payment_tokens as $index => $token) : ?>
+                                <?php echo sqmu_app_get_payment_token_row_markup($index, $token); ?>
+                            <?php endforeach; ?>
+                            <tr class="sqmu-empty-row" data-sqmu-empty-row hidden>
+                                <td colspan="4">No payment tokens added yet.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <template><?php echo sqmu_app_get_payment_token_row_markup('__INDEX__', array()); ?></template>
+            </div>
 
             <h2>Per-view defaults</h2>
             <table class="form-table" role="presentation">
@@ -367,6 +744,82 @@ function sqmu_app_render_settings_page() {
 
             <?php submit_button('Save SQMU Settings'); ?>
         </form>
+        <script>
+            document.addEventListener('DOMContentLoaded', function () {
+                document.querySelectorAll('[data-sqmu-repeatable]').forEach(function (group) {
+                    var list = group.querySelector('[data-sqmu-repeatable-list]');
+                    var template = group.querySelector('template');
+                    var emptyRow = group.querySelector('[data-sqmu-empty-row]');
+                    var addFields = group.querySelectorAll('[data-sqmu-add-field]');
+
+                    if (!list || !template) {
+                        return;
+                    }
+
+                    var syncEmptyState = function () {
+                        if (!emptyRow) {
+                            return;
+                        }
+
+                        var hasRows = list.querySelector('[data-sqmu-repeatable-item]') !== null;
+                        emptyRow.hidden = hasRows;
+                    };
+
+                    var addRow = function () {
+                        var nextIndex = Number(group.getAttribute('data-next-index') || '0');
+                        group.setAttribute('data-next-index', String(nextIndex + 1));
+                        list.insertAdjacentHTML('beforeend', template.innerHTML.replace(/__INDEX__/g, String(nextIndex)));
+
+                        var rows = list.querySelectorAll('[data-sqmu-repeatable-item]');
+                        var newRow = rows.length ? rows[rows.length - 1] : null;
+                        if (newRow) {
+                            addFields.forEach(function (field) {
+                                var key = field.getAttribute('data-sqmu-add-field');
+                                var target = newRow.querySelector('[data-sqmu-row-field="' + key + '"]');
+                                if (target) {
+                                    target.value = field.value;
+                                }
+
+                                if (field.type === 'number' && field.getAttribute('data-sqmu-add-field') === 'nativeDecimals') {
+                                    field.value = '18';
+                                } else if (field.type === 'number' && field.getAttribute('data-sqmu-add-field') === 'decimals') {
+                                    field.value = '18';
+                                } else {
+                                    field.value = '';
+                                }
+                            });
+                        }
+
+                        syncEmptyState();
+                    };
+
+                    group.addEventListener('click', function (event) {
+                        var addButton = event.target.closest('[data-sqmu-repeatable-add]');
+                        if (addButton) {
+                            event.preventDefault();
+                            addRow();
+                            return;
+                        }
+
+                        var removeButton = event.target.closest('[data-sqmu-repeatable-remove]');
+                        if (!removeButton) {
+                            return;
+                        }
+
+                        event.preventDefault();
+                        var row = removeButton.closest('[data-sqmu-repeatable-item]');
+                        if (!row) {
+                            return;
+                        }
+
+                        row.remove();
+                        syncEmptyState();
+                    });
+
+                    syncEmptyState();
+                });
+            });
+        </script>
     </div>
     <?php
 }

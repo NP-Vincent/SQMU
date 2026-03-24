@@ -13,7 +13,7 @@ Bootstraps the SQMU wallet application, provides admin-configured shortcode moun
 == Installation ==
 1. Upload the plugin folder to /wp-content/plugins/sqmu.
 2. Activate the plugin through the WordPress admin UI.
-3. Go to Settings > SQMU App and configure chains, contracts, payment tokens, and view defaults.
+3. Go to Settings > SQMU App and configure chains, contracts, payment tokens, and view defaults using the add fields and editable tables.
 4. Add the [sqmu_app] shortcode to a page.
 5. Use Settings > SQMU Operations for restricted wallet-signed admin actions.
 
