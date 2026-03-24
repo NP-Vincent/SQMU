@@ -579,45 +579,112 @@ function StatusPill({ tone = 'neutral', children }) {
   return <span className={`sqmu-pill sqmu-pill-${tone}`}>{children}</span>;
 }
 
+const hasMetaMaskProvider = () => {
+  if (typeof window === 'undefined') return false;
+
+  const ethereum = window.ethereum;
+  if (!ethereum) return false;
+  if (ethereum.isMetaMask) return true;
+  if (Array.isArray(ethereum.providers)) {
+    return ethereum.providers.some((provider) => provider?.isMetaMask);
+  }
+
+  return false;
+};
+
+const getMetaMaskConnector = (connectors) =>
+  connectors.find((connector) => connector.id === 'metaMaskSDK' || connector.name === 'MetaMask');
+
+const getInjectedFallbackConnector = (connectors, metaMaskConnector) =>
+  connectors.find((connector) => connector.uid !== metaMaskConnector?.uid && connector.type === 'injected');
+
 function WalletPanel({ appConfig, desiredChainId, busy }) {
-  const { address, isConnected, chainId } = useAccount();
-  const { connectAsync, connectors, isPending, pendingConnector } = useConnect();
-  const { disconnect } = useDisconnect();
+  const { address, isConnected, chainId, connector: activeConnector } = useAccount();
+  const { connectAsync, connectors, isPending: isConnecting, pendingConnector } = useConnect();
+  const { disconnectAsync, isPending: isDisconnecting } = useDisconnect();
   const { chains, switchChainAsync, isPending: isSwitching } = useSwitchChain();
-  const availableConnectors = connectors.filter((connector, index) => {
-    return connectors.findIndex((candidate) => candidate.id === connector.id) === index;
-  });
+  const [walletStatus, setWalletStatus] = useState('');
+  const uniqueConnectors = useMemo(
+    () => connectors.filter((connector, index) => connectors.findIndex((candidate) => candidate.id === connector.id) === index),
+    [connectors]
+  );
+  const primaryConnector = useMemo(() => {
+    const metaMaskConnector = getMetaMaskConnector(uniqueConnectors);
+    const injectedFallback = getInjectedFallbackConnector(uniqueConnectors, metaMaskConnector);
+
+    if (hasMetaMaskProvider()) {
+      return metaMaskConnector ?? injectedFallback ?? uniqueConnectors[0];
+    }
+
+    if (typeof window !== 'undefined' && window.ethereum) {
+      return injectedFallback ?? metaMaskConnector ?? uniqueConnectors[0];
+    }
+
+    return metaMaskConnector ?? injectedFallback ?? uniqueConnectors[0];
+  }, [uniqueConnectors]);
   const desiredChain = chains.find((chain) => chain.id === desiredChainId);
+  const connectButtonLabel = isConnecting && pendingConnector?.uid === primaryConnector?.uid
+    ? 'Connecting wallet...'
+    : 'Connect Wallet';
+
+  const handleConnect = async () => {
+    if (!primaryConnector) {
+      setWalletStatus('No compatible wallet connector is available in this browser.');
+      return;
+    }
+
+    setWalletStatus('');
+    try {
+      await connectAsync({ connector: primaryConnector });
+    } catch (error) {
+      setWalletStatus(error?.shortMessage || error?.message || 'Wallet connection failed.');
+    }
+  };
+
+  const handleDisconnect = async () => {
+    setWalletStatus('');
+    try {
+      if (activeConnector) {
+        await disconnectAsync({ connector: activeConnector });
+      } else {
+        await disconnectAsync();
+      }
+    } catch (error) {
+      setWalletStatus(error?.shortMessage || error?.message || 'Wallet disconnect failed.');
+    }
+  };
 
   return (
     <Section
       title="Wallet"
-      help="MetaMask is the primary path, with generic injected EVM wallet support available."
+      help="Connect Wallet uses MetaMask when available and falls back to the browser's injected EVM wallet when MetaMask is not present."
       actions={
         <>
           {isConnected ? (
-            <button type="button" className="wp-element-button" onClick={() => disconnect()} disabled={busy}>
-              Disconnect
+            <button
+              type="button"
+              className="wp-element-button"
+              onClick={handleDisconnect}
+              disabled={busy || isDisconnecting}
+            >
+              {isDisconnecting ? 'Disconnecting...' : 'Disconnect Wallet'}
             </button>
           ) : (
-            availableConnectors.map((connector) => (
-              <button
-                type="button"
-                key={connector.uid}
-                className="wp-element-button"
-                onClick={() => connectAsync({ connector })}
-                disabled={busy || isPending}
-              >
-                {isPending && pendingConnector?.uid === connector.uid ? `Connecting ${connector.name}...` : `Connect ${connector.name}`}
-              </button>
-            ))
+            <button
+              type="button"
+              className="wp-element-button"
+              onClick={handleConnect}
+              disabled={busy || isConnecting || !primaryConnector}
+            >
+              {connectButtonLabel}
+            </button>
           )}
           {isConnected && desiredChain && chainId !== desiredChainId ? (
             <button
               type="button"
               className="wp-element-button"
               onClick={() => switchChainAsync?.({ chainId: desiredChainId })}
-              disabled={busy || isSwitching}
+              disabled={busy || isSwitching || isDisconnecting}
             >
               {isSwitching ? 'Switching network...' : `Switch to ${desiredChain.name}`}
             </button>
@@ -639,6 +706,11 @@ function WalletPanel({ appConfig, desiredChainId, busy }) {
           <strong>{appConfig.context === 'admin' ? 'wp-admin' : 'Public page'}</strong>
         </div>
       </div>
+      {walletStatus ? (
+        <p className="sqmu-help" role="status">
+          {walletStatus}
+        </p>
+      ) : null}
     </Section>
   );
 }
