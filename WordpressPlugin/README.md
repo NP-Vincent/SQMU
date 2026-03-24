@@ -1,99 +1,120 @@
-# SQMU WordPress Plugin – Admin-Configured Wallet App
+# SQMU WordPress Plugin
 
 ## Purpose
 
-This folder contains the WordPress integration layer for the SQMU wallet application.
+This folder contains the WordPress integration layer for the current SQMU contract set.
 It serves one compiled React + Wagmi bundle through a PHP plugin, keeps runtime
-configuration in WordPress admin settings, and uses a lightweight shortcode only
-to place a view into page content.
+configuration in wp-admin, and uses one shortcode to place contract views into page content.
 
 The plugin is designed so that:
 
-- site operators configure chains, contracts, payment tokens, and view defaults once in wp-admin
-- content editors place views with a short shortcode
-- property-specific pages reference a property code instead of embedding raw JSON
-
----
+- site operators configure chains, contract addresses, and payment tokens once in wp-admin
+- content editors place small shortcode mounts instead of pasting JSON config per page
+- property-specific pages resolve their on-chain identifiers from WordPress post meta
+- wallet signing happens in the browser, not on the WordPress server
 
 ## Architecture
 
-The plugin keeps a clear boundary between WordPress and the frontend bundle:
+WordPress owns:
 
-- PHP owns:
-  - shortcode registration
-  - asset enqueueing
-  - admin settings UI
-  - property lookup from WordPress post meta
-  - normalized runtime config injection
-- React + Wagmi owns:
-  - wallet connection
-  - chain switching
-  - contract reads and writes
-  - buy and portfolio views
+- shortcode registration
+- asset enqueueing
+- admin settings
+- property lookup from WordPress post meta
+- normalized runtime config injection
+- the restricted admin operations page
+
+React + Wagmi owns:
+
+- wallet connection
+- chain switching
+- contract reads and writes
+- public user flows
+- browser-signed admin operations
 
 Runtime is direct browser-to-chain. WordPress is not used as a REST proxy in this version.
-
----
 
 ## Shortcode
 
 The only public shortcode is:
 
 ```text
-[sqmu_app view="buy|portfolio" property_code="OPTIONAL_CODE"]
+[sqmu_app view="buy|portfolio|crowdfund|rent|rent_distribution|escrow" property_code="OPTIONAL_CODE" escrow_address="OPTIONAL_ADDRESS"]
 ```
 
 ### Attributes
 
 - `view`
-  - Selects the frontend view.
-  - Allowed values: `buy`, `portfolio`
+  - Selects the frontend workflow.
+  - Allowed values: `buy`, `portfolio`, `crowdfund`, `rent`, `rent_distribution`, `escrow`
 - `property_code`
   - Optional in general.
-  - Use it on property-specific pages so the plugin resolves the matching WordPress property record and injects that property into the frontend config.
+  - Use it for property-bound pages so the plugin resolves the matching WordPress property record.
+- `escrow_address`
+  - Only used for `view="escrow"`.
+  - If provided, the escrow view opens an existing escrow instance.
+  - If omitted, the escrow view renders the create-escrow flow against `EscrowFactory`.
+
+### View meanings
+
+- `buy`
+  - Primary purchase flow from `AtomicSQMUDistributor`
+- `portfolio`
+  - SQMU holdings, marketplace listings, buy-from-listing flow, and create-listing flow
+- `crowdfund`
+  - Governance token purchase flow from `SQMUCrowdfund`
+- `rent`
+  - Tenant/property rent actions from `SQMURent`
+- `rent_distribution`
+  - Read-only per-property rent balances from `SQMURentDistribution`
+- `escrow`
+  - Create or manage escrows using `EscrowFactory` and `Escrow`
 
 ### Examples
 
-Generic buy view:
+Generic buy page:
 
 ```text
 [sqmu_app view="buy"]
 ```
 
-Property-specific buy page:
-
-```text
-[sqmu_app view="buy" property_code="SQMU-DXB-001"]
-```
-
-Property-specific portfolio workspace:
+Property-specific portfolio page:
 
 ```text
 [sqmu_app view="portfolio" property_code="SQMU-DXB-001"]
 ```
 
-Portfolio page:
+Crowdfund page:
 
 ```text
-[sqmu_app view="portfolio"]
+[sqmu_app view="crowdfund"]
 ```
 
-### What the shortcode no longer does
+Property-specific rent page:
 
-The shortcode is no longer responsible for:
+```text
+[sqmu_app view="rent" property_code="SQMU-DXB-001"]
+```
 
-- chain IDs
-- RPC URLs
-- contract addresses
-- payment token lists
-- feature flags
-- raw JSON config blobs
+Read-only rent distribution page:
 
-That configuration is now owned by the plugin admin settings screen.
+```text
+[sqmu_app view="rent_distribution" property_code="SQMU-DXB-001"]
+```
 
----
+Escrow creation page with property prefill:
 
-## Admin Configuration
+```text
+[sqmu_app view="escrow" property_code="SQMU-DXB-001"]
+```
+
+Existing escrow management page:
+
+```text
+[sqmu_app view="escrow" escrow_address="0x1234567890abcdef1234567890abcdef12345678"]
+```
+
+## Admin Pages
 
 After activating the plugin, configure it in:
 
@@ -101,26 +122,63 @@ After activating the plugin, configure it in:
 Settings > SQMU App
 ```
 
-The admin screen is the source of truth for:
+This page is the source of truth for:
 
-- application metadata
+- app metadata
 - accepted chains
-- distributor, trade, and SQMU contract addresses
+- contract addresses
 - accepted payment tokens
 - per-view defaults
-  - default chain ID
-  - feature flags for buy, portfolio, and sell behavior
 
-### Supported settings model
+The plugin also adds a browser-signed operations page:
 
-The plugin uses:
+```text
+Settings > SQMU Operations
+```
 
-- one global base configuration
-- per-view defaults for `buy` and `portfolio`
+This page is restricted to administrators and exposes selected owner/admin actions only.
+It does not expose upgrade or ownership-transfer controls.
 
-PHP assembles the final runtime config for each mount and passes it to the frontend.
+### Admin operations included
 
----
+- `SQMUCrowdfund`
+  - `setPriceUSD`
+  - `withdrawPayments`
+- `SQMURent`
+  - `setAcceptedToken`
+  - `setTreasury`
+  - `setManagementFee`
+  - `setVault`
+  - `refundDeposit`
+  - `withdrawManagementFees`
+  - `depositNFT`
+  - `withdrawNFT`
+- `EscrowFactory`
+  - `addAllowedToken`
+  - `removeAllowedToken`
+
+## Contract Configuration
+
+The settings screen now supports these contract keys:
+
+- `distributor`
+- `trade`
+- `sqmu`
+- `crowdfund`
+- `rent`
+- `rentDistribution`
+- `escrowFactory`
+
+The frontend uses the current repository ABI files as its source of truth:
+
+- `AtomicSQMUDistributor`
+- `SQMUTrade`
+- `SQMU`
+- `SQMUCrowdfund`
+- `SQMURent`
+- `SQMURentDistribution`
+- `Escrow`
+- `EscrowFactory`
 
 ## Property Meta Contract
 
@@ -132,21 +190,32 @@ The plugin expects these fixed meta keys:
 _sqmu_property_code
 _sqmu_token_id
 _sqmu_token_address
+_sqmu_property_id
+_sqmu_property_ref
 ```
+
+### Meta usage by view
+
+- `buy` and `portfolio`
+  - require `_sqmu_token_id`
+  - require `_sqmu_token_address`
+- `rent` and `rent_distribution`
+  - require `_sqmu_property_id`
+- `escrow`
+  - uses `_sqmu_property_ref` to prefill the create flow
 
 ### Behavior
 
-- The shortcode uses `property_code` to find a published WordPress post with matching `_sqmu_property_code`.
-- If exactly one post matches, the plugin injects that property into the frontend config.
-- If no post matches, more than one post matches, or required token metadata is missing, the frontend renders a clear configuration error card.
-
-### Expectations
-
+- `property_code` is used to find a published WordPress post with matching `_sqmu_property_code`
 - property codes must be unique across published content
-- `_sqmu_token_id` must be numeric
-- `_sqmu_token_address` must be present for property-specific flows
+- if the selected property is missing required meta for the chosen view, the widget renders a clear configuration error
 
----
+## Current Constraints
+
+- `rent_distribution` is intentionally read-only in this pass
+- write-capable rent distribution is deferred because the current `SQMU` contract does not enumerate holders
+- escrow creation requires `contracts.escrowFactory` to be configured in wp-admin
+- the rebuilt escrow ABI exists in the repo, but deployment addresses must still be configured in WordPress
 
 ## Build And Packaging
 
@@ -164,10 +233,6 @@ plugin/assets/sqmu.js
 ```
 
 The WordPress plugin enqueues that built asset directly. Node is build-time only and is not required on the WordPress host.
-
-The WordPress.com workflow also verifies that the generated bundle exists at the same path the plugin enqueues.
-
----
 
 ## Repo Layout
 
@@ -188,23 +253,14 @@ WordpressPlugin/
 └─ README.md
 ```
 
----
-
 ## Operator Notes
 
-- Configure chains with valid `rpcUrl` values. The frontend performs direct reads from the browser.
-- Keep contract addresses up to date with the current deployed environment.
-- Use `property_code` on property-specific pages instead of maintaining per-page config.
-- `buy` is the distributor purchase flow.
-- `portfolio` is the combined holdings, marketplace, buy-from-listing, and listing-management workspace.
+- Every configured chain must include a working `rpcUrl` because reads happen in the browser.
+- Keep contract addresses aligned with deployed environments.
+- Use `property_code` for property-bound pages instead of maintaining per-page config.
+- Use `escrow_address` only when opening an existing escrow instance.
 - If a view renders a configuration error, check:
   - plugin settings
-  - matching property post meta
+  - property meta
   - duplicate property codes
-
----
-
-## Module Reference
-
-This folder is the WordPress-owned integration layer for SQMU.
-It is responsible for keeping the admin-configured runtime model stable and exposing the `[sqmu_app]` shortcode cleanly to editors and operators.
+  - missing contract addresses for that workflow

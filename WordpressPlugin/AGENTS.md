@@ -1,58 +1,110 @@
 # WordPress Plugin Agent Guide
 
 ## Purpose
-This folder provides the WordPress integration layer for SQMU wallet and asset workflows.
-It maps shortcode-rendered React views to on-chain wallet operations while keeping WordPress-specific behavior inside plugin PHP code and wp-admin settings.
+
+This folder is the WordPress-owned integration layer for the current SQMU contract set.
+It maps shortcode-rendered React views to on-chain wallet operations while keeping
+WordPress-specific behavior inside plugin PHP code and wp-admin settings.
 
 ## Owning Agent
+
 - **WordPress Agent** (primary owner)
-  - Exposes administrator and end-user interaction points in WordPress.
-  - Connects wallet actions and UI events to contract methods/events.
+  - Exposes public and administrator interaction points in WordPress.
+  - Connects wallet UI actions to current contract ABIs and deployed addresses.
 
-## Responsibilities in this folder
-- Keep the primary shortcode mount stable: `[sqmu_app view="..." property_code="..."]`.
-- Keep React + Wagmi wallet logic isolated inside the browser bundle.
-- Keep WordPress-specific routing/configuration in PHP/plugin boundaries.
-- Maintain the normalized runtime config contract assembled from plugin admin settings.
-- Maintain the admin settings UI for chains, contracts, payment tokens, and per-view defaults.
-- Resolve property-specific details from WordPress post meta using the fixed SQMU meta keys.
-- Track dependencies on contract ABI/event changes and version notes.
-- Keep build output and plugin enqueue paths aligned (`plugin/assets/sqmu.js`).
+## Responsibilities In This Folder
 
-## Integration points
-- Depends on **Contract Agent** outputs (deployed addresses, ABI compatibility, event semantics).
-- Can trigger/support **GoogleAppScript Agent** communication workflows via backend hooks for receipts or notifications, but off-chain workflows must stay separate from wallet-core architecture.
+- Keep the primary shortcode mount stable: `[sqmu_app view="..." property_code="..." escrow_address="..."]`
+- Keep React + Wagmi wallet logic isolated inside the browser bundle
+- Keep WordPress-specific routing and config assembly in PHP/plugin boundaries
+- Maintain the normalized runtime config contract assembled from plugin settings
+- Maintain the admin settings UI for chains, contracts, payment tokens, and per-view defaults
+- Maintain the restricted admin operations page for browser-signed owner/admin actions
+- Resolve property-specific details from WordPress post meta using the fixed SQMU meta keys
+- Track dependencies on contract ABI and interface changes
+- Keep build output and plugin enqueue paths aligned at `plugin/assets/sqmu.js`
 
-## Current architecture expectations
-- Frontend stack: React + Wagmi + Viem + TanStack Query.
-- Runtime model: direct browser-to-chain reads and writes; no WordPress REST proxy in v1.
-- Packaging model: WordPress serves compiled static assets only; Node is build-time only.
-- Wallet target: MetaMask first, but connector design must remain generic-injected-wallet ready.
-- WordPress integration surface: shortcodes only in v1; Gutenberg blocks are deferred.
-- Configuration model: admin-driven, not page-authored JSON.
+## Current Runtime Model
 
-## Shortcode contract
-- Primary shortcode:
-  - `[sqmu_app view="buy|portfolio" property_code="OPTIONAL_CODE"]`
-- `view` selects the frontend view.
-- `property_code` is the explicit page-level property target when a page is tied to one property.
-- Site operators configure chains/contracts/tokens in wp-admin rather than in shortcode content.
-- The frontend expects normalized config keys for:
-  - `app`
-  - `chains`
-  - `defaultChainId`
-  - `contracts`
-  - `paymentTokens`
-  - `properties`
-  - `features`
-- Fixed property meta keys:
-  - `_sqmu_property_code`
-  - `_sqmu_token_id`
-  - `_sqmu_token_address`
+- Frontend stack: React + Wagmi + Viem + TanStack Query
+- Runtime model: direct browser-to-chain reads and writes
+- Packaging model: WordPress serves compiled static assets only; Node is build-time only
+- Wallet target: MetaMask first, with generic injected EVM wallet support
+- WordPress integration surface: shortcode mounts plus a restricted wp-admin operations page
+- Configuration model: admin-driven, not page-authored JSON
 
-## Change workflow
-1. Map user journey and identify shortcode/widget touchpoints.
-2. Confirm required contract methods/events, admin settings fields, and property meta usage.
-3. Implement frontend + plugin changes with clear PHP/bundle separation.
-4. Validate Node/build packaging first, then validate in a WordPress staging environment with wallet flows.
-5. Document shortcode/config changes and integration/version updates.
+## Public Views
+
+- `buy`
+  - Primary distributor purchase flow
+- `portfolio`
+  - SQMU holdings, secondary-market browsing, buy-from-listing, and create-listing
+- `crowdfund`
+  - Governance purchase flow against `SQMUCrowdfund`
+- `rent`
+  - Tenant/property rent actions against `SQMURent`
+- `rent_distribution`
+  - Read-only rent balance visibility against `SQMURentDistribution`
+- `escrow`
+  - Escrow create/manage flow against `EscrowFactory` and `Escrow`
+
+## Shortcode Contract
+
+- Public shortcode:
+  - `[sqmu_app view="buy|portfolio|crowdfund|rent|rent_distribution|escrow" property_code="OPTIONAL_CODE" escrow_address="OPTIONAL_ADDRESS"]`
+- `view` selects the workflow
+- `property_code` is the explicit property target when a page is tied to one property
+- `escrow_address` is only for loading an existing escrow instance in `view="escrow"`
+- Site operators configure chains, contracts, and tokens in wp-admin rather than in page content
+
+## wp-admin Surfaces
+
+- `Settings > SQMU App`
+  - Source of truth for chains, contracts, payment tokens, and per-view defaults
+- `Settings > SQMU Operations`
+  - Restricted administrator page
+  - Uses the same frontend bundle
+  - Signs owner/admin actions in the browser wallet
+  - Must not expose upgrade or ownership-transfer actions
+
+## Contract Integration Surface
+
+This plugin currently targets these repository contracts:
+
+- `AtomicSQMUDistributor`
+- `SQMUTrade`
+- `SQMU`
+- `SQMUCrowdfund`
+- `SQMURent`
+- `SQMURentDistribution`
+- `Escrow`
+- `EscrowFactory`
+
+Excluded from the wp-admin operations surface:
+
+- `upgradeToAndCall`
+- `transferOwnership`
+- `setImplementation`
+
+## Fixed Property Meta Keys
+
+- `_sqmu_property_code`
+- `_sqmu_token_id`
+- `_sqmu_token_address`
+- `_sqmu_property_id`
+- `_sqmu_property_ref`
+
+View expectations:
+
+- `buy` and `portfolio` use token metadata
+- `rent` and `rent_distribution` use `_sqmu_property_id`
+- `escrow` uses `_sqmu_property_ref` for property-bound creation defaults
+
+## Change Workflow
+
+1. Map the user journey to one of the supported public or admin views.
+2. Confirm required contract methods/events and the exact WordPress config/meta needed.
+3. Implement frontend + plugin changes with a clean PHP/bundle separation.
+4. Validate PHP syntax and Node/build packaging first.
+5. Validate in WordPress staging with wallet flows after bundle verification.
+6. Document shortcode, settings, meta, and ABI-surface changes in this folder.
