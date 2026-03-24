@@ -23,12 +23,13 @@ WordPress-specific behavior inside plugin PHP code and wp-admin settings.
 - Resolve property-specific details from WordPress post meta using the fixed SQMU meta keys
 - Track dependencies on contract ABI and interface changes
 - Keep build output and plugin enqueue paths aligned at `plugin/assets/sqmu.js`
+- Keep generated runtime chunks in `plugin/assets/chunks/` packaged with the plugin
 
 ## Current Runtime Model
 
 - Frontend stack: React + Wagmi + Viem + TanStack Query
 - Runtime model: direct browser-to-chain reads and writes
-- Packaging model: WordPress serves compiled static assets only; Node is build-time only
+- Packaging model: WordPress serves `plugin/assets/sqmu.js` as an ES module plus generated `plugin/assets/chunks/*.js`; Node is build-time only
 - Wallet target: MetaMask first, with generic injected EVM wallet support
 - WordPress integration surface: shortcode mounts plus a restricted wp-admin operations page
 - Configuration model: admin-driven, not page-authored JSON

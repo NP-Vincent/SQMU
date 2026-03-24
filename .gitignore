@@ -23,6 +23,7 @@ SQMU/cache/
 WordpressPlugin/node_modules/
 WordpressPlugin/plugin/assets/sqmu.js
 WordpressPlugin/plugin/assets/sqmu.js.map
+WordpressPlugin/plugin/assets/chunks/
 
 # Never ignore compliance/legal docs
 !LICENSE

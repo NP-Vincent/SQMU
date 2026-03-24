@@ -49,6 +49,7 @@ const ESCROW_SETTLEMENT_LABELS = ['Unsettled', 'Released', 'Refunded'];
 const ESCROW_ACTION_LABELS = ['Release', 'Refund'];
 const wagmiConfigCache = new Map();
 const queryClientCache = new Map();
+const rootCache = new WeakMap();
 
 const erc20Abi = [
   {
@@ -2810,11 +2811,35 @@ const mergeMountConfig = (payload, mount) => {
 export function initSQMU(payload = {}) {
   const mounts = document.querySelectorAll('[data-sqmu-app]');
   mounts.forEach((mount) => {
-    const root = createRoot(mount);
+    let root = rootCache.get(mount);
+    if (!root) {
+      root = createRoot(mount);
+      rootCache.set(mount, root);
+    }
+
     root.render(
       <StrictMode>
         <App mountConfig={mergeMountConfig(payload, mount)} />
       </StrictMode>
     );
   });
+}
+
+const bootstrapSQMU = () => {
+  if (typeof document === 'undefined') return;
+  initSQMU(window.SQMU_CONFIG || {});
+};
+
+if (typeof window !== 'undefined') {
+  const namespace = window.SQMUWP && typeof window.SQMUWP === 'object' ? window.SQMUWP : {};
+  window.SQMUWP = {
+    ...namespace,
+    initSQMU
+  };
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', bootstrapSQMU, { once: true });
+  } else {
+    bootstrapSQMU();
+  }
 }

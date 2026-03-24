@@ -3,7 +3,7 @@
 ## Purpose
 
 This folder contains the WordPress integration layer for the current SQMU contract set.
-It serves one compiled React + Wagmi bundle through a PHP plugin, keeps runtime
+It serves a compiled React + Wagmi module build through a PHP plugin, keeps runtime
 configuration in wp-admin, and uses one shortcode to place contract views into page content.
 
 The plugin is designed so that:
@@ -230,9 +230,15 @@ This generates:
 
 ```text
 plugin/assets/sqmu.js
+plugin/assets/chunks/*.js
 ```
 
-The WordPress plugin enqueues that built asset directly. Node is build-time only and is not required on the WordPress host.
+WordPress enqueues `plugin/assets/sqmu.js` as an ES module. The hashed files in
+`plugin/assets/chunks/` are required runtime assets and must ship with the plugin,
+because MetaMask SDK is intentionally loaded as split browser modules instead of being
+collapsed into one IIFE bundle.
+
+Node is build-time only and is not required on the WordPress host.
 
 ## Repo Layout
 
@@ -246,7 +252,8 @@ WordpressPlugin/
 │  ├─ sqmu.php        # WordPress bootstrap, admin UI, shortcode, config assembly
 │  ├─ assets/
 │  │  ├─ sqmu-widgets.css
-│  │  └─ sqmu.js
+│  │  ├─ sqmu.js
+│  │  └─ chunks/      # Generated browser chunks, including MetaMask SDK split assets
 │  └─ readme.txt
 ├─ esbuild.config.mjs
 ├─ package.json

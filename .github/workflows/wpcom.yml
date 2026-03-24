@@ -33,7 +33,9 @@ jobs:
         run: npm run build
 
       - name: Verify plugin bundle
-        run: test -f plugin/assets/sqmu.js
+        run: |
+          test -f plugin/assets/sqmu.js
+          test -d plugin/assets/chunks
 
       - name: Stage plugin
         run: |
@@ -42,6 +44,7 @@ jobs:
           cp plugin/readme.txt ../wpcom-stage/sqmu/readme.txt
           cp plugin/assets/sqmu-widgets.css ../wpcom-stage/sqmu/assets/sqmu-widgets.css
           cp plugin/assets/sqmu.js ../wpcom-stage/sqmu/assets/sqmu.js
+          cp -R plugin/assets/chunks ../wpcom-stage/sqmu/assets/chunks
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4

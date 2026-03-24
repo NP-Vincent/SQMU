@@ -628,6 +628,19 @@ function sqmu_app_register_script_assets() {
     );
 }
 
+function sqmu_app_module_script_tag($tag, $handle, $src) {
+    if ($handle !== 'sqmu') {
+        return $tag;
+    }
+
+    if (strpos($tag, 'type=') !== false) {
+        return (string) preg_replace('/type=("|\')[^"\']*("|\')/', 'type="module"', $tag, 1);
+    }
+
+    return str_replace('<script ', '<script type="module" ', $tag);
+}
+add_filter('script_loader_tag', 'sqmu_app_module_script_tag', 10, 3);
+
 function sqmu_app_enqueue_runtime_payload($payload) {
     sqmu_app_register_script_assets();
 
@@ -635,12 +648,6 @@ function sqmu_app_enqueue_runtime_payload($payload) {
         'sqmu',
         'window.SQMU_CONFIG = ' . wp_json_encode($payload) . ';',
         'before'
-    );
-
-    wp_add_inline_script(
-        'sqmu',
-        '(function(){ if (window.SQMUWP && typeof window.SQMUWP.initSQMU === "function") { window.SQMUWP.initSQMU(window.SQMU_CONFIG || {}); } })();',
-        'after'
     );
 
     wp_enqueue_style('sqmu-widgets');
