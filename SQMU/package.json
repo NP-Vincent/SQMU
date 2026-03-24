@@ -1,0 +1,17 @@
+{
+  "name": "sqmu-contracts",
+  "private": true,
+  "scripts": {
+    "compile": "hardhat compile",
+    "test": "hardhat test",
+    "export:abi": "node scripts/export-abis.cjs",
+    "build": "npm run compile && npm run export:abi"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-ethers": "^3.0.8",
+    "@openzeppelin/contracts": "^5.4.0",
+    "@openzeppelin/contracts-upgradeable": "^5.4.0",
+    "ethers": "^6.15.0",
+    "hardhat": "^2.22.18"
+  }
+}

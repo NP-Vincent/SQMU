@@ -17,6 +17,7 @@ The goal is to document contract-facing workflows so contributors can reason abo
 - Keep contract workflows modular (minting, listing, rent, trade, escrow, distributions).
 - Keep ABIs aligned with deployed contract versions and documented changes.
 - Preserve event naming and method compatibility where possible for downstream consumers.
+- Keep the escrow workspace isolated enough to validate escrow/factory changes without requiring unrelated contracts to compile.
 
 ## Integration points
 - **WordPress Agent** consumes ABI and addresses to power wallet-connected UI flows.
@@ -28,3 +29,11 @@ The goal is to document contract-facing workflows so contributors can reason abo
 3. Regenerate/update ABI artifacts for changed contracts.
 4. Update integration notes consumed by plugin and automation layers.
 5. Validate staging before production deployment.
+
+## Escrow Notes
+
+- `Contracts/Escrow.sol` is the clone target and is intentionally non-upgradeable.
+- `Contracts/EscrowFactory.sol` is the UUPS-upgradeable creation/registry surface.
+- `EscrowSources/` is the Hardhat source root for escrow-only compilation.
+- `test/EscrowFactory.test.cjs` is the escrow regression suite.
+- `scripts/export-abis.cjs` writes the simplified ABI files consumed downstream.

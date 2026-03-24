@@ -1,280 +1,418 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.26;
 
-import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import {Clones} from "@openzeppelin/contracts/proxy/Clones.sol";
-import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
-import {AccessControlEnumerableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/extensions/AccessControlEnumerableUpgradeable.sol";
-import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import {SafeERC20, IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import {MultiSignerERC7913Upgradeable} from "@openzeppelin/contracts-upgradeable/utils/cryptography/signers/MultiSignerERC7913Upgradeable.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
-interface IEscrowFactory {
-    function allowedTokens(address token) external view returns (bool);
-}
-
-/// @title Upgradeable Escrow Contract with Minimal Proxy Factory
-/// @notice Implements a basic property escrow following the architecture
-/// outlined in `escrow_system_technical_architecture.md`.
-contract Escrow is
-    Initializable,
-    UUPSUpgradeable,
-    ReentrancyGuardUpgradeable,
-    AccessControlEnumerableUpgradeable,
-    PausableUpgradeable,
-    MultiSignerERC7913Upgradeable
-{
+/// @title SQMU Property Escrow
+/// @notice Non-upgradeable escrow implementation intended for EIP-1167 clones.
+contract Escrow is Initializable {
     using SafeERC20 for IERC20;
 
-    /// @dev States for each escrow lifecycle.
-    enum State {
+    enum Stage {
+        EOI,
+        Deposit,
+        Final
+    }
+
+    enum ActionType {
+        Release,
+        Refund
+    }
+
+    enum LifecycleState {
         Created,
-        Funded,
-        AwaitingDocuments,
-        PendingRelease,
-        Released,
+        Active,
+        Completed,
         Cancelled,
         Expired
     }
 
-    enum DepositStage {
-        EOI,
-        Initial,
-        Balance
+    enum StageSettlement {
+        Unsettled,
+        Released,
+        Refunded
     }
 
-    bytes32 public constant BUYER_ROLE = keccak256("BUYER_ROLE");
-    bytes32 public constant SELLER_ROLE = keccak256("SELLER_ROLE");
-    bytes32 public constant AGENT_ROLE = keccak256("AGENT_ROLE");
-    bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
+    struct StageData {
+        uint256 targetAmount;
+        uint256 depositedAmount;
+        uint256 heldAmount;
+        StageSettlement settlement;
+    }
 
-    /// @notice Whitelisted ERC20 stablecoin for payments.
-    IERC20 public paymentToken;
+    struct ActionData {
+        ActionType actionType;
+        Stage stage;
+        address proposer;
+        uint8 confirmationCount;
+        bool executed;
+    }
 
-    /// @notice Reference to the factory that deployed this escrow.
+    error ActionAlreadyConfirmed(uint256 actionId, address signer);
+    error ActionAlreadyExecuted(uint256 actionId);
+    error ActionNotFound(uint256 actionId);
+    error DuplicateParticipant();
+    error EscrowUnavailable(LifecycleState state);
+    error InvalidDeadline();
+    error InvalidPropertyRef();
+    error InvalidStageTarget();
+    error NotBuyer(address caller);
+    error NotParticipant(address caller);
+    error StageAlreadySettled(Stage stage);
+    error StageHasNoFunds(Stage stage);
+    error StageOverfunded(Stage stage, uint256 attemptedTotal, uint256 targetAmount);
+    error ZeroAddress();
+
+    uint8 public constant APPROVAL_THRESHOLD = 2;
+
     address public factory;
-
-    /// @notice Deadline timestamp after which the escrow can expire.
+    address public buyer;
+    address public seller;
+    address public agent;
+    IERC20 public paymentToken;
+    bytes32 public propertyRef;
     uint256 public deadline;
 
-    /// @notice Current lifecycle state.
-    State public state;
+    uint256 private _actionCount;
+    bool private _hasRefundedStage;
+    bool private _reentrancyLock;
 
-    struct DocumentHash {
-        string hash;
-        uint256 timestamp;
-    }
+    mapping(uint8 => StageData) private _stages;
+    mapping(uint256 => ActionData) private _actions;
+    mapping(uint256 => mapping(address => bool)) private _actionConfirmations;
 
-    /// @notice All document hashes for this escrow (history retained).
-    DocumentHash[] public documentHashes;
-
-    /// @dev Tracks deposits per stage.
-    mapping(DepositStage => uint256) public depositForStage;
-
-    event Deposited(address indexed from, uint256 amount, DepositStage stage);
-    event Released(address indexed to, uint256 amount);
-    event Cancelled(address indexed by);
-    event Expired(address indexed by);
-    event DocumentHashAdded(string hash, uint256 timestamp);
-    event StateChanged(State newState);
-    event EscrowUpgraded(address newImplementation);
+    event ActionConfirmed(uint256 indexed actionId, address indexed signer, uint8 confirmationCount);
+    event ActionProposed(
+        uint256 indexed actionId,
+        ActionType indexed actionType,
+        Stage indexed stage,
+        address proposer
+    );
+    event EscrowInitialized(
+        address indexed factory,
+        address indexed buyer,
+        address indexed seller,
+        address agent,
+        address token,
+        bytes32 propertyRef,
+        uint256 deadline
+    );
+    event LifecycleStateChanged(LifecycleState newState);
+    event StageDeposited(Stage indexed stage, address indexed buyer, uint256 amount, uint256 heldAmount);
+    event StageRefunded(Stage indexed stage, uint256 indexed actionId, address indexed buyer, uint256 amount);
+    event StageReleased(Stage indexed stage, uint256 indexed actionId, address indexed seller, uint256 amount);
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();
     }
 
-    /// @notice Initialize the escrow with core participants and multisig signers.
-    /// @param buyer Buyer wallet.
-    /// @param agent Escrow agent wallet.
-    /// @param seller Optional seller wallet.
-    /// @param token Stablecoin address.
-    /// @param deadline_ Expiry timestamp.
-    /// @param signers ERC-7913 encoded signers for multisig control.
+    modifier onlyBuyer() {
+        if (msg.sender != buyer) {
+            revert NotBuyer(msg.sender);
+        }
+        _;
+    }
+
+    modifier onlyParticipant() {
+        if (!_isParticipant(msg.sender)) {
+            revert NotParticipant(msg.sender);
+        }
+        _;
+    }
+
+    modifier nonReentrant() {
+        require(!_reentrancyLock, "reentrant call");
+        _reentrancyLock = true;
+        _;
+        _reentrancyLock = false;
+    }
+
     function initialize(
-        address buyer,
-        address agent,
-        address seller,
-        IERC20 token,
+        address buyer_,
+        address seller_,
+        address agent_,
+        address token_,
+        bytes32 propertyRef_,
         uint256 deadline_,
-        bytes[] calldata signers
+        uint256 eoiTarget_,
+        uint256 depositTarget_,
+        uint256 finalTarget_
     ) external initializer {
-        __UUPSUpgradeable_init();
-        __ReentrancyGuard_init();
-        __AccessControlEnumerable_init();
-        __Pausable_init();
+        if (buyer_ == address(0) || seller_ == address(0) || agent_ == address(0) || token_ == address(0)) {
+            revert ZeroAddress();
+        }
+        if (buyer_ == seller_ || buyer_ == agent_ || seller_ == agent_) {
+            revert DuplicateParticipant();
+        }
+        if (propertyRef_ == bytes32(0)) {
+            revert InvalidPropertyRef();
+        }
+        if (deadline_ <= block.timestamp) {
+            revert InvalidDeadline();
+        }
+        if (eoiTarget_ == 0 || depositTarget_ == 0 || finalTarget_ == 0) {
+            revert InvalidStageTarget();
+        }
 
         factory = msg.sender;
-        require(
-            IEscrowFactory(msg.sender).allowedTokens(address(token)),
-            "token not allowed"
-        );
-        paymentToken = token;
+        buyer = buyer_;
+        seller = seller_;
+        agent = agent_;
+        paymentToken = IERC20(token_);
+        propertyRef = propertyRef_;
         deadline = deadline_;
-        state = State.Created;
 
-        _grantRole(BUYER_ROLE, buyer);
-        _grantRole(AGENT_ROLE, agent);
-        if (seller != address(0)) {
-            _grantRole(SELLER_ROLE, seller);
-        }
-        _grantRole(ADMIN_ROLE, agent);
+        _stages[uint8(Stage.EOI)].targetAmount = eoiTarget_;
+        _stages[uint8(Stage.Deposit)].targetAmount = depositTarget_;
+        _stages[uint8(Stage.Final)].targetAmount = finalTarget_;
 
-        __MultiSignerERC7913_init(signers, 2);
+        emit EscrowInitialized(factory, buyer_, seller_, agent_, token_, propertyRef_, deadline_);
+        emit LifecycleStateChanged(LifecycleState.Created);
     }
 
-    // ------------------------------------------------------------
-    // Core Escrow Functions
-    // ------------------------------------------------------------
+    function deposit(Stage stage, uint256 amount) external onlyBuyer nonReentrant {
+        LifecycleState previousState = currentState();
+        if (
+            previousState == LifecycleState.Completed
+                || previousState == LifecycleState.Cancelled
+                || previousState == LifecycleState.Expired
+        ) {
+            revert EscrowUnavailable(previousState);
+        }
+        if (amount == 0) {
+            revert InvalidStageTarget();
+        }
 
-    /// @notice Deposit stablecoins into escrow.
-    /// @param amount Amount of tokens to deposit.
-    /// @param stage Deposit stage (EOI, Initial, Balance).
-    function deposit(uint256 amount, DepositStage stage)
-        external
-        nonReentrant
-        onlyRole(BUYER_ROLE)
-    {
-        require(amount > 0, "amount required");
+        StageData storage stageData = _stages[uint8(stage)];
+        if (stageData.settlement != StageSettlement.Unsettled) {
+            revert StageAlreadySettled(stage);
+        }
+
+        uint256 attemptedTotal = stageData.depositedAmount + amount;
+        if (attemptedTotal > stageData.targetAmount) {
+            revert StageOverfunded(stage, attemptedTotal, stageData.targetAmount);
+        }
+
         paymentToken.safeTransferFrom(msg.sender, address(this), amount);
-        depositForStage[stage] += amount;
-        if (state == State.Created) {
-            _setState(State.Funded);
+        stageData.depositedAmount += amount;
+        stageData.heldAmount += amount;
+
+        emit StageDeposited(stage, msg.sender, amount, stageData.heldAmount);
+        _emitLifecycleChange(previousState);
+    }
+
+    function proposeRelease(Stage stage) external onlyParticipant returns (uint256 actionId) {
+        LifecycleState state = currentState();
+        if (
+            state == LifecycleState.Completed
+                || state == LifecycleState.Cancelled
+                || state == LifecycleState.Expired
+        ) {
+            revert EscrowUnavailable(state);
         }
-        emit Deposited(msg.sender, amount, stage);
+
+        _requireStageActionable(stage);
+        return _createAction(ActionType.Release, stage);
     }
 
-    /// @notice Record an off-chain document hash.
-    /// @param hash New document hash (e.g., deed or MOU).
-    function addDocumentHash(string calldata hash) external onlyRole(AGENT_ROLE) {
-        documentHashes.push(DocumentHash(hash, block.timestamp));
-        emit DocumentHashAdded(hash, block.timestamp);
-        if (state == State.Funded) {
-            _setState(State.AwaitingDocuments);
+    function proposeRefund(Stage stage) external onlyParticipant returns (uint256 actionId) {
+        LifecycleState state = currentState();
+        if (state == LifecycleState.Completed) {
+            revert EscrowUnavailable(state);
         }
+
+        _requireStageActionable(stage);
+        return _createAction(ActionType.Refund, stage);
     }
 
-    /// @notice Release funds once multisig signatures are validated.
-    /// @param to Recipient of funds (typically seller).
-    /// @param amount Amount to release.
-    /// @param signature Encoded multi-signature data.
-    function release(
-        address to,
-        uint256 amount,
-        bytes calldata signature
-    ) external nonReentrant whenNotPaused {
-        require(state == State.Funded || state == State.AwaitingDocuments || state == State.PendingRelease, "bad state");
-        bytes32 hash = keccak256(abi.encodePacked(address(this), to, amount));
-        require(_rawSignatureValidation(hash, signature), "invalid sig");
-
-        paymentToken.safeTransfer(to, amount);
-        _setState(State.Released);
-        emit Released(to, amount);
-    }
-
-    /// @notice Cancel the escrow and refund the buyer.
-    function cancel() external onlyRole(AGENT_ROLE) whenNotPaused {
-        require(state != State.Released && state != State.Cancelled, "finalized");
-        uint256 balance = paymentToken.balanceOf(address(this));
-        if (balance > 0) {
-            paymentToken.safeTransfer(_msgSender(), balance);
+    function confirmAction(uint256 actionId) external onlyParticipant {
+        ActionData storage action = _actions[actionId];
+        if (action.proposer == address(0)) {
+            revert ActionNotFound(actionId);
         }
-        _setState(State.Cancelled);
-        emit Cancelled(msg.sender);
-    }
-
-    /// @notice Trigger expiry if the deadline has passed.
-    function expire() external whenNotPaused {
-        require(block.timestamp >= deadline, "not expired");
-        require(state != State.Released && state != State.Cancelled, "finalized");
-        uint256 balance = paymentToken.balanceOf(address(this));
-        if (balance > 0) {
-            paymentToken.safeTransfer(_msgSender(), balance);
+        if (action.executed) {
+            revert ActionAlreadyExecuted(actionId);
         }
-        _setState(State.Expired);
-        emit Expired(msg.sender);
-    }
+        if (_actionConfirmations[actionId][msg.sender]) {
+            revert ActionAlreadyConfirmed(actionId, msg.sender);
+        }
 
-    // ------------------------------------------------------------
-    // Internal helpers
-    // ------------------------------------------------------------
+        _requireActionStillValid(action);
 
-    function _authorizeUpgrade(address newImplementation) internal override onlyRole(ADMIN_ROLE) {
-        emit EscrowUpgraded(newImplementation);
-    }
+        _actionConfirmations[actionId][msg.sender] = true;
+        action.confirmationCount += 1;
 
-    function _setState(State newState) internal {
-        if (state != newState) {
-            state = newState;
-            emit StateChanged(newState);
+        emit ActionConfirmed(actionId, msg.sender, action.confirmationCount);
+
+        if (action.confirmationCount >= APPROVAL_THRESHOLD) {
+            _executeAction(actionId, action);
         }
     }
-}
 
-/// @title EscrowFactory
-/// @notice Deploys minimal proxy clones of {Escrow}.
-contract EscrowFactory is Initializable, UUPSUpgradeable, AccessControlEnumerableUpgradeable, PausableUpgradeable {
-    using Clones for address;
-
-    bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
-
-    address public escrowImplementation;
-    address[] public escrows;
-    mapping(address => bool) public allowedTokens;
-
-    event EscrowCreated(address indexed escrow, address buyer, address seller, address agent, IERC20 token, uint256 deadline);
-    event ImplementationChanged(address newImplementation);
-    event EscrowFactoryUpgraded(address newImplementation);
-
-    /// @custom:oz-upgrades-unsafe-allow constructor
-    constructor() {
-        _disableInitializers();
+    function currentState() public view returns (LifecycleState) {
+        if (_hasRefundedStage) {
+            return LifecycleState.Cancelled;
+        }
+        if (_allStagesReleased()) {
+            return LifecycleState.Completed;
+        }
+        if (block.timestamp >= deadline) {
+            return LifecycleState.Expired;
+        }
+        if (_hasAnyDeposits()) {
+            return LifecycleState.Active;
+        }
+        return LifecycleState.Created;
     }
 
-    function initialize(address implementation) external initializer {
-        __UUPSUpgradeable_init();
-        __AccessControlEnumerable_init();
-        __Pausable_init();
-
-        escrowImplementation = implementation;
-        _grantRole(ADMIN_ROLE, msg.sender);
+    function getParticipants() external view returns (address buyer_, address seller_, address agent_) {
+        return (buyer, seller, agent);
     }
 
-    function createEscrow(
-        address buyer,
-        address agent,
-        address seller,
-        IERC20 token,
-        uint256 deadline,
-        bytes[] calldata signers
-    ) external whenNotPaused onlyRole(ADMIN_ROLE) returns (address) {
-        require(allowedTokens[address(token)], "token not allowed");
-        address clone = escrowImplementation.clone();
-        Escrow(payable(clone)).initialize(buyer, agent, seller, token, deadline, signers);
-        escrows.push(clone);
-        emit EscrowCreated(clone, buyer, seller, agent, token, deadline);
-        return clone;
+    function getStageDetails(Stage stage)
+        external
+        view
+        returns (uint256 targetAmount, uint256 depositedAmount, uint256 heldAmount, StageSettlement settlement)
+    {
+        StageData storage stageData = _stages[uint8(stage)];
+        return (stageData.targetAmount, stageData.depositedAmount, stageData.heldAmount, stageData.settlement);
     }
 
-    function _authorizeUpgrade(address newImplementation) internal override onlyRole(ADMIN_ROLE) {
-        emit EscrowFactoryUpgraded(newImplementation);
+    function getAction(uint256 actionId)
+        external
+        view
+        returns (
+            ActionType actionType,
+            Stage stage,
+            address proposer,
+            uint8 confirmationCount,
+            bool executed,
+            bool buyerConfirmed,
+            bool sellerConfirmed,
+            bool agentConfirmed
+        )
+    {
+        ActionData storage action = _actions[actionId];
+        if (action.proposer == address(0)) {
+            revert ActionNotFound(actionId);
+        }
+
+        return (
+            action.actionType,
+            action.stage,
+            action.proposer,
+            action.confirmationCount,
+            action.executed,
+            _actionConfirmations[actionId][buyer],
+            _actionConfirmations[actionId][seller],
+            _actionConfirmations[actionId][agent]
+        );
     }
 
-    function setImplementation(address implementation) external onlyRole(ADMIN_ROLE) {
-        escrowImplementation = implementation;
-        emit ImplementationChanged(implementation);
+    function actionCount() external view returns (uint256) {
+        return _actionCount;
     }
 
-    function addAllowedToken(address token) external onlyRole(ADMIN_ROLE) {
-        allowedTokens[token] = true;
+    function isParticipant(address account) external view returns (bool) {
+        return _isParticipant(account);
     }
 
-    function removeAllowedToken(address token) external onlyRole(ADMIN_ROLE) {
-        allowedTokens[token] = false;
+    function totalHeldBalance() external view returns (uint256) {
+        return _stages[uint8(Stage.EOI)].heldAmount
+            + _stages[uint8(Stage.Deposit)].heldAmount
+            + _stages[uint8(Stage.Final)].heldAmount;
     }
 
-    function getEscrows() external view returns (address[] memory) {
-        return escrows;
+    function _createAction(ActionType actionType, Stage stage) internal returns (uint256 actionId) {
+        actionId = ++_actionCount;
+
+        ActionData storage action = _actions[actionId];
+        action.actionType = actionType;
+        action.stage = stage;
+        action.proposer = msg.sender;
+        action.confirmationCount = 1;
+
+        _actionConfirmations[actionId][msg.sender] = true;
+
+        emit ActionProposed(actionId, actionType, stage, msg.sender);
+        emit ActionConfirmed(actionId, msg.sender, action.confirmationCount);
+    }
+
+    function _executeAction(uint256 actionId, ActionData storage action) internal nonReentrant {
+        LifecycleState previousState = currentState();
+        StageData storage stageData = _stages[uint8(action.stage)];
+        uint256 amount = stageData.heldAmount;
+        if (amount == 0) {
+            revert StageHasNoFunds(action.stage);
+        }
+
+        action.executed = true;
+        stageData.heldAmount = 0;
+
+        if (action.actionType == ActionType.Release) {
+            stageData.settlement = StageSettlement.Released;
+            paymentToken.safeTransfer(seller, amount);
+            emit StageReleased(action.stage, actionId, seller, amount);
+        } else {
+            stageData.settlement = StageSettlement.Refunded;
+            _hasRefundedStage = true;
+            paymentToken.safeTransfer(buyer, amount);
+            emit StageRefunded(action.stage, actionId, buyer, amount);
+        }
+
+        _emitLifecycleChange(previousState);
+    }
+
+    function _requireActionStillValid(ActionData storage action) internal view {
+        _requireStageActionable(action.stage);
+
+        LifecycleState state = currentState();
+        if (action.actionType == ActionType.Release) {
+            if (
+                state == LifecycleState.Completed
+                    || state == LifecycleState.Cancelled
+                    || state == LifecycleState.Expired
+            ) {
+                revert EscrowUnavailable(state);
+            }
+        } else if (state == LifecycleState.Completed) {
+            revert EscrowUnavailable(state);
+        }
+    }
+
+    function _requireStageActionable(Stage stage) internal view {
+        StageData storage stageData = _stages[uint8(stage)];
+        if (stageData.settlement != StageSettlement.Unsettled) {
+            revert StageAlreadySettled(stage);
+        }
+        if (stageData.heldAmount == 0) {
+            revert StageHasNoFunds(stage);
+        }
+    }
+
+    function _allStagesReleased() internal view returns (bool) {
+        return _stages[uint8(Stage.EOI)].settlement == StageSettlement.Released
+            && _stages[uint8(Stage.Deposit)].settlement == StageSettlement.Released
+            && _stages[uint8(Stage.Final)].settlement == StageSettlement.Released;
+    }
+
+    function _hasAnyDeposits() internal view returns (bool) {
+        return _stages[uint8(Stage.EOI)].depositedAmount > 0
+            || _stages[uint8(Stage.Deposit)].depositedAmount > 0
+            || _stages[uint8(Stage.Final)].depositedAmount > 0;
+    }
+
+    function _isParticipant(address account) internal view returns (bool) {
+        return account == buyer || account == seller || account == agent;
+    }
+
+    function _emitLifecycleChange(LifecycleState previousState) internal {
+        LifecycleState newState = currentState();
+        if (newState != previousState) {
+            emit LifecycleStateChanged(newState);
+        }
     }
 }

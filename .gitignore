@@ -17,6 +17,9 @@ Thumbs.db
 *.log
 *.tmp
 tmp/
+SQMU/node_modules/
+SQMU/artifacts/
+SQMU/cache/
 WordpressPlugin/node_modules/
 WordpressPlugin/plugin/assets/sqmu.js
 WordpressPlugin/plugin/assets/sqmu.js.map
