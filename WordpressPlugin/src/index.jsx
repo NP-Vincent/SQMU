@@ -803,10 +803,12 @@ async function approveErc1155IfNeeded({
 function Section({ title, help, children, actions }) {
   return (
     <section className="sqmu-section">
-      <div className="sqmu-section-header">
-        <h3 className="sqmu-section-title">{title}</h3>
-        {help ? <p className="sqmu-help">{help}</p> : null}
-      </div>
+      {title || help ? (
+        <div className="sqmu-section-header">
+          {title ? <h3 className="sqmu-section-title">{title}</h3> : null}
+          {help ? <p className="sqmu-help">{help}</p> : null}
+        </div>
+      ) : null}
       <div className="sqmu-section-body">{children}</div>
       {actions ? <div className="sqmu-actions">{actions}</div> : null}
     </section>
@@ -895,7 +897,7 @@ const getMetaMaskConnector = (connectors) =>
 const getInjectedFallbackConnector = (connectors, metaMaskConnector) =>
   connectors.find((connector) => connector.uid !== metaMaskConnector?.uid && connector.type === 'injected');
 
-function WalletPanel({ appConfig, desiredChainId, busy }) {
+function WalletPanel({ appConfig, desiredChainId, busy, minimal = false }) {
   const { address, isConnected, chainId, connector: activeConnector } = useAccount();
   const { connectAsync, connectors, isPending: isConnecting, pendingConnector } = useConnect();
   const { disconnectAsync, isPending: isDisconnecting } = useDisconnect();
@@ -951,43 +953,57 @@ function WalletPanel({ appConfig, desiredChainId, busy }) {
     }
   };
 
+  const walletActions = (
+    <>
+      {isConnected ? (
+        <button
+          type="button"
+          className="wp-element-button"
+          onClick={handleDisconnect}
+          disabled={busy || isDisconnecting}
+        >
+          {isDisconnecting ? 'Disconnecting...' : 'Disconnect Wallet'}
+        </button>
+      ) : (
+        <button
+          type="button"
+          className="wp-element-button"
+          onClick={handleConnect}
+          disabled={busy || isConnecting || !primaryConnector}
+        >
+          {connectButtonLabel}
+        </button>
+      )}
+      {isConnected && desiredChain && chainId !== desiredChainId ? (
+        <button
+          type="button"
+          className="wp-element-button"
+          onClick={() => switchChainAsync?.({ chainId: desiredChainId })}
+          disabled={busy || isSwitching || isDisconnecting}
+        >
+          {isSwitching ? 'Switching network...' : `Switch to ${desiredChain.name}`}
+        </button>
+      ) : null}
+    </>
+  );
+
+  if (minimal) {
+    return (
+      <Section actions={walletActions}>
+        {walletStatus ? (
+          <p className="sqmu-status-line" role="status">
+            {walletStatus}
+          </p>
+        ) : null}
+      </Section>
+    );
+  }
+
   return (
     <Section
       title="Wallet"
       help="Connect Wallet uses MetaMask when available and falls back to the browser's injected EVM wallet when MetaMask is not present."
-      actions={
-        <>
-          {isConnected ? (
-            <button
-              type="button"
-              className="wp-element-button"
-              onClick={handleDisconnect}
-              disabled={busy || isDisconnecting}
-            >
-              {isDisconnecting ? 'Disconnecting...' : 'Disconnect Wallet'}
-            </button>
-          ) : (
-            <button
-              type="button"
-              className="wp-element-button"
-              onClick={handleConnect}
-              disabled={busy || isConnecting || !primaryConnector}
-            >
-              {connectButtonLabel}
-            </button>
-          )}
-          {isConnected && desiredChain && chainId !== desiredChainId ? (
-            <button
-              type="button"
-              className="wp-element-button"
-              onClick={() => switchChainAsync?.({ chainId: desiredChainId })}
-              disabled={busy || isSwitching || isDisconnecting}
-            >
-              {isSwitching ? 'Switching network...' : `Switch to ${desiredChain.name}`}
-            </button>
-          ) : null}
-        </>
-      }
+      actions={walletActions}
     >
       <div className="sqmu-stats">
         <div className="sqmu-stat">
@@ -1674,7 +1690,7 @@ function CrowdfundView({ appConfig }) {
 function PaymentView({ appConfig }) {
   const { address, isConnected, chainId } = useAccount();
   const { data: walletClient } = useWalletClient();
-  const { switchChainAsync } = useSwitchChain();
+  const { switchChainAsync, isPending: isSwitchingPaymentChain } = useSwitchChain();
   const paymentConfig = appConfig.consultingPayment;
   const allowedChains = useMemo(() => {
     const configuredIds = paymentConfig.allowedChainIds.length
@@ -1746,6 +1762,29 @@ function PaymentView({ appConfig }) {
       enabled: Boolean(selectedChainId && selectedPaymentToken?.address && address)
     }
   });
+
+  const handleChainChange = async (nextChainId) => {
+    setSelectedChainId(nextChainId);
+    setStatus('Ready.');
+
+    if (!isConnected || chainId === nextChainId) {
+      return;
+    }
+
+    if (!switchChainAsync) {
+      setStatus('Switch your wallet to the selected network before paying.');
+      return;
+    }
+
+    try {
+      const nextChain = allowedChains.find((chain) => chain.id === nextChainId);
+      setStatus(`Switching wallet to ${nextChain?.name ?? 'the selected network'}...`);
+      await switchChainAsync({ chainId: nextChainId });
+      setStatus('Ready.');
+    } catch (error) {
+      setStatus(error?.shortMessage || error?.message || 'Wallet network switch failed.');
+    }
+  };
 
   const submitPayment = async () => {
     if (!selectedChain) {
@@ -1836,19 +1875,33 @@ function PaymentView({ appConfig }) {
 
   return (
     <div className="sqmu-stack">
-      <WalletPanel appConfig={appConfig} desiredChainId={selectedChainId || appConfig.defaultChainId} busy={busy} />
+      <WalletPanel
+        appConfig={appConfig}
+        desiredChainId={selectedChainId || appConfig.defaultChainId}
+        busy={busy || isSwitchingPaymentChain}
+        minimal
+      />
       <Section
-        title="Stablecoin Payment"
-        help="This widget performs a direct ERC-20 transfer from the connected wallet to the configured consulting payment recipient, then sends a receipt and redirects to Calendly."
         actions={
-          <button type="button" className="wp-element-button" onClick={submitPayment} disabled={busy}>
+          <button
+            type="button"
+            className="wp-element-button"
+            onClick={submitPayment}
+            disabled={busy || isSwitchingPaymentChain}
+          >
             {busy ? 'Submitting...' : 'Pay & Schedule Call'}
           </button>
         }
       >
         <div className="sqmu-form-grid">
           <Field label="Network">
-            <select value={selectedChainId} onChange={(event) => setSelectedChainId(Number(event.target.value))}>
+            <select
+              value={selectedChainId}
+              onChange={(event) => {
+                void handleChainChange(Number(event.target.value));
+              }}
+              disabled={busy || isSwitchingPaymentChain}
+            >
               {allowedChains.map((chain) => (
                 <option key={chain.id} value={chain.id}>
                   {chain.name}
@@ -1857,7 +1910,11 @@ function PaymentView({ appConfig }) {
             </select>
           </Field>
           <Field label="Token">
-            <select value={paymentTokenAddress} onChange={(event) => setPaymentTokenAddress(event.target.value)}>
+            <select
+              value={paymentTokenAddress}
+              onChange={(event) => setPaymentTokenAddress(event.target.value)}
+              disabled={busy || isSwitchingPaymentChain}
+            >
               {paymentTokens.map((token) => (
                 <option key={`${token.chainId}-${token.address}`} value={token.address}>
                   {token.symbol}
@@ -1866,33 +1923,17 @@ function PaymentView({ appConfig }) {
             </select>
           </Field>
           <Field label="Email for Receipt">
-            <input type="email" value={payerEmail} onChange={(event) => setPayerEmail(event.target.value)} placeholder="you@example.com" />
+            <input
+              type="email"
+              value={payerEmail}
+              onChange={(event) => setPayerEmail(event.target.value)}
+              placeholder="you@example.com"
+              disabled={busy || isSwitchingPaymentChain}
+            />
           </Field>
           <Field label="Amount">
             <input value={paymentConfig.fixedAmount} readOnly />
           </Field>
-        </div>
-        <div className="sqmu-stats">
-          <div className="sqmu-stat">
-            <span className="sqmu-stat-label">Recipient</span>
-            <strong>{paymentConfig.recipientWallet ? maskAddress(paymentConfig.recipientWallet) : '—'}</strong>
-          </div>
-          <div className="sqmu-stat">
-            <span className="sqmu-stat-label">Selected Chain</span>
-            <strong>{selectedChain?.name ?? '—'}</strong>
-          </div>
-          <div className="sqmu-stat">
-            <span className="sqmu-stat-label">Selected Token</span>
-            <strong>{selectedPaymentToken?.symbol ?? '—'}</strong>
-          </div>
-          <div className="sqmu-stat">
-            <span className="sqmu-stat-label">Wallet Balance</span>
-            <strong>
-              {selectedPaymentToken && tokenBalance !== undefined
-                ? `${formatTokenAmount(tokenBalance, selectedPaymentToken.decimals)} ${selectedPaymentToken.symbol}`
-                : '—'}
-            </strong>
-          </div>
         </div>
         <p className="sqmu-status-line">{status}</p>
       </Section>
@@ -3403,15 +3444,17 @@ function App({ mountConfig }) {
     <WagmiProvider config={config} reconnectOnMount>
       <QueryClientProvider client={queryClient}>
         <div className="sqmu-card">
-          <div className="sqmu-header">
-            <div>
-              <h2 className="sqmu-title">{VIEW_TITLES[view] ?? VIEW_TITLES.buy}</h2>
-              <p className="sqmu-help">
-                {appConfig.app.name} · Chain {appConfig.defaultChainId} · Config v{appConfig.version}
-              </p>
+          {view === 'payment' ? null : (
+            <div className="sqmu-header">
+              <div>
+                <h2 className="sqmu-title">{VIEW_TITLES[view] ?? VIEW_TITLES.buy}</h2>
+                <p className="sqmu-help">
+                  {appConfig.app.name} · Chain {appConfig.defaultChainId} · Config v{appConfig.version}
+                </p>
+              </div>
+              <StatusPill tone="neutral">{appConfig.context === 'admin' ? 'wp-admin' : 'React + Wagmi'}</StatusPill>
             </div>
-            <StatusPill tone="neutral">{appConfig.context === 'admin' ? 'wp-admin' : 'React + Wagmi'}</StatusPill>
-          </div>
+          )}
           {content}
         </div>
       </QueryClientProvider>
