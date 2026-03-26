@@ -8,17 +8,18 @@ License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
 == Description ==
-Bootstraps the SQMU wallet application, provides admin-configured shortcode mounts for the current contract set, and adds a restricted browser-signed operations page for selected owner/admin actions.
+Bootstraps the SQMU wallet application, provides admin-configured shortcode mounts for the current contract set, adds a dedicated consulting stablecoin payment shortcode, and includes a restricted browser-signed operations page for selected owner/admin actions.
 
 == Installation ==
 1. Upload the plugin folder to /wp-content/plugins/sqmu.
 2. Activate the plugin through the WordPress admin UI.
 3. Go to Settings > SQMU App and configure chains, contracts, payment tokens, and view defaults using the add fields and editable tables.
-4. Add the [sqmu_app] shortcode to a page.
+4. Add the [sqmu_app] or [sqmu_payment] shortcode to a page.
 5. Use Settings > SQMU Operations for restricted wallet-signed admin actions.
 
-== Shortcode ==
+== Shortcodes ==
 [sqmu_app view="buy|portfolio|crowdfund|rent|rent_distribution|escrow" property_code="OPTIONAL_CODE" escrow_address="OPTIONAL_ADDRESS"]
+[sqmu_payment]
 
 == Property meta keys ==
 _sqmu_property_code
@@ -34,10 +35,12 @@ crowdfund = governance purchase flow
 rent = tenant/property rent actions
 rent_distribution = read-only per-property rent balances
 escrow = create or manage escrow instances
+sqmu_payment = direct stablecoin consulting payment widget
 
 == Notes ==
 - property_code is optional and works as an explicit override
 - on Estatik property pages, property-bound views can auto-discover the property from WordPress post meta with DOM/URL fallback
+- sqmu_payment uses a dedicated consulting payment profile in Settings > SQMU App
 - escrow_address is only used with view="escrow"
 - rent_distribution is intentionally read-only in this release
 - owner/admin actions intentionally exclude upgrades and ownership transfer

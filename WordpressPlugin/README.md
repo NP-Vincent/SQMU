@@ -4,11 +4,11 @@
 
 This folder contains the WordPress integration layer for the current SQMU contract set.
 It serves a compiled React + Wagmi module build through a PHP plugin, keeps runtime
-configuration in wp-admin, and uses one shortcode to place contract views into page content.
+configuration in wp-admin, and uses dedicated shortcodes to place contract views and payment flows into page content.
 
 The plugin is designed so that:
 
-- site operators configure chains, contract addresses, and payment tokens once in wp-admin
+- site operators configure chains, contract addresses, payment tokens, and consulting payment settings once in wp-admin
 - content editors place small shortcode mounts instead of pasting JSON config per page
 - property-specific pages resolve their on-chain identifiers from WordPress post meta
 - wallet signing happens in the browser, not on the WordPress server
@@ -34,12 +34,13 @@ React + Wagmi owns:
 
 Runtime is direct browser-to-chain. WordPress is not used as a REST proxy in this version.
 
-## Shortcode
+## Shortcodes
 
-The only public shortcode is:
+The plugin exposes two public shortcodes:
 
 ```text
 [sqmu_app view="buy|portfolio|crowdfund|rent|rent_distribution|escrow" property_code="OPTIONAL_CODE" escrow_address="OPTIONAL_ADDRESS"]
+[sqmu_payment]
 ```
 
 ### Attributes
@@ -70,6 +71,13 @@ The only public shortcode is:
   - Read-only per-property rent balances from `SQMURentDistribution`
 - `escrow`
   - Create or manage escrows using `EscrowFactory` and `Escrow`
+
+### Consulting payment shortcode
+
+- `[sqmu_payment]`
+  - Renders the consulting-payment widget used for direct stablecoin payments
+  - Uses the dedicated consulting payment profile from wp-admin
+  - Requires email, sends a receipt webhook after confirmed payment, and redirects to Calendly
 
 ### Examples
 
@@ -121,6 +129,12 @@ Existing escrow management page:
 [sqmu_app view="escrow" escrow_address="0x1234567890abcdef1234567890abcdef12345678"]
 ```
 
+Consulting payment page:
+
+```text
+[sqmu_payment]
+```
+
 ## Admin Pages
 
 After activating the plugin, configure it in:
@@ -135,9 +149,10 @@ This page is the source of truth for:
 - accepted chains
 - contract addresses
 - accepted payment tokens
+- consulting payment recipient, amount, allowed chains, and chain-specific consulting payment tokens
 - per-view defaults
 
-Accepted chains and payment tokens are managed as add-fields plus editable tables in wp-admin, so operators can add, review, edit, and delete entries without hand-editing JSON.
+Accepted chains, accepted payment tokens, and consulting payment tokens are managed as add-fields plus editable tables in wp-admin, so operators can add, review, edit, and delete entries without hand-editing JSON.
 
 The plugin also adds a browser-signed operations page:
 

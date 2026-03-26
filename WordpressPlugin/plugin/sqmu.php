@@ -37,6 +37,36 @@ function sqmu_app_property_bound_views() {
     return array('buy', 'portfolio', 'rent', 'rent_distribution', 'escrow');
 }
 
+function sqmu_app_default_consulting_payment_settings() {
+    return array(
+        'recipientWallet' => '0xcd8ccb56fd8a4bbeeaebf2bb4f6a0f81e48c1845',
+        'fixedAmount' => '95',
+        'receiptWebhookUrl' => '',
+        'calendlyUrl' => 'https://calendly.com/vincent-sqmu/30min',
+        'allowedChainIds' => array(534352),
+        'tokens' => array(
+            array(
+                'chainId' => 534352,
+                'address' => '0x06eFdBFf2a14a7c8E15944D1F4A48F9F95F663A4',
+                'symbol' => 'USDC',
+                'decimals' => 6
+            ),
+            array(
+                'chainId' => 534352,
+                'address' => '0xf55BEC9cafDbE8730f096Aa55dad6D22d44099Df',
+                'symbol' => 'USDT',
+                'decimals' => 6
+            ),
+            array(
+                'chainId' => 534352,
+                'address' => '0xdb9E8F82D6d45fFf803161F2a5f75543972B229a',
+                'symbol' => 'USDQ',
+                'decimals' => 18
+            )
+        )
+    );
+}
+
 function sqmu_app_default_view_defaults() {
     return array(
         'buy' => array(
@@ -137,6 +167,7 @@ function sqmu_app_default_settings() {
                 'decimals' => 18
             )
         ),
+        'consultingPayment' => sqmu_app_default_consulting_payment_settings(),
         'viewDefaults' => sqmu_app_default_view_defaults()
     );
 }
@@ -180,6 +211,10 @@ function sqmu_app_value_is_blank($value) {
     }
 
     return trim((string) $value) === '';
+}
+
+function sqmu_app_is_valid_address($value) {
+    return is_string($value) && preg_match('/^0x[a-fA-F0-9]{40}$/', trim($value)) === 1;
 }
 
 function sqmu_app_sanitize_chain_rows($input, $fallback, $legacy_json = '') {
@@ -315,6 +350,138 @@ function sqmu_app_sanitize_payment_token_rows($input, $fallback, $legacy_json = 
     return $fallback;
 }
 
+function sqmu_app_sanitize_chain_id_list($input, $available_chains) {
+    $allowed_ids = array();
+    foreach ($available_chains as $chain) {
+        if (isset($chain['id']) && is_numeric($chain['id'])) {
+            $allowed_ids[] = (int) $chain['id'];
+        }
+    }
+
+    $selected_ids = array();
+    foreach ((array) $input as $value) {
+        if ($value === '' || !is_numeric($value)) {
+            continue;
+        }
+
+        $chain_id = (int) $value;
+        if (in_array($chain_id, $allowed_ids, true) && !in_array($chain_id, $selected_ids, true)) {
+            $selected_ids[] = $chain_id;
+        }
+    }
+
+    return $selected_ids;
+}
+
+function sqmu_app_sanitize_consulting_payment_tokens($input, $available_chain_ids, $fallback) {
+    if (!is_array($input)) {
+        return $fallback;
+    }
+
+    $tokens = array();
+
+    foreach ($input as $index => $row) {
+        if (!is_array($row)) {
+            continue;
+        }
+
+        if (
+            sqmu_app_value_is_blank($row['chainId'] ?? '') &&
+            sqmu_app_value_is_blank($row['address'] ?? '') &&
+            sqmu_app_value_is_blank($row['symbol'] ?? '') &&
+            sqmu_app_value_is_blank($row['decimals'] ?? '')
+        ) {
+            continue;
+        }
+
+        $display_index = is_numeric($index) ? (int) $index + 1 : 1;
+        $chain_id = $row['chainId'] ?? '';
+        $address = sanitize_text_field($row['address'] ?? '');
+        $decimals = $row['decimals'] ?? '';
+
+        if ($chain_id === '' || !is_numeric($chain_id) || !in_array((int) $chain_id, $available_chain_ids, true)) {
+            sqmu_app_add_settings_notice(
+                sprintf('Consulting payment token row %d was skipped because it must reference one of the allowed consulting payment chains.', $display_index),
+                'invalid_consulting_payment_token_chain_' . $display_index
+            );
+            continue;
+        }
+
+        if ($address === '') {
+            sqmu_app_add_settings_notice(
+                sprintf('Consulting payment token row %d was skipped because the token address is required.', $display_index),
+                'invalid_consulting_payment_token_address_' . $display_index
+            );
+            continue;
+        }
+
+        if ($decimals === '' || !is_numeric($decimals)) {
+            sqmu_app_add_settings_notice(
+                sprintf('Consulting payment token row %d was skipped because decimals must be numeric.', $display_index),
+                'invalid_consulting_payment_token_decimals_' . $display_index
+            );
+            continue;
+        }
+
+        $tokens[] = array(
+            'chainId' => (int) $chain_id,
+            'address' => $address,
+            'symbol' => sanitize_text_field($row['symbol'] ?? ''),
+            'decimals' => (int) $decimals
+        );
+    }
+
+    return array_values($tokens);
+}
+
+function sqmu_app_sanitize_consulting_payment_settings($input, $defaults, $current, $available_chains) {
+    $profile_input = is_array($input) ? $input : array();
+    $available_chain_ids = array();
+    foreach ($available_chains as $chain) {
+        if (isset($chain['id']) && is_numeric($chain['id'])) {
+            $available_chain_ids[] = (int) $chain['id'];
+        }
+    }
+
+    $allowed_chain_ids = sqmu_app_sanitize_chain_id_list($profile_input['allowedChainIds'] ?? array(), $available_chains);
+    $fallback_tokens = isset($current['tokens']) && is_array($current['tokens'])
+        ? $current['tokens']
+        : $defaults['tokens'];
+
+    $fixed_amount = sanitize_text_field($profile_input['fixedAmount'] ?? $current['fixedAmount'] ?? $defaults['fixedAmount']);
+    if ($fixed_amount === '' || preg_match('/^\d+(\.\d{1,18})?$/', $fixed_amount) !== 1) {
+        sqmu_app_add_settings_notice(
+            'Consulting payment amount was invalid. The previous consulting payment amount was kept.',
+            'invalid_consulting_payment_amount'
+        );
+        $fixed_amount = $current['fixedAmount'] ?? $defaults['fixedAmount'];
+    }
+
+    $recipient_wallet = sanitize_text_field($profile_input['recipientWallet'] ?? $current['recipientWallet'] ?? $defaults['recipientWallet']);
+    if ($recipient_wallet !== '' && !sqmu_app_is_valid_address($recipient_wallet)) {
+        sqmu_app_add_settings_notice(
+            'Consulting payment recipient wallet must be a valid EVM address. The previous recipient wallet was kept.',
+            'invalid_consulting_payment_recipient'
+        );
+        $recipient_wallet = $current['recipientWallet'] ?? $defaults['recipientWallet'];
+    }
+
+    $tokens = sqmu_app_sanitize_consulting_payment_tokens(
+        $profile_input['tokens'] ?? null,
+        $allowed_chain_ids,
+        $fallback_tokens
+    );
+
+    return array(
+        'recipientWallet' => $recipient_wallet,
+        'fixedAmount' => $fixed_amount,
+        'receiptWebhookUrl' => esc_url_raw($profile_input['receiptWebhookUrl'] ?? $current['receiptWebhookUrl'] ?? $defaults['receiptWebhookUrl']),
+        'calendlyUrl' => esc_url_raw($profile_input['calendlyUrl'] ?? $current['calendlyUrl'] ?? $defaults['calendlyUrl']),
+        'allowedChainIds' => $allowed_chain_ids,
+        'tokens' => $tokens
+    );
+}
+
 function sqmu_app_sanitize_bool($value, $default = false) {
     if (is_bool($value)) {
         return $value;
@@ -371,6 +538,12 @@ function sqmu_app_sanitize_settings($input) {
     $app_input = isset($input['app']) && is_array($input['app']) ? $input['app'] : array();
     $contracts_input = isset($input['contracts']) && is_array($input['contracts']) ? $input['contracts'] : array();
 
+    $chains = sqmu_app_sanitize_chain_rows(
+        $input['chains'] ?? null,
+        $current['chains'] ?? $defaults['chains'],
+        $input['chains_json'] ?? ''
+    );
+
     return array(
         'version' => 1,
         'app' => array(
@@ -378,16 +551,18 @@ function sqmu_app_sanitize_settings($input) {
             'url' => esc_url_raw($app_input['url'] ?? $defaults['app']['url']),
             'infuraApiKey' => sanitize_text_field($app_input['infuraApiKey'] ?? '')
         ),
-        'chains' => sqmu_app_sanitize_chain_rows(
-            $input['chains'] ?? null,
-            $current['chains'] ?? $defaults['chains'],
-            $input['chains_json'] ?? ''
-        ),
+        'chains' => $chains,
         'contracts' => sqmu_app_sanitize_contracts($contracts_input, $defaults['contracts']),
         'paymentTokens' => sqmu_app_sanitize_payment_token_rows(
             $input['paymentTokens'] ?? null,
             $current['paymentTokens'] ?? $defaults['paymentTokens'],
             $input['payment_tokens_json'] ?? ''
+        ),
+        'consultingPayment' => sqmu_app_sanitize_consulting_payment_settings(
+            $input['consultingPayment'] ?? array(),
+            $defaults['consultingPayment'],
+            $current['consultingPayment'] ?? $defaults['consultingPayment'],
+            $chains
         ),
         'viewDefaults' => sqmu_app_sanitize_view_defaults($input['viewDefaults'] ?? array(), $defaults['viewDefaults'])
     );
@@ -477,6 +652,34 @@ function sqmu_app_get_payment_token_row_markup($index, $token = array()) {
     return (string) ob_get_clean();
 }
 
+function sqmu_app_get_consulting_payment_token_row_markup($index, $token = array(), $chains = array()) {
+    $option_name = esc_attr(SQMU_APP_OPTION_KEY);
+    $selected_chain_id = isset($token['chainId']) && is_numeric($token['chainId']) ? (int) $token['chainId'] : 0;
+
+    ob_start();
+    ?>
+    <tr data-sqmu-repeatable-item>
+        <td>
+            <select name="<?php echo $option_name; ?>[consultingPayment][tokens][<?php echo esc_attr($index); ?>][chainId]" data-sqmu-row-field="chainId">
+                <option value="">Select chain</option>
+                <?php foreach ($chains as $chain) : ?>
+                    <?php $chain_id = isset($chain['id']) ? (int) $chain['id'] : 0; ?>
+                    <option value="<?php echo esc_attr($chain_id); ?>" <?php selected($selected_chain_id, $chain_id); ?>>
+                        <?php echo esc_html(($chain['name'] ?? 'Chain') . ' (' . $chain_id . ')'); ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
+        </td>
+        <td><input name="<?php echo $option_name; ?>[consultingPayment][tokens][<?php echo esc_attr($index); ?>][address]" type="text" class="large-text code" value="<?php echo esc_attr($token['address'] ?? ''); ?>" data-sqmu-row-field="address" /></td>
+        <td><input name="<?php echo $option_name; ?>[consultingPayment][tokens][<?php echo esc_attr($index); ?>][symbol]" type="text" class="small-text" value="<?php echo esc_attr($token['symbol'] ?? ''); ?>" data-sqmu-row-field="symbol" /></td>
+        <td><input name="<?php echo $option_name; ?>[consultingPayment][tokens][<?php echo esc_attr($index); ?>][decimals]" type="number" class="small-text" value="<?php echo esc_attr($token['decimals'] ?? 18); ?>" data-sqmu-row-field="decimals" /></td>
+        <td><button type="button" class="button-link-delete" data-sqmu-repeatable-remove>Delete</button></td>
+    </tr>
+    <?php
+
+    return (string) ob_get_clean();
+}
+
 function sqmu_app_render_settings_page() {
     if (!current_user_can('manage_options')) {
         return;
@@ -489,11 +692,20 @@ function sqmu_app_render_settings_page() {
     $payment_tokens = !empty($settings['paymentTokens']) && is_array($settings['paymentTokens'])
         ? array_values($settings['paymentTokens'])
         : array();
+    $consulting_payment = isset($settings['consultingPayment']) && is_array($settings['consultingPayment'])
+        ? $settings['consultingPayment']
+        : sqmu_app_default_consulting_payment_settings();
+    $consulting_payment_tokens = !empty($consulting_payment['tokens']) && is_array($consulting_payment['tokens'])
+        ? array_values($consulting_payment['tokens'])
+        : array();
+    $consulting_chain_ids = !empty($consulting_payment['allowedChainIds']) && is_array($consulting_payment['allowedChainIds'])
+        ? array_map('intval', $consulting_payment['allowedChainIds'])
+        : array();
     ?>
     <div class="wrap">
         <h1>SQMU App Settings</h1>
         <?php settings_errors(SQMU_APP_OPTION_KEY); ?>
-        <p>Configure accepted chains, contract addresses, payment tokens, and per-view defaults for the shortcode-driven wallet application.</p>
+        <p>Configure accepted chains, contract addresses, payment tokens, the consulting payment profile, and per-view defaults for the shortcode-driven wallet application.</p>
         <p><strong>Property meta keys:</strong>
             <code><?php echo esc_html(SQMU_PROPERTY_CODE_META_KEY); ?></code>,
             <code><?php echo esc_html(SQMU_PROPERTY_TOKEN_ID_META_KEY); ?></code>,
@@ -723,6 +935,108 @@ function sqmu_app_render_settings_page() {
                 <template><?php echo sqmu_app_get_payment_token_row_markup('__INDEX__', array()); ?></template>
             </div>
 
+            <h2>Consulting payment</h2>
+            <p>Configure the direct stablecoin payment widget used by <code>[sqmu_payment]</code>. This profile controls the consulting payment recipient wallet, the fixed amount, the receipt webhook, the Calendly redirect, and the chain-specific stablecoin options shown to payers.</p>
+            <table class="form-table" role="presentation">
+                <tr>
+                    <th scope="row"><label for="sqmu-consulting-recipient">Recipient wallet</label></th>
+                    <td><input id="sqmu-consulting-recipient" name="<?php echo esc_attr(SQMU_APP_OPTION_KEY); ?>[consultingPayment][recipientWallet]" type="text" class="regular-text code" value="<?php echo esc_attr($consulting_payment['recipientWallet'] ?? ''); ?>" /></td>
+                </tr>
+                <tr>
+                    <th scope="row"><label for="sqmu-consulting-amount">Fixed amount</label></th>
+                    <td><input id="sqmu-consulting-amount" name="<?php echo esc_attr(SQMU_APP_OPTION_KEY); ?>[consultingPayment][fixedAmount]" type="text" class="small-text" value="<?php echo esc_attr($consulting_payment['fixedAmount'] ?? '95'); ?>" /></td>
+                </tr>
+                <tr>
+                    <th scope="row"><label for="sqmu-consulting-receipt-url">Receipt webhook URL</label></th>
+                    <td><input id="sqmu-consulting-receipt-url" name="<?php echo esc_attr(SQMU_APP_OPTION_KEY); ?>[consultingPayment][receiptWebhookUrl]" type="url" class="large-text" value="<?php echo esc_attr($consulting_payment['receiptWebhookUrl'] ?? ''); ?>" /></td>
+                </tr>
+                <tr>
+                    <th scope="row"><label for="sqmu-consulting-calendly-url">Calendly redirect URL</label></th>
+                    <td><input id="sqmu-consulting-calendly-url" name="<?php echo esc_attr(SQMU_APP_OPTION_KEY); ?>[consultingPayment][calendlyUrl]" type="url" class="large-text" value="<?php echo esc_attr($consulting_payment['calendlyUrl'] ?? ''); ?>" /></td>
+                </tr>
+                <tr>
+                    <th scope="row">Allowed chains</th>
+                    <td>
+                        <?php foreach ($chains as $chain) : ?>
+                            <?php $chain_id = isset($chain['id']) ? (int) $chain['id'] : 0; ?>
+                            <p>
+                                <label>
+                                    <input
+                                        type="checkbox"
+                                        name="<?php echo esc_attr(SQMU_APP_OPTION_KEY); ?>[consultingPayment][allowedChainIds][]"
+                                        value="<?php echo esc_attr($chain_id); ?>"
+                                        <?php checked(in_array($chain_id, $consulting_chain_ids, true)); ?>
+                                    />
+                                    <?php echo esc_html(($chain['name'] ?? 'Chain') . ' (' . $chain_id . ')'); ?>
+                                </label>
+                            </p>
+                        <?php endforeach; ?>
+                    </td>
+                </tr>
+            </table>
+
+            <h3>Consulting payment tokens</h3>
+            <p>Add a stablecoin for one of the allowed chains, then review or edit the saved chain-specific payment tokens in the table.</p>
+            <div data-sqmu-repeatable data-next-index="<?php echo esc_attr(count($consulting_payment_tokens)); ?>">
+                <div class="sqmu-add-grid sqmu-add-grid-tokens">
+                    <p>
+                        <label>
+                            Chain<br />
+                            <select class="regular-text" data-sqmu-add-field="chainId">
+                                <option value="">Select chain</option>
+                                <?php foreach ($chains as $chain) : ?>
+                                    <?php $chain_id = isset($chain['id']) ? (int) $chain['id'] : 0; ?>
+                                    <option value="<?php echo esc_attr($chain_id); ?>">
+                                        <?php echo esc_html(($chain['name'] ?? 'Chain') . ' (' . $chain_id . ')'); ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </label>
+                    </p>
+                    <p>
+                        <label>
+                            Token Address<br />
+                            <input type="text" class="large-text code" data-sqmu-add-field="address" />
+                        </label>
+                    </p>
+                    <p>
+                        <label>
+                            Symbol<br />
+                            <input type="text" class="small-text" data-sqmu-add-field="symbol" />
+                        </label>
+                    </p>
+                    <p>
+                        <label>
+                            Decimals<br />
+                            <input type="number" class="small-text" data-sqmu-add-field="decimals" value="18" />
+                        </label>
+                    </p>
+                </div>
+                <p class="sqmu-add-actions"><button type="button" class="button" data-sqmu-repeatable-add>Add consulting payment token</button></p>
+                <div class="sqmu-settings-table-wrap">
+                    <table class="widefat striped sqmu-settings-table">
+                        <thead>
+                            <tr>
+                                <th>Chain</th>
+                                <th>Address</th>
+                                <th>Symbol</th>
+                                <th>Decimals</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody data-sqmu-repeatable-list>
+                            <?php foreach ($consulting_payment_tokens as $index => $token) : ?>
+                                <?php echo sqmu_app_get_consulting_payment_token_row_markup($index, $token, $chains); ?>
+                            <?php endforeach; ?>
+                            <tr class="sqmu-empty-row" data-sqmu-empty-row hidden>
+                                <td colspan="5">No consulting payment tokens added yet.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <template><?php echo sqmu_app_get_consulting_payment_token_row_markup('__INDEX__', array(), $chains); ?></template>
+            </div>
+
             <h2>Per-view defaults</h2>
             <table class="form-table" role="presentation">
                 <?php foreach (sqmu_app_allowed_views() as $view) : ?>
@@ -864,7 +1178,7 @@ function sqmu_app_should_enqueue_assets() {
         if (!$post) {
             return false;
         }
-        return has_shortcode($post->post_content, 'sqmu_app');
+        return has_shortcode($post->post_content, 'sqmu_app') || has_shortcode($post->post_content, 'sqmu_payment');
     }
 
     return false;
@@ -1098,7 +1412,6 @@ function sqmu_app_validate_property_for_view($property, $view) {
 
 function sqmu_app_get_runtime_global_config($context = 'public') {
     $settings = sqmu_app_get_settings();
-    $catalog = sqmu_app_get_property_catalog();
 
     return array(
         'version' => 1,
@@ -1111,17 +1424,63 @@ function sqmu_app_get_runtime_global_config($context = 'public') {
         'currentUser' => array(
             'canManageOptions' => current_user_can('manage_options')
         ),
-        'chains' => $settings['chains'],
-        'contracts' => $settings['contracts'],
-        'paymentTokens' => $settings['paymentTokens'],
-        'viewDefaults' => $settings['viewDefaults'],
-        'properties' => $catalog['properties'],
-        'duplicatePropertyCodes' => $catalog['duplicateCodes']
+        'chains' => $settings['chains']
     );
 }
 
 function sqmu_app_build_mount_config($view, $property_code, $escrow_address = '', $context = 'public') {
     $settings = sqmu_app_get_settings();
+    if ($view === 'payment') {
+        $profile = isset($settings['consultingPayment']) && is_array($settings['consultingPayment'])
+            ? $settings['consultingPayment']
+            : sqmu_app_default_consulting_payment_settings();
+        $allowed_chain_ids = isset($profile['allowedChainIds']) && is_array($profile['allowedChainIds'])
+            ? array_map('intval', $profile['allowedChainIds'])
+            : array();
+        $payment_chains = array_values(
+            array_filter(
+                $settings['chains'],
+                static function ($chain) use ($allowed_chain_ids) {
+                    return isset($chain['id']) && in_array((int) $chain['id'], $allowed_chain_ids, true);
+                }
+            )
+        );
+        $payment_tokens = array_values(
+            array_filter(
+                isset($profile['tokens']) && is_array($profile['tokens']) ? $profile['tokens'] : array(),
+                static function ($token) use ($allowed_chain_ids) {
+                    return isset($token['chainId']) && in_array((int) $token['chainId'], $allowed_chain_ids, true);
+                }
+            )
+        );
+        $default_chain_id = !empty($payment_chains[0]['id'])
+            ? (int) $payment_chains[0]['id']
+            : (!empty($settings['chains'][0]['id']) ? (int) $settings['chains'][0]['id'] : 0);
+
+        return array(
+            'view' => 'payment',
+            'config' => array(
+                'version' => 1,
+                'context' => $context,
+                'app' => $settings['app'],
+                'currentUser' => array(
+                    'canManageOptions' => current_user_can('manage_options')
+                ),
+                'chains' => $payment_chains,
+                'defaultChainId' => $default_chain_id,
+                'consultingPayment' => array(
+                    'recipientWallet' => $profile['recipientWallet'] ?? '',
+                    'fixedAmount' => $profile['fixedAmount'] ?? '95',
+                    'receiptWebhookUrl' => $profile['receiptWebhookUrl'] ?? '',
+                    'calendlyUrl' => $profile['calendlyUrl'] ?? '',
+                    'allowedChainIds' => $allowed_chain_ids,
+                    'tokens' => $payment_tokens
+                )
+            ),
+            'errors' => array()
+        );
+    }
+
     $view_defaults = isset($settings['viewDefaults'][$view]) && is_array($settings['viewDefaults'][$view])
         ? $settings['viewDefaults'][$view]
         : $settings['viewDefaults']['buy'];
@@ -1285,6 +1644,21 @@ function sqmu_app_register_mount($atts) {
     return $html;
 }
 
+function sqmu_app_register_payment_mount() {
+    if (!isset($GLOBALS['sqmu_app_mounts'])) {
+        $GLOBALS['sqmu_app_mounts'] = array();
+    }
+
+    $mount_id = 'sqmu-payment-' . wp_generate_uuid4();
+    $GLOBALS['sqmu_app_mounts'][$mount_id] = sqmu_app_build_mount_config('payment', '', '', 'public');
+    $GLOBALS['sqmu_app_needs_assets'] = true;
+
+    return sprintf(
+        '<div id="%s" data-sqmu-app="1" data-sqmu-view="payment" class="sqmu-widget wp-block-group is-layout-flow"></div>',
+        esc_attr($mount_id)
+    );
+}
+
 function sqmu_app_shortcode($atts) {
     $atts = shortcode_atts(
         array(
@@ -1299,3 +1673,9 @@ function sqmu_app_shortcode($atts) {
     return sqmu_app_register_mount($atts);
 }
 add_shortcode('sqmu_app', 'sqmu_app_shortcode');
+
+function sqmu_payment_shortcode($atts) {
+    shortcode_atts(array(), $atts, 'sqmu_payment');
+    return sqmu_app_register_payment_mount();
+}
+add_shortcode('sqmu_payment', 'sqmu_payment_shortcode');

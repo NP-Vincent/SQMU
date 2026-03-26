@@ -14,7 +14,9 @@ WordPress-specific behavior inside plugin PHP code and wp-admin settings.
 
 ## Responsibilities In This Folder
 
-- Keep the primary shortcode mount stable: `[sqmu_app view="..." property_code="..." escrow_address="..."]`
+- Keep the public shortcode surfaces stable:
+  - `[sqmu_app view="..." property_code="..." escrow_address="..."]`
+  - `[sqmu_payment]`
 - Keep React + Wagmi wallet logic isolated inside the browser bundle
 - Keep WordPress-specific routing and config assembly in PHP/plugin boundaries
 - Maintain the normalized runtime config contract assembled from plugin settings
@@ -35,6 +37,7 @@ WordPress-specific behavior inside plugin PHP code and wp-admin settings.
 - Wallet target: MetaMask first, with generic injected EVM wallet support
 - WordPress integration surface: shortcode mounts plus a restricted wp-admin operations page
 - Configuration model: admin-driven, not page-authored JSON
+- Consulting payment model: direct ERC-20 wallet-to-wallet transfer plus receipt webhook and Calendly redirect
 
 ## Public Views
 
@@ -55,16 +58,19 @@ WordPress-specific behavior inside plugin PHP code and wp-admin settings.
 
 - Public shortcode:
   - `[sqmu_app view="buy|portfolio|crowdfund|rent|rent_distribution|escrow" property_code="OPTIONAL_CODE" escrow_address="OPTIONAL_ADDRESS"]`
+- Public shortcode:
+  - `[sqmu_payment]`
 - `view` selects the workflow
 - `property_code` is the explicit override when a page should force one property
 - `escrow_address` is only for loading an existing escrow instance in `view="escrow"`
 - Site operators configure chains, contracts, and tokens in wp-admin rather than in page content
 - On Estatik property pages, property-bound views should usually work without `property_code`
+- `sqmu_payment` uses a dedicated consulting payment profile in wp-admin instead of contract view settings
 
 ## wp-admin Surfaces
 
 - `Settings > SQMU App`
-  - Source of truth for chains, contracts, payment tokens, and per-view defaults
+  - Source of truth for chains, contracts, payment tokens, consulting payment configuration, and per-view defaults
 - `Settings > SQMU Operations`
   - Restricted administrator page
   - Uses the same frontend bundle

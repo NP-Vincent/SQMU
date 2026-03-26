@@ -94,6 +94,16 @@ const erc20Abi = [
     stateMutability: 'view',
     inputs: [],
     outputs: [{ name: '', type: 'string' }]
+  },
+  {
+    type: 'function',
+    name: 'transfer',
+    stateMutability: 'nonpayable',
+    inputs: [
+      { name: 'recipient', type: 'address' },
+      { name: 'amount', type: 'uint256' }
+    ],
+    outputs: [{ name: '', type: 'bool' }]
   }
 ];
 
@@ -104,6 +114,7 @@ const VIEW_TITLES = {
   rent: 'Property Rent',
   rent_distribution: 'Rent Distribution',
   escrow: 'Escrow Workspace',
+  payment: 'Consulting Payment',
   admin_ops: 'SQMU Contract Operations'
 };
 
@@ -111,6 +122,8 @@ const maskAddress = (value) =>
   value ? `${value.slice(0, 6)}...${value.slice(-4)}` : 'Not connected';
 
 const safeString = (value) => (typeof value === 'string' ? value.trim() : '');
+
+const isEmailAddress = (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(safeString(value));
 
 const uniqueStrings = (values) =>
   Array.from(new Set((Array.isArray(values) ? values : []).map((value) => safeString(value)).filter(Boolean)));
@@ -175,6 +188,18 @@ const formatTokenAmount = (value, decimals) => {
   } catch (error) {
     return '0';
   }
+};
+
+const buildTransactionLink = (chain, hash) => {
+  const txHash = safeString(hash);
+  if (!txHash) return '';
+
+  const blockExplorerUrl = safeString(chain?.blockExplorerUrl);
+  if (!blockExplorerUrl) {
+    return txHash;
+  }
+
+  return `${blockExplorerUrl.replace(/\/$/, '')}/tx/${txHash}`;
 };
 
 const calculateTokenAmount = (priceUsd18, sqmuAmountUnits, tokenDecimals) => {
@@ -279,6 +304,22 @@ const normalizeConfig = (config = {}) => {
     sell: config.features?.sell !== false
   };
 
+  const consultingPayment = {
+    recipientWallet: safeString(config.consultingPayment?.recipientWallet),
+    fixedAmount: safeString(config.consultingPayment?.fixedAmount) || '95',
+    receiptWebhookUrl: safeString(config.consultingPayment?.receiptWebhookUrl),
+    calendlyUrl: safeString(config.consultingPayment?.calendlyUrl),
+    allowedChainIds: uniqueStrings(config.consultingPayment?.allowedChainIds).map((value) => Number(value)).filter((value) => Number.isFinite(value)),
+    tokens: (Array.isArray(config.consultingPayment?.tokens) ? config.consultingPayment.tokens : [])
+      .map((token) => ({
+        chainId: Number(token?.chainId),
+        address: safeString(token?.address),
+        symbol: safeString(token?.symbol),
+        decimals: Number.isFinite(Number(token?.decimals)) ? Number(token.decimals) : undefined
+      }))
+      .filter((token) => Number.isFinite(token.chainId) && token.address)
+  };
+
   return {
     version,
     context: safeString(config.context) || 'public',
@@ -293,6 +334,7 @@ const normalizeConfig = (config = {}) => {
     properties,
     duplicatePropertyCodes: uniqueStrings(config.duplicatePropertyCodes),
     features,
+    consultingPayment,
     propertyCode: safeString(config.propertyCode),
     propertyLocked: Boolean(config.propertyLocked),
     propertyDiscovery: {
@@ -1619,6 +1661,235 @@ function CrowdfundView({ appConfig }) {
             <strong>
               {selectedPaymentToken && paymentQuote !== null
                 ? `${formatTokenAmount(paymentQuote, selectedPaymentToken.decimals)} ${selectedPaymentToken.symbol}`
+                : '—'}
+            </strong>
+          </div>
+        </div>
+        <p className="sqmu-status-line">{status}</p>
+      </Section>
+    </div>
+  );
+}
+
+function PaymentView({ appConfig }) {
+  const { address, isConnected, chainId } = useAccount();
+  const { data: walletClient } = useWalletClient();
+  const { switchChainAsync } = useSwitchChain();
+  const paymentConfig = appConfig.consultingPayment;
+  const allowedChains = useMemo(() => {
+    const configuredIds = paymentConfig.allowedChainIds.length
+      ? new Set(paymentConfig.allowedChainIds)
+      : new Set(appConfig.chains.map((chain) => chain.id));
+    return appConfig.chains.filter((chain) => configuredIds.has(chain.id));
+  }, [appConfig.chains, paymentConfig.allowedChainIds]);
+  const [selectedChainId, setSelectedChainId] = useState(() => {
+    if (allowedChains.some((chain) => chain.id === appConfig.defaultChainId)) {
+      return appConfig.defaultChainId;
+    }
+    return allowedChains[0]?.id ?? 0;
+  });
+  const [paymentTokenAddress, setPaymentTokenAddress] = useState('');
+  const [payerEmail, setPayerEmail] = useState('');
+  const [status, setStatus] = useState('Ready.');
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (!allowedChains.length) {
+      setSelectedChainId(0);
+      return;
+    }
+
+    if (!allowedChains.some((chain) => chain.id === selectedChainId)) {
+      if (allowedChains.some((chain) => chain.id === appConfig.defaultChainId)) {
+        setSelectedChainId(appConfig.defaultChainId);
+      } else {
+        setSelectedChainId(allowedChains[0]?.id ?? 0);
+      }
+    }
+  }, [allowedChains, appConfig.defaultChainId, selectedChainId]);
+
+  const selectedChain = allowedChains.find((chain) => chain.id === selectedChainId) ?? allowedChains[0] ?? null;
+  const paymentTokens = useMemo(() => {
+    return paymentConfig.tokens.filter((token) => token.chainId === selectedChainId);
+  }, [paymentConfig.tokens, selectedChainId]);
+
+  useEffect(() => {
+    if (!paymentTokens.length) {
+      setPaymentTokenAddress('');
+      return;
+    }
+
+    const hasSelectedToken = paymentTokens.some(
+      (token) => token.address.toLowerCase() === paymentTokenAddress.toLowerCase()
+    );
+
+    if (!hasSelectedToken) {
+      setPaymentTokenAddress(paymentTokens[0].address);
+    }
+  }, [paymentTokens, paymentTokenAddress]);
+
+  const selectedPaymentToken = paymentTokens.find(
+    (token) => token.address.toLowerCase() === paymentTokenAddress.toLowerCase()
+  ) ?? paymentTokens[0] ?? null;
+  const paymentAmountUnits = selectedPaymentToken
+    ? parseTokenUnits(paymentConfig.fixedAmount, selectedPaymentToken.decimals)
+    : null;
+  const publicClient = usePublicClient({ chainId: selectedChainId || undefined });
+
+  const { data: tokenBalance } = useReadContract({
+    address: selectedPaymentToken?.address,
+    abi: erc20Abi,
+    functionName: 'balanceOf',
+    args: [address ?? '0x0000000000000000000000000000000000000000'],
+    chainId: selectedChainId,
+    query: {
+      enabled: Boolean(selectedChainId && selectedPaymentToken?.address && address)
+    }
+  });
+
+  const submitPayment = async () => {
+    if (!selectedChain) {
+      setStatus('Select a configured payment network.');
+      return;
+    }
+    if (!selectedPaymentToken || paymentAmountUnits === null || paymentAmountUnits <= 0n) {
+      setStatus('Select a valid payment token and amount.');
+      return;
+    }
+    if (!isConnected || !address || !walletClient) {
+      setStatus('Connect a wallet before submitting payment.');
+      return;
+    }
+    if (!isEmailAddress(payerEmail)) {
+      setStatus('Enter a valid email address for the payment receipt.');
+      return;
+    }
+    if (!isAddress(paymentConfig.recipientWallet)) {
+      setStatus('The consulting payment recipient wallet is not configured correctly.');
+      return;
+    }
+    if (!paymentConfig.receiptWebhookUrl) {
+      setStatus('The consulting payment receipt webhook URL is missing.');
+      return;
+    }
+    if (!paymentConfig.calendlyUrl) {
+      setStatus('The consulting payment Calendly redirect URL is missing.');
+      return;
+    }
+    if (tokenBalance !== undefined && toBigInt(tokenBalance) < paymentAmountUnits) {
+      setStatus(`Insufficient ${selectedPaymentToken.symbol} balance for this payment.`);
+      return;
+    }
+
+    setBusy(true);
+    try {
+      if (chainId !== selectedChainId) {
+        if (!switchChainAsync) {
+          throw new Error(`Switch your wallet to ${selectedChain.name} before paying.`);
+        }
+
+        setStatus(`Switching wallet to ${selectedChain.name}...`);
+        await switchChainAsync({ chainId: selectedChainId });
+      }
+
+      setStatus(`Submitting ${selectedPaymentToken.symbol} transfer...`);
+      const txHash = await walletClient.writeContract({
+        address: selectedPaymentToken.address,
+        abi: erc20Abi,
+        functionName: 'transfer',
+        args: [paymentConfig.recipientWallet, paymentAmountUnits],
+        account: address
+      });
+      await publicClient.waitForTransactionReceipt({ hash: txHash });
+
+      const txLink = buildTransactionLink(selectedChain, txHash);
+      setStatus('Payment confirmed. Sending receipt...');
+      const receiptPayload = new URLSearchParams({
+        to_email: payerEmail,
+        tx_link: txLink,
+        usd: paymentConfig.fixedAmount,
+        token: selectedPaymentToken.symbol,
+        chain: selectedChain.name,
+        calendly_link: paymentConfig.calendlyUrl
+      });
+      const response = await fetch(paymentConfig.receiptWebhookUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8'
+        },
+        body: receiptPayload
+      });
+      const responseText = await response.text();
+
+      if (!response.ok || /^Error:/i.test(responseText.trim())) {
+        throw new Error(`Payment confirmed (${txHash}), but receipt delivery failed. ${responseText.trim() || ''}`.trim());
+      }
+
+      setStatus('Payment confirmed. Redirecting to Calendly...');
+      window.location.assign(paymentConfig.calendlyUrl);
+    } catch (error) {
+      setStatus(error?.shortMessage || error?.message || 'Payment failed.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="sqmu-stack">
+      <WalletPanel appConfig={appConfig} desiredChainId={selectedChainId || appConfig.defaultChainId} busy={busy} />
+      <Section
+        title="Stablecoin Payment"
+        help="This widget performs a direct ERC-20 transfer from the connected wallet to the configured consulting payment recipient, then sends a receipt and redirects to Calendly."
+        actions={
+          <button type="button" className="wp-element-button" onClick={submitPayment} disabled={busy}>
+            {busy ? 'Submitting...' : 'Pay & Schedule Call'}
+          </button>
+        }
+      >
+        <div className="sqmu-form-grid">
+          <Field label="Network">
+            <select value={selectedChainId} onChange={(event) => setSelectedChainId(Number(event.target.value))}>
+              {allowedChains.map((chain) => (
+                <option key={chain.id} value={chain.id}>
+                  {chain.name}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Token">
+            <select value={paymentTokenAddress} onChange={(event) => setPaymentTokenAddress(event.target.value)}>
+              {paymentTokens.map((token) => (
+                <option key={`${token.chainId}-${token.address}`} value={token.address}>
+                  {token.symbol}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Email for Receipt">
+            <input type="email" value={payerEmail} onChange={(event) => setPayerEmail(event.target.value)} placeholder="you@example.com" />
+          </Field>
+          <Field label="Amount">
+            <input value={paymentConfig.fixedAmount} readOnly />
+          </Field>
+        </div>
+        <div className="sqmu-stats">
+          <div className="sqmu-stat">
+            <span className="sqmu-stat-label">Recipient</span>
+            <strong>{paymentConfig.recipientWallet ? maskAddress(paymentConfig.recipientWallet) : '—'}</strong>
+          </div>
+          <div className="sqmu-stat">
+            <span className="sqmu-stat-label">Selected Chain</span>
+            <strong>{selectedChain?.name ?? '—'}</strong>
+          </div>
+          <div className="sqmu-stat">
+            <span className="sqmu-stat-label">Selected Token</span>
+            <strong>{selectedPaymentToken?.symbol ?? '—'}</strong>
+          </div>
+          <div className="sqmu-stat">
+            <span className="sqmu-stat-label">Wallet Balance</span>
+            <strong>
+              {selectedPaymentToken && tokenBalance !== undefined
+                ? `${formatTokenAmount(tokenBalance, selectedPaymentToken.decimals)} ${selectedPaymentToken.symbol}`
                 : '—'}
             </strong>
           </div>
@@ -3051,6 +3322,7 @@ function validateMountConfig(view, appConfig) {
     rent: ['rent'],
     rent_distribution: ['rentDistribution'],
     escrow: appConfig.escrowAddress ? [] : ['escrowFactory'],
+    payment: [],
     admin_ops: []
   };
 
@@ -3062,6 +3334,30 @@ function validateMountConfig(view, appConfig) {
 
   if (view === 'escrow' && appConfig.escrowAddress && !isAddress(appConfig.escrowAddress)) {
     issues.push('escrowAddress must be a valid address when provided for the escrow view.');
+  }
+
+  if (view === 'payment') {
+    if (!appConfig.consultingPayment.recipientWallet || !isAddress(appConfig.consultingPayment.recipientWallet)) {
+      issues.push('consultingPayment.recipientWallet must be a valid address.');
+    }
+    if (!appConfig.consultingPayment.fixedAmount || parseTokenUnits(appConfig.consultingPayment.fixedAmount, 18) === null) {
+      issues.push('consultingPayment.fixedAmount must be a valid numeric string.');
+    }
+    if (!appConfig.consultingPayment.receiptWebhookUrl) {
+      issues.push('consultingPayment.receiptWebhookUrl is required.');
+    }
+    if (!appConfig.consultingPayment.calendlyUrl) {
+      issues.push('consultingPayment.calendlyUrl is required.');
+    }
+    if (!appConfig.chains.length) {
+      issues.push('At least one consulting payment chain must be configured.');
+    }
+    if (!appConfig.consultingPayment.tokens.length) {
+      issues.push('At least one consulting payment token must be configured.');
+    }
+    if (!appConfig.consultingPayment.tokens.every((token) => appConfig.chains.some((chain) => chain.id === token.chainId))) {
+      issues.push('Each consulting payment token must reference one of the configured consulting payment chains.');
+    }
   }
 
   if (view === 'admin_ops' && !appConfig.currentUser.canManageOptions) {
@@ -3087,6 +3383,8 @@ function App({ mountConfig }) {
   let content = null;
   if (view === 'portfolio') {
     content = <PortfolioView appConfig={appConfig} />;
+  } else if (view === 'payment') {
+    content = <PaymentView appConfig={appConfig} />;
   } else if (view === 'crowdfund') {
     content = <CrowdfundView appConfig={appConfig} />;
   } else if (view === 'rent') {
