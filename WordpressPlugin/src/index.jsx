@@ -894,17 +894,10 @@ const hasMetaMaskProvider = () => {
 const getMetaMaskConnector = (connectors) =>
   connectors.find((connector) => connector.id === 'metaMaskSDK' || connector.name === 'MetaMask');
 
-const getInjectedConnector = (connectors, metaMaskConnector) =>
+const getInjectedFallbackConnector = (connectors, metaMaskConnector) =>
   connectors.find((connector) => connector.uid !== metaMaskConnector?.uid && connector.type === 'injected');
 
-function WalletPanel({
-  appConfig,
-  desiredChainId,
-  busy,
-  minimal = false,
-  connectorPreference = 'metaMaskFirst',
-  autoSwitchOnConnect = false
-}) {
+function WalletPanel({ appConfig, desiredChainId, busy, minimal = false }) {
   const { address, isConnected, chainId, connector: activeConnector } = useAccount();
   const { connectAsync, connectors, isPending: isConnecting, pendingConnector } = useConnect();
   const { disconnectAsync, isPending: isDisconnecting } = useDisconnect();
@@ -914,77 +907,34 @@ function WalletPanel({
     () => connectors.filter((connector, index) => connectors.findIndex((candidate) => candidate.id === connector.id) === index),
     [connectors]
   );
-  const { primaryConnector, secondaryConnector } = useMemo(() => {
+  const primaryConnector = useMemo(() => {
     const metaMaskConnector = getMetaMaskConnector(uniqueConnectors);
-    const injectedConnector = getInjectedConnector(uniqueConnectors, metaMaskConnector);
-
-    if (connectorPreference === 'injectedFirst') {
-      if (typeof window !== 'undefined' && window.ethereum) {
-        return {
-          primaryConnector: injectedConnector ?? metaMaskConnector ?? uniqueConnectors[0],
-          secondaryConnector: metaMaskConnector ?? uniqueConnectors[0] ?? null
-        };
-      }
-
-      return {
-        primaryConnector: injectedConnector ?? metaMaskConnector ?? uniqueConnectors[0],
-        secondaryConnector: metaMaskConnector ?? uniqueConnectors[0] ?? null
-      };
-    }
+    const injectedFallback = getInjectedFallbackConnector(uniqueConnectors, metaMaskConnector);
 
     if (hasMetaMaskProvider()) {
-      return {
-        primaryConnector: metaMaskConnector ?? injectedConnector ?? uniqueConnectors[0],
-        secondaryConnector: injectedConnector ?? uniqueConnectors[0] ?? null
-      };
+      return metaMaskConnector ?? injectedFallback ?? uniqueConnectors[0];
     }
 
     if (typeof window !== 'undefined' && window.ethereum) {
-      return {
-        primaryConnector: injectedConnector ?? metaMaskConnector ?? uniqueConnectors[0],
-        secondaryConnector: metaMaskConnector ?? uniqueConnectors[0] ?? null
-      };
+      return injectedFallback ?? metaMaskConnector ?? uniqueConnectors[0];
     }
 
-    return {
-      primaryConnector: metaMaskConnector ?? injectedConnector ?? uniqueConnectors[0],
-      secondaryConnector: injectedConnector ?? uniqueConnectors[0] ?? null
-    };
-  }, [connectorPreference, uniqueConnectors]);
+    return metaMaskConnector ?? injectedFallback ?? uniqueConnectors[0];
+  }, [uniqueConnectors]);
   const desiredChain = chains.find((chain) => chain.id === desiredChainId);
   const connectButtonLabel = isConnecting && pendingConnector?.uid === primaryConnector?.uid
     ? 'Connecting wallet...'
     : 'Connect Wallet';
 
   const handleConnect = async () => {
-    const connectorToUse = primaryConnector ?? secondaryConnector ?? null;
-    if (!connectorToUse) {
+    if (!primaryConnector) {
       setWalletStatus('No compatible wallet connector is available in this browser.');
       return;
     }
 
     setWalletStatus('');
     try {
-      const connection = await connectAsync({ connector: connectorToUse });
-
-      if (autoSwitchOnConnect && desiredChainId && connection?.chainId !== desiredChainId) {
-        if (!switchChainAsync) {
-          setWalletStatus(`Wallet connected. Switch to ${desiredChain?.name ?? `chain ${desiredChainId}`} before paying.`);
-          return;
-        }
-
-        try {
-          setWalletStatus(`Switching wallet to ${desiredChain?.name ?? `chain ${desiredChainId}`}...`);
-          await switchChainAsync({ chainId: desiredChainId });
-          setWalletStatus('');
-        } catch (error) {
-          setWalletStatus(
-            error?.shortMessage
-              || error?.message
-              || `Wallet connected, but switch to ${desiredChain?.name ?? `chain ${desiredChainId}`} was not completed.`
-          );
-        }
-      }
+      await connectAsync({ connector: primaryConnector });
     } catch (error) {
       setWalletStatus(error?.shortMessage || error?.message || 'Wallet connection failed.');
     }
@@ -1797,7 +1747,6 @@ function PaymentView({ appConfig }) {
   const selectedPaymentToken = paymentTokens.find(
     (token) => token.address.toLowerCase() === paymentTokenAddress.toLowerCase()
   ) ?? paymentTokens[0] ?? null;
-  const wrongPaymentChain = Boolean(isConnected && selectedChainId && chainId !== selectedChainId);
   const paymentAmountUnits = selectedPaymentToken
     ? parseTokenUnits(paymentConfig.fixedAmount, selectedPaymentToken.decimals)
     : null;
@@ -1931,8 +1880,6 @@ function PaymentView({ appConfig }) {
         desiredChainId={selectedChainId || appConfig.defaultChainId}
         busy={busy || isSwitchingPaymentChain}
         minimal
-        connectorPreference="injectedFirst"
-        autoSwitchOnConnect
       />
       <Section
         actions={
@@ -1940,7 +1887,7 @@ function PaymentView({ appConfig }) {
             type="button"
             className="wp-element-button"
             onClick={submitPayment}
-            disabled={busy || isSwitchingPaymentChain || wrongPaymentChain}
+            disabled={busy || isSwitchingPaymentChain}
           >
             {busy ? 'Submitting...' : 'Pay & Schedule Call'}
           </button>
