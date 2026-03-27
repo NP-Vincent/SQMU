@@ -892,54 +892,103 @@ const hasMetaMaskProvider = () => {
 const getMetaMaskConnector = (connectors) =>
   connectors.find((connector) => connector.id === 'metaMaskSDK' || connector.name === 'MetaMask');
 
-const getInjectedFallbackConnector = (connectors, metaMaskConnector) =>
+const getInjectedConnector = (connectors, metaMaskConnector) =>
   connectors.find((connector) => connector.uid !== metaMaskConnector?.uid && connector.type === 'injected');
 
-function WalletPanel({ appConfig, desiredChainId, busy }) {
+function WalletPanel({ appConfig, desiredChainId, busy, autoSwitchOnConnect = false }) {
   const { address, isConnected, chainId, connector: activeConnector } = useAccount();
   const { connectAsync, connectors, isPending: isConnecting, pendingConnector } = useConnect();
   const { disconnectAsync, isPending: isDisconnecting } = useDisconnect();
   const { chains, switchChainAsync, isPending: isSwitching } = useSwitchChain();
   const [walletStatus, setWalletStatus] = useState('');
+  const [showWalletChooser, setShowWalletChooser] = useState(false);
   const uniqueConnectors = useMemo(
     () => connectors.filter((connector, index) => connectors.findIndex((candidate) => candidate.id === connector.id) === index),
     [connectors]
   );
-  const primaryConnector = useMemo(() => {
+  const { primaryConnector, metaMaskConnector, injectedConnector } = useMemo(() => {
     const metaMaskConnector = getMetaMaskConnector(uniqueConnectors);
-    const injectedFallback = getInjectedFallbackConnector(uniqueConnectors, metaMaskConnector);
+    const injectedConnector = getInjectedConnector(uniqueConnectors, metaMaskConnector);
 
     if (hasMetaMaskProvider()) {
-      return metaMaskConnector ?? injectedFallback ?? uniqueConnectors[0];
+      return {
+        primaryConnector: metaMaskConnector ?? injectedConnector ?? uniqueConnectors[0],
+        metaMaskConnector,
+        injectedConnector
+      };
     }
 
     if (typeof window !== 'undefined' && window.ethereum) {
-      return injectedFallback ?? metaMaskConnector ?? uniqueConnectors[0];
+      return {
+        primaryConnector: injectedConnector ?? metaMaskConnector ?? uniqueConnectors[0],
+        metaMaskConnector,
+        injectedConnector
+      };
     }
 
-    return metaMaskConnector ?? injectedFallback ?? uniqueConnectors[0];
+    return {
+      primaryConnector: metaMaskConnector ?? injectedConnector ?? uniqueConnectors[0],
+      metaMaskConnector,
+      injectedConnector
+    };
   }, [uniqueConnectors]);
   const desiredChain = chains.find((chain) => chain.id === desiredChainId);
+  const walletChoices = [
+    { key: 'metaMask', label: 'MetaMask', connector: metaMaskConnector },
+    { key: 'browserWallet', label: 'Browser Wallet', connector: injectedConnector }
+  ];
   const connectButtonLabel = isConnecting && pendingConnector?.uid === primaryConnector?.uid
     ? 'Connecting wallet...'
     : 'Connect Wallet';
 
-  const handleConnect = async () => {
-    if (!primaryConnector) {
-      setWalletStatus('No compatible wallet connector is available in this browser.');
+  const maybeSwitchAfterConnect = async (connectedChainId) => {
+    if (!autoSwitchOnConnect || !desiredChainId || connectedChainId === desiredChainId) {
+      return;
+    }
+
+    if (!switchChainAsync) {
+      setWalletStatus(`Wallet connected. Switch to ${desiredChain?.name ?? `chain ${desiredChainId}`} before continuing.`);
+      return;
+    }
+
+    try {
+      setWalletStatus(`Switching wallet to ${desiredChain?.name ?? `chain ${desiredChainId}`}...`);
+      await switchChainAsync({ chainId: desiredChainId });
+      setWalletStatus('');
+    } catch (error) {
+      setWalletStatus(
+        error?.shortMessage
+          || error?.message
+          || `Wallet connected, but switch to ${desiredChain?.name ?? `chain ${desiredChainId}`} was not completed.`
+      );
+    }
+  };
+
+  const connectWithConnector = async (connector, label) => {
+    if (!connector) {
+      setWalletStatus(`${label} is not available in this browser.`);
+      setShowWalletChooser(true);
       return;
     }
 
     setWalletStatus('');
     try {
-      await connectAsync({ connector: primaryConnector });
+      const connection = await connectAsync({ connector });
+      setShowWalletChooser(false);
+      await maybeSwitchAfterConnect(connection?.chainId);
     } catch (error) {
-      setWalletStatus(error?.shortMessage || error?.message || 'Wallet connection failed.');
+      setWalletStatus(error?.shortMessage || error?.message || `${label} connection failed.`);
+      setShowWalletChooser(true);
     }
+  };
+
+  const handleConnect = async () => {
+    await connectWithConnector(primaryConnector, 'Wallet');
   };
 
   const handleDisconnect = async () => {
     setWalletStatus('');
+    setShowWalletChooser(false);
     try {
       if (activeConnector) {
         await disconnectAsync({ connector: activeConnector });
@@ -954,7 +1003,7 @@ function WalletPanel({ appConfig, desiredChainId, busy }) {
   return (
     <Section
       title="Wallet"
-      help="Connect Wallet uses MetaMask when available and falls back to the browser's injected EVM wallet when MetaMask is not present."
+      help="Connect Wallet uses the default wallet path for this browser. Choose wallet lets you explicitly use MetaMask or Browser Wallet."
       actions={
         <>
           {isConnected ? (
@@ -976,6 +1025,16 @@ function WalletPanel({ appConfig, desiredChainId, busy }) {
               {connectButtonLabel}
             </button>
           )}
+          {!isConnected ? (
+            <button
+              type="button"
+              className="sqmu-link-button"
+              onClick={() => setShowWalletChooser((value) => !value)}
+              disabled={busy || isConnecting}
+            >
+              {showWalletChooser ? 'Close wallet choices' : 'Choose wallet'}
+            </button>
+          ) : null}
           {isConnected && desiredChain && chainId !== desiredChainId ? (
             <button
               type="button"
@@ -1003,6 +1062,28 @@ function WalletPanel({ appConfig, desiredChainId, busy }) {
           <strong>{appConfig.context === 'admin' ? 'wp-admin' : 'Public page'}</strong>
         </div>
       </div>
+      {!isConnected && showWalletChooser ? (
+        <div className="sqmu-wallet-chooser" role="group" aria-label="Choose wallet">
+          <p className="sqmu-help">Pick a wallet explicitly when the default Connect Wallet path is not the one you want.</p>
+          <div className="sqmu-wallet-choice-list">
+            {walletChoices.map((choice) => (
+              <button
+                key={choice.key}
+                type="button"
+                className="sqmu-wallet-choice-button"
+                onClick={() => {
+                  void connectWithConnector(choice.connector, choice.label);
+                }}
+                disabled={busy || isConnecting}
+              >
+                {isConnecting && pendingConnector?.uid === choice.connector?.uid
+                  ? `Connecting ${choice.label}...`
+                  : choice.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : null}
       {walletStatus ? (
         <p className="sqmu-help" role="status">
           {walletStatus}
@@ -1674,7 +1755,7 @@ function CrowdfundView({ appConfig }) {
 function PaymentView({ appConfig }) {
   const { address, isConnected, chainId } = useAccount();
   const { data: walletClient } = useWalletClient();
-  const { switchChainAsync } = useSwitchChain();
+  const { switchChainAsync, isPending: isSwitchingPaymentChain } = useSwitchChain();
   const paymentConfig = appConfig.consultingPayment;
   const allowedChains = useMemo(() => {
     const configuredIds = paymentConfig.allowedChainIds.length
@@ -1731,6 +1812,7 @@ function PaymentView({ appConfig }) {
   const selectedPaymentToken = paymentTokens.find(
     (token) => token.address.toLowerCase() === paymentTokenAddress.toLowerCase()
   ) ?? paymentTokens[0] ?? null;
+  const wrongPaymentChain = Boolean(isConnected && selectedChainId && chainId !== selectedChainId);
   const paymentAmountUnits = selectedPaymentToken
     ? parseTokenUnits(paymentConfig.fixedAmount, selectedPaymentToken.decimals)
     : null;
@@ -1746,6 +1828,29 @@ function PaymentView({ appConfig }) {
       enabled: Boolean(selectedChainId && selectedPaymentToken?.address && address)
     }
   });
+
+  const handleChainChange = async (nextChainId) => {
+    setSelectedChainId(nextChainId);
+    setStatus('Ready.');
+
+    if (!isConnected || chainId === nextChainId) {
+      return;
+    }
+
+    if (!switchChainAsync) {
+      setStatus('Switch your wallet to the selected network before paying.');
+      return;
+    }
+
+    try {
+      const nextChain = allowedChains.find((chain) => chain.id === nextChainId);
+      setStatus(`Switching wallet to ${nextChain?.name ?? 'the selected network'}...`);
+      await switchChainAsync({ chainId: nextChainId });
+      setStatus('Ready.');
+    } catch (error) {
+      setStatus(error?.shortMessage || error?.message || 'Wallet network switch failed.');
+    }
+  };
 
   const submitPayment = async () => {
     if (!selectedChain) {
@@ -1836,19 +1941,35 @@ function PaymentView({ appConfig }) {
 
   return (
     <div className="sqmu-stack">
-      <WalletPanel appConfig={appConfig} desiredChainId={selectedChainId || appConfig.defaultChainId} busy={busy} />
+      <WalletPanel
+        appConfig={appConfig}
+        desiredChainId={selectedChainId || appConfig.defaultChainId}
+        busy={busy || isSwitchingPaymentChain}
+        autoSwitchOnConnect
+      />
       <Section
         title="Stablecoin Payment"
         help="This widget performs a direct ERC-20 transfer from the connected wallet to the configured consulting payment recipient, then sends a receipt and redirects to Calendly."
         actions={
-          <button type="button" className="wp-element-button" onClick={submitPayment} disabled={busy}>
+          <button
+            type="button"
+            className="wp-element-button"
+            onClick={submitPayment}
+            disabled={busy || isSwitchingPaymentChain || wrongPaymentChain}
+          >
             {busy ? 'Submitting...' : 'Pay & Schedule Call'}
           </button>
         }
       >
         <div className="sqmu-form-grid">
           <Field label="Network">
-            <select value={selectedChainId} onChange={(event) => setSelectedChainId(Number(event.target.value))}>
+            <select
+              value={selectedChainId}
+              onChange={(event) => {
+                void handleChainChange(Number(event.target.value));
+              }}
+              disabled={busy || isSwitchingPaymentChain}
+            >
               {allowedChains.map((chain) => (
                 <option key={chain.id} value={chain.id}>
                   {chain.name}
@@ -1857,7 +1978,11 @@ function PaymentView({ appConfig }) {
             </select>
           </Field>
           <Field label="Token">
-            <select value={paymentTokenAddress} onChange={(event) => setPaymentTokenAddress(event.target.value)}>
+            <select
+              value={paymentTokenAddress}
+              onChange={(event) => setPaymentTokenAddress(event.target.value)}
+              disabled={busy || isSwitchingPaymentChain}
+            >
               {paymentTokens.map((token) => (
                 <option key={`${token.chainId}-${token.address}`} value={token.address}>
                   {token.symbol}
@@ -1866,7 +1991,13 @@ function PaymentView({ appConfig }) {
             </select>
           </Field>
           <Field label="Email for Receipt">
-            <input type="email" value={payerEmail} onChange={(event) => setPayerEmail(event.target.value)} placeholder="you@example.com" />
+            <input
+              type="email"
+              value={payerEmail}
+              onChange={(event) => setPayerEmail(event.target.value)}
+              placeholder="you@example.com"
+              disabled={busy || isSwitchingPaymentChain}
+            />
           </Field>
           <Field label="Amount">
             <input value={paymentConfig.fixedAmount} readOnly />
