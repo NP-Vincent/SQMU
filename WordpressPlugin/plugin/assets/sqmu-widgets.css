@@ -167,12 +167,17 @@
 }
 
 .sqmu-widget .sqmu-wallet-choice-list {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
   gap: 0.65rem;
 }
 
 .sqmu-widget .sqmu-wallet-choice-button {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.65rem;
+  width: 100%;
   min-height: 40px;
   padding: 0.65rem 0.9rem;
   border: 1px solid color-mix(in srgb, currentColor 18%, transparent);
@@ -180,6 +185,21 @@
   background: transparent;
   color: inherit;
   font: inherit;
+  text-align: left;
+}
+
+.sqmu-widget .sqmu-wallet-choice-icon {
+  width: 1.25rem;
+  height: 1.25rem;
+  flex: 0 0 1.25rem;
+  border-radius: 999px;
+  object-fit: contain;
+}
+
+.sqmu-widget .sqmu-wallet-choice-label {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
 }
 
 .sqmu-widget .sqmu-link-button {

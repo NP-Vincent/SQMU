@@ -914,6 +914,15 @@ const getBrowserWalletLabel = (connector) => {
   return 'Browser Wallet';
 };
 
+const getConnectorIcon = (connector) => {
+  if (!connector || typeof connector.icon !== 'string') return '';
+  const icon = connector.icon.trim();
+  if (!icon) return '';
+  if (icon.startsWith('data:image/')) return icon;
+  if (icon.startsWith('http://') || icon.startsWith('https://')) return icon;
+  return '';
+};
+
 function WalletPanel({ appConfig, desiredChainId, busy, autoSwitchOnConnect = false }) {
   const { address, isConnected, chainId, connector: activeConnector } = useConnection();
   const connect = useConnect();
@@ -973,14 +982,20 @@ function WalletPanel({ appConfig, desiredChainId, busy, autoSwitchOnConnect = fa
     const choices = [];
 
     if (metaMaskConnector) {
-      choices.push({ key: 'metaMask', label: 'MetaMask', connector: metaMaskConnector });
+      choices.push({
+        key: 'metaMask',
+        label: 'MetaMask',
+        connector: metaMaskConnector,
+        icon: getConnectorIcon(metaMaskConnector)
+      });
     }
 
     specificInjectedConnectors.forEach((connector) => {
       choices.push({
         key: connector.uid,
         label: getBrowserWalletLabel(connector),
-        connector
+        connector,
+        icon: getConnectorIcon(connector)
       });
     });
 
@@ -988,7 +1003,8 @@ function WalletPanel({ appConfig, desiredChainId, busy, autoSwitchOnConnect = fa
       choices.push({
         key: genericInjectedConnector.uid,
         label: 'Browser Wallet',
-        connector: genericInjectedConnector
+        connector: genericInjectedConnector,
+        icon: getConnectorIcon(genericInjectedConnector)
       });
     }
 
@@ -1128,9 +1144,19 @@ function WalletPanel({ appConfig, desiredChainId, busy, autoSwitchOnConnect = fa
                 }}
                 disabled={busy || connect.isPending}
               >
-                {connect.isPending && connect.variables?.connector?.uid === choice.connector?.uid
-                  ? `Connecting ${choice.label}...`
-                  : choice.label}
+                {choice.icon ? (
+                  <img
+                    className="sqmu-wallet-choice-icon"
+                    src={choice.icon}
+                    alt=""
+                    aria-hidden="true"
+                  />
+                ) : null}
+                <span className="sqmu-wallet-choice-label">
+                  {connect.isPending && connect.variables?.connector?.uid === choice.connector?.uid
+                    ? `Connecting ${choice.label}...`
+                    : choice.label}
+                </span>
               </button>
             ))}
           </div>
