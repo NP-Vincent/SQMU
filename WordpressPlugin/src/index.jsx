@@ -1138,11 +1138,13 @@ function WalletPanel({ appConfig, desiredChainId, busy, autoSwitchOnConnect = fa
               <button
                 key={choice.key}
                 type="button"
-                className="sqmu-wallet-choice-button"
+                className={`sqmu-wallet-choice-button${choice.icon ? ' is-icon-only' : ''}`}
                 onClick={() => {
                   void connectWithConnector(choice.connector, choice.label);
                 }}
                 disabled={busy || connect.isPending}
+                aria-label={choice.label}
+                title={choice.label}
               >
                 {choice.icon ? (
                   <img
@@ -1152,11 +1154,7 @@ function WalletPanel({ appConfig, desiredChainId, busy, autoSwitchOnConnect = fa
                     aria-hidden="true"
                   />
                 ) : null}
-                <span className="sqmu-wallet-choice-label">
-                  {connect.isPending && connect.variables?.connector?.uid === choice.connector?.uid
-                    ? `Connecting ${choice.label}...`
-                    : choice.label}
-                </span>
+                {!choice.icon ? <span className="sqmu-wallet-choice-label">{choice.label}</span> : null}
               </button>
             ))}
           </div>

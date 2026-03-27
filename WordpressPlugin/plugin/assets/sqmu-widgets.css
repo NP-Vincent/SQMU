@@ -188,6 +188,10 @@
   text-align: left;
 }
 
+.sqmu-widget .sqmu-wallet-choice-button.is-icon-only {
+  justify-content: center;
+}
+
 .sqmu-widget .sqmu-wallet-choice-icon {
   width: 1.25rem;
   height: 1.25rem;
