@@ -50,6 +50,28 @@ const wagmiConfigCache = new Map();
 const queryClientCache = new Map();
 const rootCache = new WeakMap();
 
+const isMobileUserAgent = () => {
+  if (typeof navigator === 'undefined') {
+    return false;
+  }
+
+  return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent || '');
+};
+
+const openMetaMaskMobileLink = (link) => {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  // In plain mobile browsers, same-tab deeplinks are more reliable than pop-up tabs.
+  if (isMobileUserAgent() && !window.ethereum) {
+    window.location.assign(link);
+    return;
+  }
+
+  window.open(link, '_blank', 'noopener,noreferrer');
+};
+
 const erc20Abi = [
   {
     type: 'function',
@@ -593,9 +615,7 @@ const getWagmiConfig = (appConfig) => {
     mobile: {
       useDeeplink: true,
       preferredOpenLink: (link) => {
-        if (typeof window !== 'undefined') {
-          window.open(link, '_blank', 'noopener,noreferrer');
-        }
+        openMetaMaskMobileLink(link);
       }
     }
   };
