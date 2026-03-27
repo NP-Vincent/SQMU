@@ -588,11 +588,7 @@ const getWagmiConfig = (appConfig) => {
   } else {
     connectors.push(metaMask());
   }
-  connectors.push(
-    injected({
-      target: 'injected'
-    })
-  );
+  connectors.push(injected());
 
   const config = createConfig({
     chains,
@@ -892,8 +888,17 @@ const hasMetaMaskProvider = () => {
 const getMetaMaskConnector = (connectors) =>
   connectors.find((connector) => connector.id === 'metaMaskSDK' || connector.name === 'MetaMask');
 
-const getInjectedConnector = (connectors, metaMaskConnector) =>
-  connectors.find((connector) => connector.uid !== metaMaskConnector?.uid && connector.type === 'injected');
+const getInjectedConnector = (connectors, metaMaskConnector) => {
+  const injectedConnectors = connectors.filter(
+    (connector) => connector.uid !== metaMaskConnector?.uid && connector.type === 'injected'
+  );
+
+  return (
+    injectedConnectors.find((connector) => connector.id !== 'injected')
+    ?? injectedConnectors.find((connector) => connector.id === 'injected')
+    ?? null
+  );
+};
 
 function WalletPanel({ appConfig, desiredChainId, busy, autoSwitchOnConnect = false }) {
   const { address, isConnected, chainId, connector: activeConnector } = useAccount();
