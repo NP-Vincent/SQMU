@@ -1137,6 +1137,12 @@ function WalletPanel({ appConfig, desiredChainId, busy, autoSwitchOnConnect = fa
 
       finished = true;
       connectAttemptRef.current += 1;
+      const pendingConnector = connect.variables?.connector;
+      if (pendingConnector?.id === 'metaMaskSDK' && typeof pendingConnector.disconnect === 'function') {
+        void pendingConnector.disconnect().catch(() => {
+          // Ignore best-effort cleanup errors for cancelled mobile deeplink attempts.
+        });
+      }
       clearMobileDeepLinkAttempt();
       connect.reset();
       setWalletStatus(message);
@@ -1172,7 +1178,7 @@ function WalletPanel({ appConfig, desiredChainId, busy, autoSwitchOnConnect = fa
       if (!finished && document.visibilityState === 'visible' && !mobileDeepLinkAttemptRef.current.hasHidden && connect.isPending && !isConnected) {
         cancelAttempt('MetaMask did not open. Tap Connect Wallet to try again.');
       }
-    }, 2500);
+    }, 4500);
 
     const overallTimeout = window.setTimeout(() => {
       if (!finished && connect.isPending && !isConnected) {
