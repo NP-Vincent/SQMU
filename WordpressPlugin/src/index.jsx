@@ -901,16 +901,19 @@ const hasMetaMaskProvider = () => {
 const getMetaMaskConnector = (connectors) =>
   connectors.find((connector) => connector.id === 'metaMaskSDK' || connector.name === 'MetaMask');
 
-const getInjectedConnector = (connectors, metaMaskConnector) => {
-  const injectedConnectors = connectors.filter(
-    (connector) => connector.uid !== metaMaskConnector?.uid && connector.type === 'injected'
-  );
+const getInjectedConnectors = (connectors, metaMaskConnector) =>
+  connectors.filter((connector) => connector.uid !== metaMaskConnector?.uid && connector.type === 'injected');
 
-  return (
-    injectedConnectors.find((connector) => connector.id !== 'injected')
-    ?? injectedConnectors.find((connector) => connector.id === 'injected')
-    ?? null
-  );
+const getSpecificInjectedConnectors = (connectors) =>
+  connectors.filter((connector) => connector.id !== 'injected');
+
+const getGenericInjectedConnector = (connectors) =>
+  connectors.find((connector) => connector.id === 'injected') ?? null;
+
+const getBrowserWalletLabel = (connector) => {
+  if (!connector) return 'Browser Wallet';
+  if (connector.name && connector.name !== 'Injected') return connector.name;
+  return 'Browser Wallet';
 };
 
 function WalletPanel({ appConfig, desiredChainId, busy, autoSwitchOnConnect = false }) {
@@ -926,15 +929,26 @@ function WalletPanel({ appConfig, desiredChainId, busy, autoSwitchOnConnect = fa
     () => connectors.filter((connector, index) => connectors.findIndex((candidate) => candidate.id === connector.id) === index),
     [connectors]
   );
-  const { primaryConnector, metaMaskConnector, injectedConnector } = useMemo(() => {
+  const {
+    primaryConnector,
+    metaMaskConnector,
+    injectedConnector,
+    specificInjectedConnectors,
+    genericInjectedConnector
+  } = useMemo(() => {
     const metaMaskConnector = getMetaMaskConnector(uniqueConnectors);
-    const injectedConnector = getInjectedConnector(uniqueConnectors, metaMaskConnector);
+    const injectedConnectors = getInjectedConnectors(uniqueConnectors, metaMaskConnector);
+    const specificInjectedConnectors = getSpecificInjectedConnectors(injectedConnectors);
+    const genericInjectedConnector = getGenericInjectedConnector(injectedConnectors);
+    const injectedConnector = specificInjectedConnectors[0] ?? genericInjectedConnector ?? null;
 
     if (hasMetaMaskProvider()) {
       return {
         primaryConnector: metaMaskConnector ?? injectedConnector ?? uniqueConnectors[0],
         metaMaskConnector,
-        injectedConnector
+        injectedConnector,
+        specificInjectedConnectors,
+        genericInjectedConnector
       };
     }
 
@@ -942,21 +956,46 @@ function WalletPanel({ appConfig, desiredChainId, busy, autoSwitchOnConnect = fa
       return {
         primaryConnector: injectedConnector ?? metaMaskConnector ?? uniqueConnectors[0],
         metaMaskConnector,
-        injectedConnector
+        injectedConnector,
+        specificInjectedConnectors,
+        genericInjectedConnector
       };
     }
 
     return {
       primaryConnector: metaMaskConnector ?? injectedConnector ?? uniqueConnectors[0],
       metaMaskConnector,
-      injectedConnector
+      injectedConnector,
+      specificInjectedConnectors,
+      genericInjectedConnector
     };
   }, [uniqueConnectors]);
   const desiredChain = chains.find((chain) => chain.id === desiredChainId);
-  const walletChoices = [
-    { key: 'metaMask', label: 'MetaMask', connector: metaMaskConnector },
-    { key: 'browserWallet', label: 'Browser Wallet', connector: injectedConnector }
-  ];
+  const walletChoices = useMemo(() => {
+    const choices = [];
+
+    if (metaMaskConnector) {
+      choices.push({ key: 'metaMask', label: 'MetaMask', connector: metaMaskConnector });
+    }
+
+    specificInjectedConnectors.forEach((connector) => {
+      choices.push({
+        key: connector.uid,
+        label: getBrowserWalletLabel(connector),
+        connector
+      });
+    });
+
+    if (!specificInjectedConnectors.length && genericInjectedConnector) {
+      choices.push({
+        key: genericInjectedConnector.uid,
+        label: 'Browser Wallet',
+        connector: genericInjectedConnector
+      });
+    }
+
+    return choices;
+  }, [metaMaskConnector, specificInjectedConnectors, genericInjectedConnector]);
   const connectButtonLabel = connect.isPending && connect.variables?.connector?.uid === primaryConnector?.uid
     ? 'Connecting wallet...'
     : 'Connect Wallet';
@@ -1023,7 +1062,7 @@ function WalletPanel({ appConfig, desiredChainId, busy, autoSwitchOnConnect = fa
   return (
     <Section
       title="Wallet"
-      help="Connect Wallet uses the default wallet path for this browser. Choose wallet lets you explicitly use MetaMask or Browser Wallet."
+      help="Connect Wallet uses the default wallet path for this browser. Choose wallet lets you explicitly pick MetaMask or another detected browser wallet."
       actions={
         <>
           {isConnected ? (
@@ -1049,7 +1088,9 @@ function WalletPanel({ appConfig, desiredChainId, busy, autoSwitchOnConnect = fa
             <button
               type="button"
               className="sqmu-link-button"
-              onClick={() => setShowWalletChooser((value) => !value)}
+              onClick={() => {
+                setShowWalletChooser((value) => !value);
+              }}
               disabled={busy || connect.isPending}
             >
               {showWalletChooser ? 'Close wallet choices' : 'Choose wallet'}
@@ -1102,6 +1143,7 @@ function WalletPanel({ appConfig, desiredChainId, busy, autoSwitchOnConnect = fa
               </button>
             ))}
           </div>
+          <p className="sqmu-help">Only wallets exposed to this page by the browser or EIP-6963 can appear here.</p>
         </div>
       ) : null}
       {walletStatus ? (
