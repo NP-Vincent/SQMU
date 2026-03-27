@@ -1,4 +1,4 @@
-import React, { StrictMode, useEffect, useMemo, useState } from 'react';
+import React, { StrictMode, useEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
@@ -952,6 +952,9 @@ function WalletPanel({ appConfig, desiredChainId, busy, autoSwitchOnConnect = fa
   const switchChain = useSwitchChain();
   const [walletStatus, setWalletStatus] = useState('');
   const [showWalletChooser, setShowWalletChooser] = useState(false);
+  const [mobileDeepLinkAttemptId, setMobileDeepLinkAttemptId] = useState(0);
+  const connectAttemptRef = useRef(0);
+  const mobileDeepLinkAttemptRef = useRef({ id: 0, hasHidden: false });
   const uniqueConnectors = useMemo(
     () => connectors.filter((connector, index) => connectors.findIndex((candidate) => candidate.id === connector.id) === index),
     [connectors]
@@ -1034,6 +1037,14 @@ function WalletPanel({ appConfig, desiredChainId, busy, autoSwitchOnConnect = fa
     ? 'Connecting wallet...'
     : 'Connect Wallet';
 
+  const isMetaMaskMobileDeepLinkContext = (connector) =>
+    connector?.id === 'metaMaskSDK' && isMobileUserAgent() && typeof window !== 'undefined' && !window.ethereum;
+
+  const clearMobileDeepLinkAttempt = () => {
+    mobileDeepLinkAttemptRef.current = { id: 0, hasHidden: false };
+    setMobileDeepLinkAttemptId(0);
+  };
+
   const maybeSwitchAfterConnect = async (connectedChainId) => {
     if (!autoSwitchOnConnect || !desiredChainId || connectedChainId === desiredChainId) {
       return;
@@ -1064,12 +1075,31 @@ function WalletPanel({ appConfig, desiredChainId, busy, autoSwitchOnConnect = fa
       return;
     }
 
+    const attemptId = connectAttemptRef.current + 1;
+    connectAttemptRef.current = attemptId;
     setWalletStatus('');
+    if (isMetaMaskMobileDeepLinkContext(connector)) {
+      mobileDeepLinkAttemptRef.current = { id: attemptId, hasHidden: false };
+      setMobileDeepLinkAttemptId(attemptId);
+      setWalletStatus('Open MetaMask to continue.');
+    } else {
+      clearMobileDeepLinkAttempt();
+    }
+
     try {
       const connection = await connect.mutateAsync({ connector });
+      if (connectAttemptRef.current !== attemptId) {
+        return;
+      }
+      clearMobileDeepLinkAttempt();
+      setWalletStatus('');
       setShowWalletChooser(false);
       await maybeSwitchAfterConnect(connection?.chainId);
     } catch (error) {
+      if (connectAttemptRef.current !== attemptId) {
+        return;
+      }
+      clearMobileDeepLinkAttempt();
       setWalletStatus(error?.shortMessage || error?.message || `${label} connection failed.`);
       setShowWalletChooser(true);
     }
@@ -1082,6 +1112,7 @@ function WalletPanel({ appConfig, desiredChainId, busy, autoSwitchOnConnect = fa
   const handleDisconnect = async () => {
     setWalletStatus('');
     setShowWalletChooser(false);
+    clearMobileDeepLinkAttempt();
     try {
       if (activeConnector) {
         await disconnect.mutateAsync({ connector: activeConnector });
@@ -1092,6 +1123,74 @@ function WalletPanel({ appConfig, desiredChainId, busy, autoSwitchOnConnect = fa
       setWalletStatus(error?.shortMessage || error?.message || 'Wallet disconnect failed.');
     }
   };
+
+  useEffect(() => {
+    if (!mobileDeepLinkAttemptId || !connect.isPending || isConnected) {
+      return undefined;
+    }
+
+    let finished = false;
+    const cancelAttempt = (message) => {
+      if (finished || connectAttemptRef.current !== mobileDeepLinkAttemptId) {
+        return;
+      }
+
+      finished = true;
+      connectAttemptRef.current += 1;
+      clearMobileDeepLinkAttempt();
+      connect.reset();
+      setWalletStatus(message);
+      setShowWalletChooser(true);
+    };
+
+    const scheduleReturnCheck = (delay = 700) => {
+      window.setTimeout(() => {
+        if (!finished && connect.isPending && !isConnected) {
+          cancelAttempt('MetaMask connection was not completed. Tap Connect Wallet to try again.');
+        }
+      }, delay);
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        mobileDeepLinkAttemptRef.current.hasHidden = true;
+        return;
+      }
+
+      if (mobileDeepLinkAttemptRef.current.hasHidden) {
+        scheduleReturnCheck();
+      }
+    };
+
+    const handlePageShow = () => {
+      if (mobileDeepLinkAttemptRef.current.hasHidden) {
+        scheduleReturnCheck();
+      }
+    };
+
+    const stayedVisibleTimeout = window.setTimeout(() => {
+      if (!finished && document.visibilityState === 'visible' && !mobileDeepLinkAttemptRef.current.hasHidden && connect.isPending && !isConnected) {
+        cancelAttempt('MetaMask did not open. Tap Connect Wallet to try again.');
+      }
+    }, 2500);
+
+    const overallTimeout = window.setTimeout(() => {
+      if (!finished && connect.isPending && !isConnected) {
+        cancelAttempt('MetaMask connection timed out. Tap Connect Wallet to try again.');
+      }
+    }, 20000);
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('pageshow', handlePageShow);
+
+    return () => {
+      finished = true;
+      window.clearTimeout(stayedVisibleTimeout);
+      window.clearTimeout(overallTimeout);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('pageshow', handlePageShow);
+    };
+  }, [mobileDeepLinkAttemptId, connect, isConnected]);
 
   return (
     <Section
