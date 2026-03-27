@@ -5,8 +5,11 @@ import {
   WagmiProvider,
   createConfig,
   http,
-  useAccount,
+  injected,
+  useChains,
+  useConnection,
   useConnect,
+  useConnectors,
   useDisconnect,
   usePublicClient,
   useReadContract,
@@ -14,7 +17,7 @@ import {
   useSwitchChain,
   useWalletClient
 } from 'wagmi';
-import { injected, metaMask } from 'wagmi/connectors';
+import { metaMask } from './metamaskConnector.js';
 import { defineChain, formatUnits, isAddress, parseUnits } from 'viem';
 import { defaultCrowdfundAddress, crowdfundAbi } from './contracts/crowdfund.js';
 import { defaultDistributorAddress, distributorAbi } from './contracts/atomicDistributor.js';
@@ -582,12 +585,22 @@ const getWagmiConfig = (appConfig) => {
     transports[chain.id] = rpcUrl ? http(rpcUrl) : http();
   });
 
+  const metaMaskOptions = {
+    dapp: {
+      name: safeString(appConfig.app.name) || 'SQMU Wallet',
+      url: safeString(appConfig.app.url) || (typeof window !== 'undefined' ? window.location.origin : 'https://sqmu.net')
+    },
+    mobile: {
+      useDeeplink: true,
+      preferredOpenLink: (link) => {
+        if (typeof window !== 'undefined') {
+          window.open(link, '_blank', 'noopener,noreferrer');
+        }
+      }
+    }
+  };
   const connectors = [];
-  if (appConfig.app.infuraApiKey) {
-    connectors.push(metaMask({ infuraAPIKey: appConfig.app.infuraApiKey }));
-  } else {
-    connectors.push(metaMask());
-  }
+  connectors.push(metaMask(metaMaskOptions));
   connectors.push(injected());
 
   const config = createConfig({
@@ -704,9 +717,9 @@ function usePropertyInfoMap(appConfig, propertyCodes) {
 }
 
 function useAppWallet(appConfig) {
-  const { address, isConnected, chainId } = useAccount();
+  const { address, isConnected, chainId } = useConnection();
   const { data: walletClient } = useWalletClient();
-  const { switchChainAsync } = useSwitchChain();
+  const switchChain = useSwitchChain();
   const publicClient = usePublicClient({ chainId: appConfig.defaultChainId });
 
   const ensureReady = async () => {
@@ -714,10 +727,10 @@ function useAppWallet(appConfig) {
       throw new Error('Connect a wallet before submitting this action.');
     }
     if (chainId !== appConfig.defaultChainId) {
-      if (!switchChainAsync) {
+      if (!switchChain) {
         throw new Error('Switch to the configured chain in your wallet.');
       }
-      await switchChainAsync({ chainId: appConfig.defaultChainId });
+      await switchChain.mutateAsync({ chainId: appConfig.defaultChainId });
     }
   };
 
@@ -901,10 +914,12 @@ const getInjectedConnector = (connectors, metaMaskConnector) => {
 };
 
 function WalletPanel({ appConfig, desiredChainId, busy, autoSwitchOnConnect = false }) {
-  const { address, isConnected, chainId, connector: activeConnector } = useAccount();
-  const { connectAsync, connectors, isPending: isConnecting, pendingConnector } = useConnect();
-  const { disconnectAsync, isPending: isDisconnecting } = useDisconnect();
-  const { chains, switchChainAsync, isPending: isSwitching } = useSwitchChain();
+  const { address, isConnected, chainId, connector: activeConnector } = useConnection();
+  const connect = useConnect();
+  const connectors = useConnectors();
+  const disconnect = useDisconnect();
+  const chains = useChains();
+  const switchChain = useSwitchChain();
   const [walletStatus, setWalletStatus] = useState('');
   const [showWalletChooser, setShowWalletChooser] = useState(false);
   const uniqueConnectors = useMemo(
@@ -942,7 +957,7 @@ function WalletPanel({ appConfig, desiredChainId, busy, autoSwitchOnConnect = fa
     { key: 'metaMask', label: 'MetaMask', connector: metaMaskConnector },
     { key: 'browserWallet', label: 'Browser Wallet', connector: injectedConnector }
   ];
-  const connectButtonLabel = isConnecting && pendingConnector?.uid === primaryConnector?.uid
+  const connectButtonLabel = connect.isPending && connect.variables?.connector?.uid === primaryConnector?.uid
     ? 'Connecting wallet...'
     : 'Connect Wallet';
 
@@ -951,14 +966,14 @@ function WalletPanel({ appConfig, desiredChainId, busy, autoSwitchOnConnect = fa
       return;
     }
 
-    if (!switchChainAsync) {
+    if (!switchChain) {
       setWalletStatus(`Wallet connected. Switch to ${desiredChain?.name ?? `chain ${desiredChainId}`} before continuing.`);
       return;
     }
 
     try {
       setWalletStatus(`Switching wallet to ${desiredChain?.name ?? `chain ${desiredChainId}`}...`);
-      await switchChainAsync({ chainId: desiredChainId });
+      await switchChain.mutateAsync({ chainId: desiredChainId });
       setWalletStatus('');
     } catch (error) {
       setWalletStatus(
@@ -978,7 +993,7 @@ function WalletPanel({ appConfig, desiredChainId, busy, autoSwitchOnConnect = fa
 
     setWalletStatus('');
     try {
-      const connection = await connectAsync({ connector });
+      const connection = await connect.mutateAsync({ connector });
       setShowWalletChooser(false);
       await maybeSwitchAfterConnect(connection?.chainId);
     } catch (error) {
@@ -996,9 +1011,9 @@ function WalletPanel({ appConfig, desiredChainId, busy, autoSwitchOnConnect = fa
     setShowWalletChooser(false);
     try {
       if (activeConnector) {
-        await disconnectAsync({ connector: activeConnector });
+        await disconnect.mutateAsync({ connector: activeConnector });
       } else {
-        await disconnectAsync();
+        await disconnect.mutateAsync();
       }
     } catch (error) {
       setWalletStatus(error?.shortMessage || error?.message || 'Wallet disconnect failed.');
@@ -1016,16 +1031,16 @@ function WalletPanel({ appConfig, desiredChainId, busy, autoSwitchOnConnect = fa
               type="button"
               className="wp-element-button"
               onClick={handleDisconnect}
-              disabled={busy || isDisconnecting}
+              disabled={busy || disconnect.isPending}
             >
-              {isDisconnecting ? 'Disconnecting...' : 'Disconnect Wallet'}
+              {disconnect.isPending ? 'Disconnecting...' : 'Disconnect Wallet'}
             </button>
           ) : (
             <button
               type="button"
               className="wp-element-button"
               onClick={handleConnect}
-              disabled={busy || isConnecting || !primaryConnector}
+              disabled={busy || connect.isPending || !primaryConnector}
             >
               {connectButtonLabel}
             </button>
@@ -1035,7 +1050,7 @@ function WalletPanel({ appConfig, desiredChainId, busy, autoSwitchOnConnect = fa
               type="button"
               className="sqmu-link-button"
               onClick={() => setShowWalletChooser((value) => !value)}
-              disabled={busy || isConnecting}
+              disabled={busy || connect.isPending}
             >
               {showWalletChooser ? 'Close wallet choices' : 'Choose wallet'}
             </button>
@@ -1044,10 +1059,10 @@ function WalletPanel({ appConfig, desiredChainId, busy, autoSwitchOnConnect = fa
             <button
               type="button"
               className="wp-element-button"
-              onClick={() => switchChainAsync?.({ chainId: desiredChainId })}
-              disabled={busy || isSwitching || isDisconnecting}
+              onClick={() => switchChain.mutate({ chainId: desiredChainId })}
+              disabled={busy || switchChain.isPending || disconnect.isPending}
             >
-              {isSwitching ? 'Switching network...' : `Switch to ${desiredChain.name}`}
+              {switchChain.isPending ? 'Switching network...' : `Switch to ${desiredChain.name}`}
             </button>
           ) : null}
         </>
@@ -1079,9 +1094,9 @@ function WalletPanel({ appConfig, desiredChainId, busy, autoSwitchOnConnect = fa
                 onClick={() => {
                   void connectWithConnector(choice.connector, choice.label);
                 }}
-                disabled={busy || isConnecting}
+                disabled={busy || connect.isPending}
               >
-                {isConnecting && pendingConnector?.uid === choice.connector?.uid
+                {connect.isPending && connect.variables?.connector?.uid === choice.connector?.uid
                   ? `Connecting ${choice.label}...`
                   : choice.label}
               </button>
@@ -1758,9 +1773,9 @@ function CrowdfundView({ appConfig }) {
 }
 
 function PaymentView({ appConfig }) {
-  const { address, isConnected, chainId } = useAccount();
+  const { address, isConnected, chainId } = useConnection();
   const { data: walletClient } = useWalletClient();
-  const { switchChainAsync, isPending: isSwitchingPaymentChain } = useSwitchChain();
+  const switchChain = useSwitchChain();
   const paymentConfig = appConfig.consultingPayment;
   const allowedChains = useMemo(() => {
     const configuredIds = paymentConfig.allowedChainIds.length
@@ -1842,7 +1857,7 @@ function PaymentView({ appConfig }) {
       return;
     }
 
-    if (!switchChainAsync) {
+    if (!switchChain) {
       setStatus('Switch your wallet to the selected network before paying.');
       return;
     }
@@ -1850,7 +1865,7 @@ function PaymentView({ appConfig }) {
     try {
       const nextChain = allowedChains.find((chain) => chain.id === nextChainId);
       setStatus(`Switching wallet to ${nextChain?.name ?? 'the selected network'}...`);
-      await switchChainAsync({ chainId: nextChainId });
+      await switchChain.mutateAsync({ chainId: nextChainId });
       setStatus('Ready.');
     } catch (error) {
       setStatus(error?.shortMessage || error?.message || 'Wallet network switch failed.');
@@ -1894,12 +1909,12 @@ function PaymentView({ appConfig }) {
     setBusy(true);
     try {
       if (chainId !== selectedChainId) {
-        if (!switchChainAsync) {
+        if (!switchChain) {
           throw new Error(`Switch your wallet to ${selectedChain.name} before paying.`);
         }
 
         setStatus(`Switching wallet to ${selectedChain.name}...`);
-        await switchChainAsync({ chainId: selectedChainId });
+        await switchChain.mutateAsync({ chainId: selectedChainId });
       }
 
       setStatus(`Submitting ${selectedPaymentToken.symbol} transfer...`);
@@ -1949,7 +1964,7 @@ function PaymentView({ appConfig }) {
       <WalletPanel
         appConfig={appConfig}
         desiredChainId={selectedChainId || appConfig.defaultChainId}
-        busy={busy || isSwitchingPaymentChain}
+        busy={busy || switchChain.isPending}
         autoSwitchOnConnect
       />
       <Section
@@ -1960,7 +1975,7 @@ function PaymentView({ appConfig }) {
             type="button"
             className="wp-element-button"
             onClick={submitPayment}
-            disabled={busy || isSwitchingPaymentChain || wrongPaymentChain}
+            disabled={busy || switchChain.isPending || wrongPaymentChain}
           >
             {busy ? 'Submitting...' : 'Pay & Schedule Call'}
           </button>
@@ -1973,7 +1988,7 @@ function PaymentView({ appConfig }) {
               onChange={(event) => {
                 void handleChainChange(Number(event.target.value));
               }}
-              disabled={busy || isSwitchingPaymentChain}
+              disabled={busy || switchChain.isPending}
             >
               {allowedChains.map((chain) => (
                 <option key={chain.id} value={chain.id}>
@@ -1986,7 +2001,7 @@ function PaymentView({ appConfig }) {
             <select
               value={paymentTokenAddress}
               onChange={(event) => setPaymentTokenAddress(event.target.value)}
-              disabled={busy || isSwitchingPaymentChain}
+              disabled={busy || switchChain.isPending}
             >
               {paymentTokens.map((token) => (
                 <option key={`${token.chainId}-${token.address}`} value={token.address}>
@@ -2001,7 +2016,7 @@ function PaymentView({ appConfig }) {
               value={payerEmail}
               onChange={(event) => setPayerEmail(event.target.value)}
               placeholder="you@example.com"
-              disabled={busy || isSwitchingPaymentChain}
+              disabled={busy || switchChain.isPending}
             />
           </Field>
           <Field label="Amount">

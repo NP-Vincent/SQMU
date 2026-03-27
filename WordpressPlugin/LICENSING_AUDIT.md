@@ -1,6 +1,6 @@
 # WordpressPlugin Licensing Reference Audit
 
-Date: 2026-02-22
+Date: 2026-03-27
 Scope: `WordpressPlugin/` (tracked files only)
 
 ## Summary
@@ -8,7 +8,7 @@ Scope: `WordpressPlugin/` (tracked files only)
 I reviewed tracked files in `WordpressPlugin/` for licensing-related terms (`license`, `GPL`, `copyright`).
 
 - **Current plugin licensing metadata appears in-use and expected** in `plugin/readme.txt`.
-- **MetaMask SDK (`@metamask/sdk`) is in active runtime use for wallet interactions and must be tracked as a third-party licensing exception/risk item.**
+- **The plugin now uses MetaMask Connect EVM (`@metamask/connect-evm`) for wallet interactions, and the installed package is MIT licensed.**
 - **Most older/redundant licensing references are in the `references/` subtree**, which appears to be upstream WordPress theme reference material rather than active plugin runtime code.
 - Dependency license fields in `package-lock.json` are expected npm metadata and not redundant project-level licensing statements.
 
@@ -36,23 +36,23 @@ Because these are under `references/`, they are likely historical/sample assets 
 
 - `WordpressPlugin/package-lock.json` contains per-package `license` values. This is normal lockfile metadata and not a duplicate top-level project license policy.
 
-### 4) MetaMask SDK licensing assessment (action required)
+### 4) MetaMask wallet dependency licensing assessment
 
-The WordPress plugin currently depends on `@metamask/sdk` for wallet connectivity:
+The WordPress plugin currently depends on `@metamask/connect-evm` for MetaMask wallet connectivity:
 
-- Declared in `WordpressPlugin/package.json` dependencies (`"@metamask/sdk": "^0.30.1"`).
-- Present in lockfile as `node_modules/@metamask/sdk` version `0.30.3`.
+- Declared in `WordpressPlugin/package.json` dependencies (`"@metamask/connect-evm": "^0.9.0"`).
+- Present in lockfile as `node_modules/@metamask/connect-evm` version `0.9.0`.
 
-However, the installed package license text (`WordpressPlugin/node_modules/@metamask/sdk/LICENSE`) is **not a standard permissive OSS license** and includes a **Non-Commercial Use** restriction and additional usage constraints.
+The installed package metadata and license text identify it as MIT licensed:
+
+- `WordpressPlugin/node_modules/@metamask/connect-evm/package.json` -> `"license": "MIT"`
+- `WordpressPlugin/node_modules/@metamask/connect-evm/LICENSE` -> standard MIT license text
 
 Implications for licensing audit/compliance:
 
-1. Treat `@metamask/sdk` as a **flagged third-party license dependency** requiring legal review before commercial distribution/use.
-2. Do not assume npm metadata defaults (or absent lockfile `license` fields) imply MIT/Apache compatibility.
-3. Track this package in release checklists with one of the following dispositions:
-   - approved usage under specific business constraints,
-   - replacement with an alternative wallet integration under a commercial-compatible license,
-   - direct licensing arrangement/clarification with MetaMask/ConsenSys.
+1. `@metamask/connect-evm` no longer carries the non-commercial licensing concern previously noted for `@metamask/sdk`.
+2. The earlier `@metamask/sdk` findings should be treated as historical context only, not the current runtime state of the plugin.
+3. Standard third-party dependency review should still track version and license changes during future upgrades.
 
 ## Recommended cleanup options
 
@@ -63,12 +63,12 @@ If you want to reduce noise and avoid confusion for audits:
    - move `references/wordpress/theme/masu-wpcom/` outside the production plugin tree, or
    - add a short README in `references/` explicitly stating it is historical/upstream reference content.
 3. Optionally exclude `references/` from any automated “project license scan” checks if those checks are only intended to validate shipping plugin artifacts.
-4. Add an explicit compliance gate for `@metamask/sdk` license review in WordPress plugin release workflows.
+4. Remove any release checklist items that still assume `@metamask/sdk` is the active MetaMask runtime dependency.
 
 ## Commands used
 
 - `git ls-files WordpressPlugin`
 - `rg -n -i "license|licen[cs]e|copyright|gpl|mit|apache|bsd" WordpressPlugin --glob '!WordpressPlugin/node_modules/**'`
 - `rg -n -i "license|licen[cs]e|copyright|gpl" WordpressPlugin/plugin/readme.txt WordpressPlugin/references/wordpress/theme/masu-wpcom/style.css WordpressPlugin/references/wordpress/theme/masu-wpcom/readme.txt WordpressPlugin/references/wordpress/theme/masu-wpcom/inc/updater.php`
-- `node -e "const l=require('./WordpressPlugin/package-lock.json'); const p=l.packages['node_modules/@metamask/sdk']; console.log(p&&JSON.stringify({version:p.version,license:p.license,resolved:p.resolved},null,2));"`
-- `sed -n '1,40p' WordpressPlugin/node_modules/@metamask/sdk/LICENSE`
+- `node -e "const l=require('./WordpressPlugin/package-lock.json'); const p=l.packages['node_modules/@metamask/connect-evm']; console.log(p&&JSON.stringify({version:p.version,license:p.license,resolved:p.resolved},null,2));"`
+- `sed -n '1,40p' WordpressPlugin/node_modules/@metamask/connect-evm/LICENSE`
