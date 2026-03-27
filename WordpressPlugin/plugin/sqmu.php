@@ -39,38 +39,19 @@ function sqmu_app_property_bound_views() {
 
 function sqmu_app_default_consulting_payment_settings() {
     return array(
-        'recipientWallet' => '0xcd8ccb56fd8a4bbeeaebf2bb4f6a0f81e48c1845',
-        'fixedAmount' => '95',
+        'recipientWallet' => '',
+        'fixedAmount' => '',
         'receiptWebhookUrl' => '',
-        'calendlyUrl' => 'https://calendly.com/vincent-sqmu/30min',
-        'allowedChainIds' => array(534352),
-        'tokens' => array(
-            array(
-                'chainId' => 534352,
-                'address' => '0x06eFdBFf2a14a7c8E15944D1F4A48F9F95F663A4',
-                'symbol' => 'USDC',
-                'decimals' => 6
-            ),
-            array(
-                'chainId' => 534352,
-                'address' => '0xf55BEC9cafDbE8730f096Aa55dad6D22d44099Df',
-                'symbol' => 'USDT',
-                'decimals' => 6
-            ),
-            array(
-                'chainId' => 534352,
-                'address' => '0xdb9E8F82D6d45fFf803161F2a5f75543972B229a',
-                'symbol' => 'USDQ',
-                'decimals' => 18
-            )
-        )
+        'calendlyUrl' => '',
+        'allowedChainIds' => array(),
+        'tokens' => array()
     );
 }
 
 function sqmu_app_default_view_defaults() {
     return array(
         'buy' => array(
-            'defaultChainId' => 534352,
+            'defaultChainId' => 0,
             'features' => array(
                 'buy' => true,
                 'portfolio' => true,
@@ -78,7 +59,7 @@ function sqmu_app_default_view_defaults() {
             )
         ),
         'portfolio' => array(
-            'defaultChainId' => 534352,
+            'defaultChainId' => 0,
             'features' => array(
                 'buy' => true,
                 'portfolio' => true,
@@ -86,7 +67,7 @@ function sqmu_app_default_view_defaults() {
             )
         ),
         'crowdfund' => array(
-            'defaultChainId' => 534352,
+            'defaultChainId' => 0,
             'features' => array(
                 'buy' => true,
                 'portfolio' => false,
@@ -94,7 +75,7 @@ function sqmu_app_default_view_defaults() {
             )
         ),
         'rent' => array(
-            'defaultChainId' => 534352,
+            'defaultChainId' => 0,
             'features' => array(
                 'buy' => false,
                 'portfolio' => false,
@@ -102,7 +83,7 @@ function sqmu_app_default_view_defaults() {
             )
         ),
         'rent_distribution' => array(
-            'defaultChainId' => 534352,
+            'defaultChainId' => 0,
             'features' => array(
                 'buy' => false,
                 'portfolio' => false,
@@ -110,7 +91,7 @@ function sqmu_app_default_view_defaults() {
             )
         ),
         'escrow' => array(
-            'defaultChainId' => 534352,
+            'defaultChainId' => 0,
             'features' => array(
                 'buy' => false,
                 'portfolio' => false,
@@ -128,45 +109,17 @@ function sqmu_app_default_settings() {
             'url' => home_url('/'),
             'infuraApiKey' => ''
         ),
-        'chains' => array(
-            array(
-                'id' => 534352,
-                'name' => 'Scroll',
-                'rpcUrl' => '',
-                'blockExplorerUrl' => 'https://scrollscan.com',
-                'nativeCurrency' => array(
-                    'name' => 'Ether',
-                    'symbol' => 'ETH',
-                    'decimals' => 18
-                )
-            )
-        ),
+        'chains' => array(),
         'contracts' => array(
-            'distributor' => '0x19d8D25DD4C85264B2AC502D66aEE113955b8A07',
-            'trade' => '0x4F1BFDC7EBba77e7ec76C6AEbE81C0e84d28470B',
-            'sqmu' => '0xd0b895e975f24045e43d788d42BD938b78666EC8',
-            'crowdfund' => '0xD759dA420768E62026025516655D0E33b81773cC',
-            'rent' => '0x85490cC86e4fDBC2AC1e853a96bf80Bea89c0ff8',
-            'rentDistribution' => '0x361516487722cAb8eBEc5Faf2f1Fa156098a4DE6',
+            'distributor' => '',
+            'trade' => '',
+            'sqmu' => '',
+            'crowdfund' => '',
+            'rent' => '',
+            'rentDistribution' => '',
             'escrowFactory' => ''
         ),
-        'paymentTokens' => array(
-            array(
-                'address' => '0x06eFdBFf2a14a7c8E15944D1F4A48F9F95F663A4',
-                'symbol' => 'USDC',
-                'decimals' => 6
-            ),
-            array(
-                'address' => '0xf55BEC9cafDbE8730f096Aa55dad6D22d44099Df',
-                'symbol' => 'USDT',
-                'decimals' => 6
-            ),
-            array(
-                'address' => '0xdb9E8F82D6d45fFf803161F2a5f75543972B229a',
-                'symbol' => 'USDQ',
-                'decimals' => 18
-            )
-        ),
+        'paymentTokens' => array(),
         'consultingPayment' => sqmu_app_default_consulting_payment_settings(),
         'viewDefaults' => sqmu_app_default_view_defaults()
     );
@@ -223,7 +176,7 @@ function sqmu_app_sanitize_chain_rows($input, $fallback, $legacy_json = '') {
         if (is_array($decoded)) {
             $input = $decoded;
         } else {
-            return $fallback;
+            $input = array();
         }
     }
 
@@ -274,16 +227,7 @@ function sqmu_app_sanitize_chain_rows($input, $fallback, $legacy_json = '') {
         );
     }
 
-    if (!empty($chains)) {
-        return array_values($chains);
-    }
-
-    sqmu_app_add_settings_notice(
-        'At least one accepted chain is required. The previous accepted chain settings were kept.',
-        'missing_chains'
-    );
-
-    return $fallback;
+    return array_values($chains);
 }
 
 function sqmu_app_sanitize_payment_token_rows($input, $fallback, $legacy_json = '') {
@@ -292,7 +236,7 @@ function sqmu_app_sanitize_payment_token_rows($input, $fallback, $legacy_json = 
         if (is_array($decoded)) {
             $input = $decoded;
         } else {
-            return $fallback;
+            $input = array();
         }
     }
 
@@ -338,16 +282,7 @@ function sqmu_app_sanitize_payment_token_rows($input, $fallback, $legacy_json = 
         );
     }
 
-    if (!empty($tokens)) {
-        return array_values($tokens);
-    }
-
-    sqmu_app_add_settings_notice(
-        'At least one accepted payment token is required. The previous payment token settings were kept.',
-        'missing_payment_tokens'
-    );
-
-    return $fallback;
+    return array_values($tokens);
 }
 
 function sqmu_app_sanitize_chain_id_list($input, $available_chains) {
@@ -444,12 +379,8 @@ function sqmu_app_sanitize_consulting_payment_settings($input, $defaults, $curre
     }
 
     $allowed_chain_ids = sqmu_app_sanitize_chain_id_list($profile_input['allowedChainIds'] ?? array(), $available_chains);
-    $fallback_tokens = isset($current['tokens']) && is_array($current['tokens'])
-        ? $current['tokens']
-        : $defaults['tokens'];
-
     $fixed_amount = sanitize_text_field($profile_input['fixedAmount'] ?? $current['fixedAmount'] ?? $defaults['fixedAmount']);
-    if ($fixed_amount === '' || preg_match('/^\d+(\.\d{1,18})?$/', $fixed_amount) !== 1) {
+    if ($fixed_amount !== '' && preg_match('/^\d+(\.\d{1,18})?$/', $fixed_amount) !== 1) {
         sqmu_app_add_settings_notice(
             'Consulting payment amount was invalid. The previous consulting payment amount was kept.',
             'invalid_consulting_payment_amount'
@@ -469,7 +400,7 @@ function sqmu_app_sanitize_consulting_payment_settings($input, $defaults, $curre
     $tokens = sqmu_app_sanitize_consulting_payment_tokens(
         $profile_input['tokens'] ?? null,
         $allowed_chain_ids,
-        $fallback_tokens
+        array()
     );
 
     return array(
@@ -944,7 +875,7 @@ function sqmu_app_render_settings_page() {
                 </tr>
                 <tr>
                     <th scope="row"><label for="sqmu-consulting-amount">Fixed amount</label></th>
-                    <td><input id="sqmu-consulting-amount" name="<?php echo esc_attr(SQMU_APP_OPTION_KEY); ?>[consultingPayment][fixedAmount]" type="text" class="small-text" value="<?php echo esc_attr($consulting_payment['fixedAmount'] ?? '95'); ?>" /></td>
+                    <td><input id="sqmu-consulting-amount" name="<?php echo esc_attr(SQMU_APP_OPTION_KEY); ?>[consultingPayment][fixedAmount]" type="text" class="small-text" value="<?php echo esc_attr($consulting_payment['fixedAmount'] ?? ''); ?>" /></td>
                 </tr>
                 <tr>
                     <th scope="row"><label for="sqmu-consulting-receipt-url">Receipt webhook URL</label></th>
@@ -1470,7 +1401,7 @@ function sqmu_app_build_mount_config($view, $property_code, $escrow_address = ''
                 'defaultChainId' => $default_chain_id,
                 'consultingPayment' => array(
                     'recipientWallet' => $profile['recipientWallet'] ?? '',
-                    'fixedAmount' => $profile['fixedAmount'] ?? '95',
+                    'fixedAmount' => $profile['fixedAmount'] ?? '',
                     'receiptWebhookUrl' => $profile['receiptWebhookUrl'] ?? '',
                     'calendlyUrl' => $profile['calendlyUrl'] ?? '',
                     'allowedChainIds' => $allowed_chain_ids,

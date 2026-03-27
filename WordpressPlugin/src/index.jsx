@@ -19,25 +19,14 @@ import {
 } from 'wagmi';
 import { metaMask } from './metamaskConnector.js';
 import { defineChain, formatUnits, isAddress, parseUnits } from 'viem';
-import { defaultCrowdfundAddress, crowdfundAbi } from './contracts/crowdfund.js';
-import { defaultDistributorAddress, distributorAbi } from './contracts/atomicDistributor.js';
-import { defaultEscrowAddress, escrowAbi } from './contracts/escrow.js';
-import { defaultEscrowFactoryAddress, escrowFactoryAbi } from './contracts/escrowFactory.js';
-import {
-  CROWDFUND_ADDRESS,
-  DEFAULT_CHAIN,
-  DEFAULT_PAYMENT_TOKENS,
-  DISTRIBUTOR_ADDRESS,
-  ESCROW_FACTORY_ADDRESS,
-  RENT_ADDRESS,
-  RENT_DISTRIBUTION_ADDRESS,
-  SQMU_ADDRESS,
-  TRADE_ADDRESS
-} from './config.js';
-import { defaultRentAddress, rentAbi } from './contracts/rent.js';
-import { defaultRentDistributionAddress, rentDistributionAbi } from './contracts/rentDistribution.js';
-import { defaultSqmuAddress, sqmuAbi } from './contracts/sqmu.js';
-import { defaultTradeAddress, tradeAbi } from './contracts/trade.js';
+import { crowdfundAbi } from './contracts/crowdfund.js';
+import { distributorAbi } from './contracts/atomicDistributor.js';
+import { escrowAbi } from './contracts/escrow.js';
+import { escrowFactoryAbi } from './contracts/escrowFactory.js';
+import { rentAbi } from './contracts/rent.js';
+import { rentDistributionAbi } from './contracts/rentDistribution.js';
+import { sqmuAbi } from './contracts/sqmu.js';
+import { tradeAbi } from './contracts/trade.js';
 
 const SQMU_DECIMALS = 2n;
 const USD_DECIMALS = 18n;
@@ -52,6 +41,11 @@ const PROPERTY_CODE_LABEL_PATTERN = /^sqmu property code$/i;
 const ESCROW_STATE_LABELS = ['Created', 'Active', 'Completed', 'Cancelled', 'Expired'];
 const ESCROW_SETTLEMENT_LABELS = ['Unsettled', 'Released', 'Refunded'];
 const ESCROW_ACTION_LABELS = ['Release', 'Refund'];
+const GENERIC_NATIVE_CURRENCY = {
+  name: 'Ether',
+  symbol: 'ETH',
+  decimals: 18
+};
 const wagmiConfigCache = new Map();
 const queryClientCache = new Map();
 const rootCache = new WeakMap();
@@ -235,24 +229,28 @@ const datetimeLocalToUnix = (value) => {
 
 const normalizeNativeCurrency = (value) => {
   if (!value || typeof value !== 'object') {
-    return DEFAULT_CHAIN.nativeCurrency;
+    return GENERIC_NATIVE_CURRENCY;
   }
   return {
-    name: safeString(value.name) || DEFAULT_CHAIN.nativeCurrency.name,
-    symbol: safeString(value.symbol) || DEFAULT_CHAIN.nativeCurrency.symbol,
+    name: safeString(value.name) || GENERIC_NATIVE_CURRENCY.name,
+    symbol: safeString(value.symbol) || GENERIC_NATIVE_CURRENCY.symbol,
     decimals: Number.isFinite(Number(value.decimals))
       ? Number(value.decimals)
-      : DEFAULT_CHAIN.nativeCurrency.decimals
+      : GENERIC_NATIVE_CURRENCY.decimals
   };
 };
 
-const normalizeChain = (value, fallbackId) => {
-  const id = Number(value?.id ?? fallbackId ?? DEFAULT_CHAIN.id);
+const normalizeChain = (value) => {
+  const id = Number(value?.id);
+  if (!Number.isFinite(id)) {
+    return null;
+  }
+
   return {
     id,
-    name: safeString(value?.name) || DEFAULT_CHAIN.name,
+    name: safeString(value?.name) || `Chain ${id}`,
     rpcUrl: safeString(value?.rpcUrl),
-    blockExplorerUrl: safeString(value?.blockExplorerUrl) || DEFAULT_CHAIN.blockExplorerUrl,
+    blockExplorerUrl: safeString(value?.blockExplorerUrl),
     nativeCurrency: normalizeNativeCurrency(value?.nativeCurrency)
   };
 };
@@ -265,23 +263,25 @@ const normalizeConfig = (config = {}) => {
     infuraApiKey: safeString(config.app?.infuraApiKey)
   };
 
-  const chainsInput = Array.isArray(config.chains) && config.chains.length
-    ? config.chains
-    : [DEFAULT_CHAIN];
-  const chains = chainsInput.map((chain) => normalizeChain(chain, config.defaultChainId));
-  const defaultChainId = Number(config.defaultChainId ?? chains[0]?.id ?? DEFAULT_CHAIN.id);
+  const chains = (Array.isArray(config.chains) ? config.chains : [])
+    .map((chain) => normalizeChain(chain))
+    .filter(Boolean);
+  const explicitDefaultChainId = Number(config.defaultChainId);
+  const defaultChainId = Number.isFinite(explicitDefaultChainId)
+    ? explicitDefaultChainId
+    : (chains[0]?.id ?? 0);
 
   const contracts = {
-    distributor: safeString(config.contracts?.distributor) || defaultDistributorAddress || DISTRIBUTOR_ADDRESS,
-    trade: safeString(config.contracts?.trade) || defaultTradeAddress || TRADE_ADDRESS,
-    sqmu: safeString(config.contracts?.sqmu) || defaultSqmuAddress || SQMU_ADDRESS,
-    crowdfund: safeString(config.contracts?.crowdfund) || defaultCrowdfundAddress || CROWDFUND_ADDRESS,
-    rent: safeString(config.contracts?.rent) || defaultRentAddress || RENT_ADDRESS,
-    rentDistribution: safeString(config.contracts?.rentDistribution) || defaultRentDistributionAddress || RENT_DISTRIBUTION_ADDRESS,
-    escrowFactory: safeString(config.contracts?.escrowFactory) || defaultEscrowFactoryAddress || ESCROW_FACTORY_ADDRESS
+    distributor: safeString(config.contracts?.distributor),
+    trade: safeString(config.contracts?.trade),
+    sqmu: safeString(config.contracts?.sqmu),
+    crowdfund: safeString(config.contracts?.crowdfund),
+    rent: safeString(config.contracts?.rent),
+    rentDistribution: safeString(config.contracts?.rentDistribution),
+    escrowFactory: safeString(config.contracts?.escrowFactory)
   };
 
-  const paymentTokens = (Array.isArray(config.paymentTokens) ? config.paymentTokens : DEFAULT_PAYMENT_TOKENS)
+  const paymentTokens = (Array.isArray(config.paymentTokens) ? config.paymentTokens : [])
     .map((token) => ({
       address: safeString(token?.address),
       symbol: safeString(token?.symbol),
@@ -309,7 +309,7 @@ const normalizeConfig = (config = {}) => {
 
   const consultingPayment = {
     recipientWallet: safeString(config.consultingPayment?.recipientWallet),
-    fixedAmount: safeString(config.consultingPayment?.fixedAmount) || '95',
+    fixedAmount: safeString(config.consultingPayment?.fixedAmount),
     receiptWebhookUrl: safeString(config.consultingPayment?.receiptWebhookUrl),
     calendlyUrl: safeString(config.consultingPayment?.calendlyUrl),
     allowedChainIds: uniqueStrings(config.consultingPayment?.allowedChainIds).map((value) => Number(value)).filter((value) => Number.isFinite(value)),

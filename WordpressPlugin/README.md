@@ -275,8 +275,7 @@ Node is build-time only and is not required on the WordPress host.
 ```text
 WordpressPlugin/
 ├─ src/
-│  ├─ contracts/      # ABI exports and default addresses
-│  ├─ config.js       # Frontend defaults
+│  ├─ contracts/      # ABI exports used by the React app
 │  └─ index.jsx       # React + Wagmi entrypoint
 ├─ plugin/
 │  ├─ sqmu.php        # WordPress bootstrap, admin UI, shortcode, config assembly
