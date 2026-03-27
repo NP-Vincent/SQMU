@@ -812,10 +812,12 @@ async function approveErc1155IfNeeded({
 function Section({ title, help, children, actions }) {
   return (
     <section className="sqmu-section">
-      <div className="sqmu-section-header">
-        <h3 className="sqmu-section-title">{title}</h3>
-        {help ? <p className="sqmu-help">{help}</p> : null}
-      </div>
+      {title || help ? (
+        <div className="sqmu-section-header">
+          {title ? <h3 className="sqmu-section-title">{title}</h3> : null}
+          {help ? <p className="sqmu-help">{help}</p> : null}
+        </div>
+      ) : null}
       <div className="sqmu-section-body">{children}</div>
       {actions ? <div className="sqmu-actions">{actions}</div> : null}
     </section>
@@ -879,10 +881,6 @@ function PropertySelectorField({
       <input value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} />
     </Field>
   );
-}
-
-function StatusPill({ tone = 'neutral', children }) {
-  return <span className={`sqmu-pill sqmu-pill-${tone}`}>{children}</span>;
 }
 
 const hasMetaMaskProvider = () => {
@@ -1061,8 +1059,6 @@ function WalletPanel({ appConfig, desiredChainId, busy, autoSwitchOnConnect = fa
 
   return (
     <Section
-      title="Wallet"
-      help="Connect Wallet uses the default wallet path for this browser. Choose wallet lets you explicitly pick MetaMask or another detected browser wallet."
       actions={
         <>
           {isConnected ? (
@@ -1118,14 +1114,9 @@ function WalletPanel({ appConfig, desiredChainId, busy, autoSwitchOnConnect = fa
           <span className="sqmu-stat-label">Chain</span>
           <strong>{chainId ?? 'N/A'}</strong>
         </div>
-        <div className="sqmu-stat">
-          <span className="sqmu-stat-label">App Context</span>
-          <strong>{appConfig.context === 'admin' ? 'wp-admin' : 'Public page'}</strong>
-        </div>
       </div>
       {!isConnected && showWalletChooser ? (
         <div className="sqmu-wallet-chooser" role="group" aria-label="Choose wallet">
-          <p className="sqmu-help">Pick a wallet explicitly when the default Connect Wallet path is not the one you want.</p>
           <div className="sqmu-wallet-choice-list">
             {walletChoices.map((choice) => (
               <button
@@ -1143,7 +1134,6 @@ function WalletPanel({ appConfig, desiredChainId, busy, autoSwitchOnConnect = fa
               </button>
             ))}
           </div>
-          <p className="sqmu-help">Only wallets exposed to this page by the browser or EIP-6963 can appear here.</p>
         </div>
       ) : null}
       {walletStatus ? (
@@ -2010,8 +2000,6 @@ function PaymentView({ appConfig }) {
         autoSwitchOnConnect
       />
       <Section
-        title="Stablecoin Payment"
-        help="This widget performs a direct ERC-20 transfer from the connected wallet to the configured consulting payment recipient, then sends a receipt and redirects to Calendly."
         actions={
           <button
             type="button"
@@ -2024,7 +2012,7 @@ function PaymentView({ appConfig }) {
         }
       >
         <div className="sqmu-form-grid">
-          <Field label="Network">
+          <Field label="Chain">
             <select
               value={selectedChainId}
               onChange={(event) => {
@@ -3596,15 +3584,13 @@ function App({ mountConfig }) {
     <WagmiProvider config={config} reconnectOnMount>
       <QueryClientProvider client={queryClient}>
         <div className="sqmu-card">
-          <div className="sqmu-header">
-            <div>
-              <h2 className="sqmu-title">{VIEW_TITLES[view] ?? VIEW_TITLES.buy}</h2>
-              <p className="sqmu-help">
-                {appConfig.app.name} · Chain {appConfig.defaultChainId} · Config v{appConfig.version}
-              </p>
+          {view !== 'payment' ? (
+            <div className="sqmu-header">
+              <div>
+                <h2 className="sqmu-title">{VIEW_TITLES[view] ?? VIEW_TITLES.buy}</h2>
+              </div>
             </div>
-            <StatusPill tone="neutral">{appConfig.context === 'admin' ? 'wp-admin' : 'React + Wagmi'}</StatusPill>
-          </div>
+          ) : null}
           {content}
         </div>
       </QueryClientProvider>
