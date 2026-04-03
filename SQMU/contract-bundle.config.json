@@ -1,0 +1,123 @@
+{
+  "schemaVersion": 1,
+  "releaseTrack": "sqmu-contracts",
+  "contracts": [
+    {
+      "name": "SQMU",
+      "deploymentKind": "uups",
+      "dependsOn": [],
+      "initializer": {
+        "method": "initialize",
+        "args": ["uri_", "name_", "symbol_", "initialOwner"]
+      },
+      "upgrade": {
+        "allowed": true,
+        "defaultAction": "upgrade",
+        "reviewRequired": true,
+        "notes": "ERC-1155 storage and initializer changes require release-time review."
+      }
+    },
+    {
+      "name": "AtomicSQMUDistributor",
+      "deploymentKind": "uups",
+      "dependsOn": [],
+      "initializer": {
+        "method": "initialize",
+        "args": ["commissionBps"]
+      },
+      "upgrade": {
+        "allowed": true,
+        "defaultAction": "upgrade",
+        "reviewRequired": true,
+        "notes": "Property/agent/payment-token state must be preserved across upgrades."
+      }
+    },
+    {
+      "name": "SQMUTrade",
+      "deploymentKind": "uups",
+      "dependsOn": ["AtomicSQMUDistributor"],
+      "initializer": {
+        "method": "initialize",
+        "args": ["treasury_", "commissionBps_", "distributor_"]
+      },
+      "upgrade": {
+        "allowed": true,
+        "defaultAction": "upgrade",
+        "reviewRequired": true,
+        "notes": "Marketplace listing state must be reviewed before proxy upgrades."
+      }
+    },
+    {
+      "name": "SQMUCrowdfund",
+      "deploymentKind": "uups",
+      "dependsOn": ["SQMU"],
+      "initializer": {
+        "method": "initialize",
+        "args": ["sqmuAddress", "priceUSD_"]
+      },
+      "upgrade": {
+        "allowed": true,
+        "defaultAction": "upgrade",
+        "reviewRequired": true,
+        "notes": "Governance inventory and payment-token allowlist should survive upgrades."
+      }
+    },
+    {
+      "name": "SQMURentDistribution",
+      "deploymentKind": "uups",
+      "dependsOn": [],
+      "initializer": {
+        "method": "initialize",
+        "args": []
+      },
+      "upgrade": {
+        "allowed": true,
+        "defaultAction": "upgrade",
+        "reviewRequired": true,
+        "notes": "Per-property rent balances must be checked during release review."
+      }
+    },
+    {
+      "name": "SQMURent",
+      "deploymentKind": "uups",
+      "dependsOn": ["SQMURentDistribution"],
+      "initializer": {
+        "method": "initialize",
+        "args": ["vaultAddress"]
+      },
+      "upgrade": {
+        "allowed": true,
+        "defaultAction": "upgrade",
+        "reviewRequired": true,
+        "notes": "Tenant deposits, rent schedules, and accrued fee storage must be validated."
+      }
+    },
+    {
+      "name": "Escrow",
+      "deploymentKind": "implementation",
+      "dependsOn": [],
+      "initializer": null,
+      "upgrade": {
+        "allowed": false,
+        "defaultAction": "redeploy",
+        "reviewRequired": false,
+        "notes": "Escrow is a clone target. Deploy a new implementation for future escrows instead of upgrading existing clones."
+      }
+    },
+    {
+      "name": "EscrowFactory",
+      "deploymentKind": "uups",
+      "dependsOn": ["Escrow"],
+      "initializer": {
+        "method": "initialize",
+        "args": ["implementation_", "admin"]
+      },
+      "upgrade": {
+        "allowed": true,
+        "defaultAction": "upgrade",
+        "reviewRequired": true,
+        "notes": "Factory registry and token allowlist must be reviewed before proxy upgrades."
+      }
+    }
+  ]
+}

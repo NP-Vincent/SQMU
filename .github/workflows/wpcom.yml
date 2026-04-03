@@ -9,6 +9,9 @@ on:
       - 'WordpressPlugin/**'
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -32,6 +35,11 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Read pinned contract bundle
+        id: contract_bundle
+        run: |
+          node -e 'const fs=require("node:fs"); const cfg=require("./contract-bundle.json"); const out=process.env.GITHUB_OUTPUT; const values = {enabled: String(Boolean(cfg.enabled)), version: cfg.release?.version ?? "", tag: cfg.release?.tag ?? "", asset: cfg.release?.asset ?? "", sha256: cfg.release?.sha256 ?? ""}; fs.appendFileSync(out, Object.entries(values).map(([k,v]) => k + "=" + v).join("\n") + "\n");'
+
       - name: Verify plugin bundle
         run: |
           test -f plugin/assets/sqmu.js
@@ -42,9 +50,27 @@ jobs:
           mkdir -p ../wpcom-stage/sqmu/assets
           cp plugin/sqmu.php ../wpcom-stage/sqmu/sqmu.php
           cp plugin/readme.txt ../wpcom-stage/sqmu/readme.txt
+          cp contract-bundle.json ../wpcom-stage/sqmu/contract-bundle.json
           cp plugin/assets/sqmu-widgets.css ../wpcom-stage/sqmu/assets/sqmu-widgets.css
           cp plugin/assets/sqmu.js ../wpcom-stage/sqmu/assets/sqmu.js
           cp -R plugin/assets/chunks ../wpcom-stage/sqmu/assets/chunks
+
+      - name: Download pinned contract bundle
+        if: steps.contract_bundle.outputs.enabled == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BUNDLE_TAG: ${{ steps.contract_bundle.outputs.tag }}
+          BUNDLE_ASSET: ${{ steps.contract_bundle.outputs.asset }}
+          BUNDLE_SHA256: ${{ steps.contract_bundle.outputs.sha256 }}
+        run: |
+          test -n "$BUNDLE_TAG"
+          test -n "$BUNDLE_ASSET"
+          test -n "$BUNDLE_SHA256"
+          mkdir -p ../contract-bundle-download ../wpcom-stage/sqmu/contracts/current
+          gh release download "$BUNDLE_TAG" --repo "$GITHUB_REPOSITORY" --pattern "$BUNDLE_ASSET" --dir ../contract-bundle-download
+          echo "$BUNDLE_SHA256  ../contract-bundle-download/$BUNDLE_ASSET" | sha256sum -c -
+          unzip -q "../contract-bundle-download/$BUNDLE_ASSET" -d ../wpcom-stage/sqmu/contracts/current
+          test -f ../wpcom-stage/sqmu/contracts/current/manifest.json
 
       - name: Upload artifact
         uses: actions/upload-artifact@v6

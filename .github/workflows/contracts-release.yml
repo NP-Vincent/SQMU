@@ -1,0 +1,80 @@
+name: Contract Bundle Release
+
+on:
+  push:
+    tags:
+      - 'contracts-v*'
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Release tag to publish, for example contracts-v1.0.0
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: SQMU
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: SQMU/package-lock.json
+
+      - name: Resolve release version
+        id: release_meta
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ github.event.inputs.release_tag }}"
+          else
+            VERSION="${GITHUB_REF_NAME}"
+          fi
+          ASSET="sqmu-contract-bundle-${VERSION}.zip"
+          CHECKSUM="${ASSET}.sha256"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "asset=${ASSET}" >> "$GITHUB_OUTPUT"
+          echo "checksum=${CHECKSUM}" >> "$GITHUB_OUTPUT"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify contracts and build release bundle
+        env:
+          CONTRACT_BUNDLE_VERSION: ${{ steps.release_meta.outputs.version }}
+        run: npm run ci:contracts
+
+      - name: Package bundle archive
+        run: |
+          cd dist/contract-bundle
+          zip -qr "../${{ steps.release_meta.outputs.asset }}" .
+          cd ..
+          sha256sum "${{ steps.release_meta.outputs.asset }}" > "${{ steps.release_meta.outputs.checksum }}"
+
+      - name: Create release if needed
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view "${{ steps.release_meta.outputs.version }}" >/dev/null 2>&1 || \
+          gh release create "${{ steps.release_meta.outputs.version }}" \
+            --target "${GITHUB_SHA}" \
+            --title "${{ steps.release_meta.outputs.version }}" \
+            --notes "Versioned SQMU contract deployment bundle."
+
+      - name: Upload release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release upload "${{ steps.release_meta.outputs.version }}" \
+            "dist/${{ steps.release_meta.outputs.asset }}" \
+            "dist/${{ steps.release_meta.outputs.checksum }}" \
+            --clobber

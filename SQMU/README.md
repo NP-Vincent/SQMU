@@ -9,6 +9,7 @@ This folder contains the contract-side reference implementation for SQMU.
 - `Contracts/EscrowFactory.sol` — UUPS-upgradeable factory, whitelist, and registry for escrow creation.
 - `Contracts/SQMUCrowdfund.sol` — UUPS-upgradeable governance sale contract with an owner-managed payment-token allowlist.
 - `ABI/` — Versioned ABI artifacts consumed by off-chain integrations.
+- `contract-bundle.config.json` — Release metadata describing deployment order, initializer schemas, and upgrade policy per contract.
 - `deployment_log.md` — Deployment notes and environment-specific history.
 
 ## Ownership and responsibilities
@@ -56,6 +57,18 @@ npm run build
 ```
 
 The Hardhat workspace now compiles the full `Contracts/` suite and exports ABI files for the main SQMU contracts. The current OpenZeppelin toolchain emits Cancun-era bytecode, so target chains must support Cancun-compatible EVM opcodes.
+
+`npm run build` now also generates a release bundle in `dist/contract-bundle/` for CI publishing.
+
+For a local deployment smoke check against Anvil:
+
+```bash
+docker run -d --rm --name sqmu-anvil ghcr.io/foundry-rs/foundry:latest anvil --host 0.0.0.0 --chain-id 31337
+docker run --rm --network container:sqmu-anvil -v "$PWD:/workspace" -w /workspace/SQMU -e ANVIL_RPC_URL=http://127.0.0.1:8545 node:22.11.0-alpine sh -lc "npm run build && npm run smoke:deploy:anvil"
+docker stop sqmu-anvil
+```
+
+The smoke report is written to `dist/anvil-smoke-report.json` and is intentionally ignored by git.
 
 ## Licensing
 

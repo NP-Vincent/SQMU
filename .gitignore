@@ -20,6 +20,7 @@ tmp/
 SQMU/node_modules/
 SQMU/artifacts/
 SQMU/cache/
+SQMU/dist/
 WordpressPlugin/node_modules/
 WordpressPlugin/plugin/assets/sqmu.js
 WordpressPlugin/plugin/assets/sqmu.js.map

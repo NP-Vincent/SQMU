@@ -28,6 +28,8 @@ WordPress-specific behavior inside plugin PHP code and wp-admin settings.
 - Track dependencies on contract ABI and interface changes
 - Keep build output and plugin enqueue paths aligned at `plugin/assets/sqmu.js`
 - Keep generated runtime chunks in `plugin/assets/chunks/` packaged with the plugin
+- Keep the tracked contract bundle pin in `contract-bundle.json` aligned with the plugin release that should ship deployment support
+- Treat contract bundle release assets as immutable inputs from the contract pipeline, not as artifacts the plugin builds for itself
 
 ## Current Runtime Model
 

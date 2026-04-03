@@ -39,3 +39,5 @@ The goal is to document contract-facing workflows so contributors can reason abo
 - `test/EscrowFactory.test.cjs` is the escrow regression suite.
 - `test/SQMUCrowdfund.test.cjs` covers the crowdfund proxy initialization and payment-token allowlist behavior.
 - `scripts/export-abis.cjs` writes the simplified ABI files consumed downstream.
+- `scripts/build-contract-bundle.cjs` produces the release bundle consumed by plugin packaging and future one-click deployments.
+- `scripts/smoke-deploy-anvil.cjs` validates that the generated bundle can deploy the current SQMU stack onto an ephemeral local Anvil chain.

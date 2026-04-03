@@ -34,6 +34,21 @@ React + Wagmi owns:
 
 Runtime is direct browser-to-chain. WordPress is not used as a REST proxy in this version.
 
+## Contract Bundle Pinning
+
+The plugin does not compile contracts at runtime.
+Instead, it can ship with a pinned contract deployment bundle selected in [contract-bundle.json](/Users/alfred/Documents/GitHub/SQMU/WordpressPlugin/contract-bundle.json).
+
+That pin file is tracked in git and is used by the plugin release workflow to fetch an immutable contract bundle release asset built from the `SQMU/` module.
+
+The intended lifecycle is:
+
+- contract changes are verified and bundled by dedicated contract CI
+- a maintainer publishes a versioned contract bundle release
+- the plugin pins one exact bundle version when it is ready to ship support for that release
+
+This keeps plugin deploys and contract releases decoupled while preserving reproducibility.
+
 ## Shortcodes
 
 The plugin exposes two public shortcodes:
