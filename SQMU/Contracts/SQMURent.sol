@@ -4,11 +4,11 @@ pragma solidity ^0.8.26;
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
-import {SafeERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
-import {IERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
-import {ERC1155HolderUpgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC1155/utils/ERC1155HolderUpgradeable.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {ERC1155Holder} from "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol";
 import {IERC1155} from "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
+import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 interface ISQMURentDistribution {
     function depositRent(uint256 propertyId, address token, uint256 amount) external;
@@ -20,11 +20,11 @@ interface ISQMURentDistribution {
 contract SQMURent is
     Initializable,
     OwnableUpgradeable,
-    ReentrancyGuardUpgradeable,
+    ReentrancyGuard,
     UUPSUpgradeable,
-    ERC1155HolderUpgradeable
+    ERC1155Holder
 {
-    using SafeERC20Upgradeable for IERC20Upgradeable;
+    using SafeERC20 for IERC20;
 
     struct Deposit {
         uint256 amount;
@@ -46,6 +46,7 @@ contract SQMURent is
     uint256 public constant RENT_WINDOW = 7 days;
     /// @notice Allowed ERC-20 stablecoins.
     mapping(address => bool) public acceptedTokens;
+    mapping(address => uint256) public accruedManagementFees;
 
     uint256 public managementFee; // basis points (1000 = 10%)
     address public treasury;
@@ -78,8 +79,6 @@ contract SQMURent is
     /// @notice Initialize contract with the distribution vault address.
     function initialize(address vaultAddress) public initializer {
         __Ownable_init(msg.sender);
-        __ReentrancyGuard_init();
-        __UUPSUpgradeable_init();
         vault = ISQMURentDistribution(vaultAddress);
         managementFee = 1000;
     }
@@ -131,7 +130,7 @@ contract SQMURent is
             occupied: true
         });
 
-        IERC20Upgradeable(token).safeTransferFrom(msg.sender, address(this), amount);
+        IERC20(token).safeTransferFrom(msg.sender, address(this), amount);
         emit DepositPaid(propertyId, msg.sender, token, amount);
         emit PropertyOccupied(propertyId, msg.sender, block.timestamp + RENT_PERIOD);
     }
@@ -147,7 +146,7 @@ contract SQMURent is
         amount = dep.amount;
         token = dep.token;
         tenant = info.tenant;
-        contractBalance = token != address(0) ? IERC20Upgradeable(token).balanceOf(address(this)) : 0;
+        contractBalance = token != address(0) ? IERC20(token).balanceOf(address(this)) : 0;
     }
 
     /// @notice Owner refunds a tenant deposit. Remaining balance is sent to the treasury.
@@ -170,10 +169,10 @@ contract SQMURent is
         delete rentals[propertyId];
 
         if (refundAmount > 0) {
-            IERC20Upgradeable(token).safeTransfer(tenant, refundAmount);
+            IERC20(token).safeTransfer(tenant, refundAmount);
         }
         if (remainder > 0) {
-            IERC20Upgradeable(token).safeTransfer(treasury, remainder);
+            IERC20(token).safeTransfer(treasury, remainder);
         }
         emit DepositRefunded(propertyId, tenant, token, refundAmount, remainder);
         emit PropertyVacated(propertyId, tenant);
@@ -190,12 +189,13 @@ contract SQMURent is
             "Outside window"
         );
 
-        IERC20Upgradeable(token).safeTransferFrom(msg.sender, address(this), amount);
+        IERC20(token).safeTransferFrom(msg.sender, address(this), amount);
 
         uint256 fee = (amount * managementFee) / 10000;
         uint256 net = amount - fee;
+        accruedManagementFees[token] += fee;
 
-        IERC20Upgradeable(token).safeApprove(address(vault), net);
+        IERC20(token).forceApprove(address(vault), net);
         vault.depositRent(propertyId, token, net);
 
         info.nextRentDue += RENT_PERIOD;
@@ -205,8 +205,9 @@ contract SQMURent is
 
     /// @notice Withdraw accumulated management fees to the treasury.
     function withdrawManagementFees(address token) external onlyOwner nonReentrant {
-        uint256 balance = IERC20Upgradeable(token).balanceOf(address(this));
-        IERC20Upgradeable(token).safeTransfer(treasury, balance);
+        uint256 balance = accruedManagementFees[token];
+        accruedManagementFees[token] = 0;
+        IERC20(token).safeTransfer(treasury, balance);
         emit ManagementFeesWithdrawn(token, balance);
     }
 
@@ -226,4 +227,3 @@ contract SQMURent is
         emit NFTWithdrawn(to, token, id, amount);
     }
 }
-

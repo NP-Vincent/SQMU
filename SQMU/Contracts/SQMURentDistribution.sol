@@ -4,11 +4,11 @@ pragma solidity ^0.8.26;
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
-import {SafeERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
-import {IERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
-import {ERC1155HolderUpgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC1155/utils/ERC1155HolderUpgradeable.sol";
-import {IERC1155Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC1155/IERC1155Upgradeable.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {ERC1155Holder} from "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol";
+import {IERC1155} from "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
+import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 /// @title SQMU Rent Distribution Vault
 /// @notice Holds rent per property and distributes funds on demand.
@@ -16,11 +16,11 @@ import {IERC1155Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC
 contract SQMURentDistribution is
     Initializable,
     OwnableUpgradeable,
-    ReentrancyGuardUpgradeable,
+    ReentrancyGuard,
     UUPSUpgradeable,
-    ERC1155HolderUpgradeable
+    ERC1155Holder
 {
-    using SafeERC20Upgradeable for IERC20Upgradeable;
+    using SafeERC20 for IERC20;
 
     /// @notice propertyId => token => balance
     mapping(uint256 => mapping(address => uint256)) public rentBalances;
@@ -37,8 +37,6 @@ contract SQMURentDistribution is
 
     function initialize() public initializer {
         __Ownable_init(msg.sender);
-        __ReentrancyGuard_init();
-        __UUPSUpgradeable_init();
     }
 
     function _authorizeUpgrade(address newImpl) internal override onlyOwner {}
@@ -49,7 +47,7 @@ contract SQMURentDistribution is
 
     /// @notice Deposit rent for a property using an accepted stablecoin.
     function depositRent(uint256 propertyId, address token, uint256 amount) external nonReentrant {
-        IERC20Upgradeable(token).safeTransferFrom(msg.sender, address(this), amount);
+        IERC20(token).safeTransferFrom(msg.sender, address(this), amount);
         rentBalances[propertyId][token] += amount;
         emit RentDeposited(propertyId, token, amount);
     }
@@ -70,7 +68,7 @@ contract SQMURentDistribution is
         require(sum <= totalAmount, "Exceeds balance");
         rentBalances[propertyId][token] -= sum;
         for (uint256 i = 0; i < holders.length; i++) {
-            IERC20Upgradeable(token).safeTransfer(holders[i], amounts[i]);
+            IERC20(token).safeTransfer(holders[i], amounts[i]);
         }
         emit RentDistributed(propertyId, token, sum);
     }
@@ -81,14 +79,13 @@ contract SQMURentDistribution is
 
     /// @notice Deposit an ERC-1155 token into the vault.
     function depositNFT(address token, uint256 id, uint256 amount, bytes calldata data) external {
-        IERC1155Upgradeable(token).safeTransferFrom(msg.sender, address(this), id, amount, data);
+        IERC1155(token).safeTransferFrom(msg.sender, address(this), id, amount, data);
         emit NFTDeposited(msg.sender, token, id, amount);
     }
 
     /// @notice Owner can withdraw ERC-1155 tokens held by the vault.
     function withdrawNFT(address token, uint256 id, uint256 amount, address to) external onlyOwner {
-        IERC1155Upgradeable(token).safeTransferFrom(address(this), to, id, amount, "");
+        IERC1155(token).safeTransferFrom(address(this), to, id, amount, "");
         emit NFTWithdrawn(to, token, id, amount);
     }
 }
-

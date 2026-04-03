@@ -4,16 +4,16 @@ pragma solidity ^0.8.26;
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
-import {IERC20MetadataUpgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/IERC20MetadataUpgradeable.sol";
-import {IERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
-import {IERC1155Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC1155/IERC1155Upgradeable.sol";
+import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {IERC1155} from "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
+import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 contract AtomicSQMUDistributor is
     Initializable,
     OwnableUpgradeable,
     UUPSUpgradeable,
-    ReentrancyGuardUpgradeable
+    ReentrancyGuard
 {
     struct Property {
         string name;
@@ -75,8 +75,6 @@ contract AtomicSQMUDistributor is
 
     function initialize(uint256 commissionBps) public initializer {
         __Ownable_init(msg.sender);
-        __UUPSUpgradeable_init();
-        __ReentrancyGuard_init();
         globalCommissionBps = commissionBps;
     }
 
@@ -147,14 +145,14 @@ contract AtomicSQMUDistributor is
         PurchaseVars memory vars;
 
         // --- Price and Commission ---
-        vars.tokenDecimals = IERC20MetadataUpgradeable(paymentToken).decimals();
+        vars.tokenDecimals = IERC20Metadata(paymentToken).decimals();
         vars.totalPrice =
             (prop.priceUSD * sqmuAmount * (10 ** vars.tokenDecimals)) / 1e18;
         require(vars.totalPrice > 0, "Zero price");
 
         // --- Collect Payment ---
         // Buyer must approve contract for totalPrice first
-        IERC20Upgradeable erc20 = IERC20Upgradeable(paymentToken);
+        IERC20 erc20 = IERC20(paymentToken);
         require(
             erc20.transferFrom(msg.sender, address(this), vars.totalPrice),
             "ERC20 transfer failed"
@@ -183,7 +181,7 @@ contract AtomicSQMUDistributor is
         );
 
         // --- SQMU Delivery ---
-        IERC1155Upgradeable sqmu = IERC1155Upgradeable(prop.tokenAddress);
+        IERC1155 sqmu = IERC1155(prop.tokenAddress);
         // Treasury must setApprovalForAll to this contract before use
         sqmu.safeTransferFrom(prop.treasury, msg.sender, prop.tokenId, sqmuAmount, "");
 
@@ -209,7 +207,7 @@ contract AtomicSQMUDistributor is
     ) external onlyOwner nonReentrant {
         Property storage prop = properties[propertyCode];
         require(prop.tokenAddress != address(0), "Property not found");
-        IERC1155Upgradeable sqmu = IERC1155Upgradeable(prop.tokenAddress);
+        IERC1155 sqmu = IERC1155(prop.tokenAddress);
         sqmu.safeTransferFrom(prop.treasury, buyer, prop.tokenId, sqmuAmount, "");
         emit ManualDistribution(propertyCode, buyer, sqmuAmount, agentCode);
     }
@@ -247,7 +245,7 @@ contract AtomicSQMUDistributor is
     function getAvailable(string calldata propertyCode) external view returns (uint256) {
         Property storage prop = properties[propertyCode];
         require(prop.tokenAddress != address(0), "Property not found");
-        return IERC1155Upgradeable(prop.tokenAddress).balanceOf(prop.treasury, prop.tokenId);
+        return IERC1155(prop.tokenAddress).balanceOf(prop.treasury, prop.tokenId);
     }
 
     function getPropertyStatus(string calldata propertyCode) external view returns (bool) {

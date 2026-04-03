@@ -21,6 +21,7 @@ module.exports = {
   solidity: {
     version: "0.8.26",
     settings: {
+      evmVersion: "cancun",
       viaIR: true,
       optimizer: {
         enabled: true,
@@ -29,7 +30,7 @@ module.exports = {
     }
   },
   paths: {
-    sources: "./EscrowSources",
+    sources: "./Contracts",
     tests: "./test",
     cache: "./cache",
     artifacts: "./artifacts"

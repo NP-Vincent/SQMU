@@ -36,7 +36,6 @@ contract SQMU is Initializable, ERC1155Upgradeable, ERC1155BurnableUpgradeable, 
         __ERC1155_init(uri_);
         __ERC1155Burnable_init();
         __Ownable_init(initialOwner);
-        __UUPSUpgradeable_init();
         name = name_;
         symbol = symbol_;
     }

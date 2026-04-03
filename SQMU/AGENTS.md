@@ -17,7 +17,7 @@ The goal is to document contract-facing workflows so contributors can reason abo
 - Keep contract workflows modular (minting, listing, rent, trade, escrow, distributions).
 - Keep ABIs aligned with deployed contract versions and documented changes.
 - Preserve event naming and method compatibility where possible for downstream consumers.
-- Keep the escrow workspace isolated enough to validate escrow/factory changes without requiring unrelated contracts to compile.
+- Keep the full contract build reproducible so deployment artifacts and ABI exports stay aligned.
 
 ## Integration points
 - **WordPress Agent** consumes ABI and addresses to power wallet-connected UI flows.
@@ -34,6 +34,8 @@ The goal is to document contract-facing workflows so contributors can reason abo
 
 - `Contracts/Escrow.sol` is the clone target and is intentionally non-upgradeable.
 - `Contracts/EscrowFactory.sol` is the UUPS-upgradeable creation/registry surface.
-- `EscrowSources/` is the Hardhat source root for escrow-only compilation.
+- `Contracts/SQMUCrowdfund.sol` now uses an owner-managed payment-token allowlist instead of Scroll-specific hardcoded stablecoins.
+- `hardhat.config.cjs` compiles the full `Contracts/` suite with a Cancun EVM target to match the installed OpenZeppelin package set.
 - `test/EscrowFactory.test.cjs` is the escrow regression suite.
+- `test/SQMUCrowdfund.test.cjs` covers the crowdfund proxy initialization and payment-token allowlist behavior.
 - `scripts/export-abis.cjs` writes the simplified ABI files consumed downstream.

@@ -52,6 +52,15 @@ function exportAbi(contractName) {
   );
 }
 
-for (const contractName of ["Escrow", "EscrowFactory"]) {
+for (const contractName of [
+  "SQMU",
+  "AtomicSQMUDistributor",
+  "SQMUTrade",
+  "SQMUCrowdfund",
+  "SQMURent",
+  "SQMURentDistribution",
+  "Escrow",
+  "EscrowFactory"
+]) {
   exportAbi(contractName);
 }

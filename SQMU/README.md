@@ -7,9 +7,9 @@ This folder contains the contract-side reference implementation for SQMU.
 - `Contracts/` — Solidity contracts for minting, listing/distribution, rent, escrow, trading, and governance-related flows.
 - `Contracts/Escrow.sol` — non-upgradeable escrow implementation intended for minimal clones.
 - `Contracts/EscrowFactory.sol` — UUPS-upgradeable factory, whitelist, and registry for escrow creation.
+- `Contracts/SQMUCrowdfund.sol` — UUPS-upgradeable governance sale contract with an owner-managed payment-token allowlist.
 - `ABI/` — Versioned ABI artifacts consumed by off-chain integrations.
 - `deployment_log.md` — Deployment notes and environment-specific history.
-- `EscrowSources/` — escrow-only Hardhat source entrypoint used to compile and test the new escrow stack without touching unrelated contracts.
 
 ## Ownership and responsibilities
 
@@ -52,10 +52,10 @@ From `SQMU/`:
 ```bash
 npm install
 npm test
-npm run export:abi
+npm run build
 ```
 
-The Hardhat workspace is intentionally scoped to escrow sources only so it can compile and test the new escrow stack without needing to normalize the rest of the contract module first.
+The Hardhat workspace now compiles the full `Contracts/` suite and exports ABI files for the main SQMU contracts. The current OpenZeppelin toolchain emits Cancun-era bytecode, so target chains must support Cancun-compatible EVM opcodes.
 
 ## Licensing
 

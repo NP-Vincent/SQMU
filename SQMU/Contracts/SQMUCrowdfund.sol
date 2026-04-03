@@ -4,11 +4,11 @@ pragma solidity ^0.8.26;
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
-import {IERC20MetadataUpgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/IERC20MetadataUpgradeable.sol";
-import {IERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
-import {IERC1155Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC1155/IERC1155Upgradeable.sol";
-import {ERC1155HolderUpgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC1155/utils/ERC1155HolderUpgradeable.sol";
+import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {IERC1155} from "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
+import {ERC1155Holder} from "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol";
+import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 /// @title SQMU Crowdfund Contract
 /// @notice Sells pre-minted governance tokens (ID 0) for stablecoins held by this contract.
@@ -17,25 +17,23 @@ contract SQMUCrowdfund is
     Initializable,
     OwnableUpgradeable,
     UUPSUpgradeable,
-    ReentrancyGuardUpgradeable,
-    ERC1155HolderUpgradeable
+    ReentrancyGuard,
+    ERC1155Holder
 {
     /// ---------------------------------------------------------------------
     /// Storage
     /// ---------------------------------------------------------------------
 
-    IERC1155Upgradeable public sqmu;
-
-    /// @dev Accepted stablecoin addresses on Scroll mainnet.
-    address public constant USDT = 0xf55BEC9cafDbE8730f096Aa55dad6D22d44099Df;
-    address public constant USDC = 0x06eFdBFf2a14a7c8E15944D1F4A48F9F95F663A4;
-    address public constant USDQ = 0xdb9E8F82D6d45fFf803161F2a5f75543972B229a;
+    IERC1155 public sqmu;
+    mapping(address => bool) private allowedPaymentToken;
+    address[] public paymentTokens;
 
     uint256 public constant GOVERNANCE_ID = 0;
     /// @dev Price per governance token in USD with 18 decimals (1e18 = $1)
     uint256 public priceUSD;
 
     event GovernancePurchased(address indexed buyer, address token, uint256 amount, uint256 totalPaid);
+    event PaymentTokenChanged(address token, bool allowed);
     event PriceUpdated(uint256 newPriceUSD);
     event PaymentsWithdrawn(address indexed token, uint256 amount);
 
@@ -46,9 +44,7 @@ contract SQMUCrowdfund is
 
     function initialize(address sqmuAddress, uint256 priceUSD_) public initializer {
         __Ownable_init(msg.sender);
-        __UUPSUpgradeable_init();
-        __ReentrancyGuard_init();
-        sqmu = IERC1155Upgradeable(sqmuAddress);
+        sqmu = IERC1155(sqmuAddress);
         priceUSD = priceUSD_;
     }
 
@@ -58,18 +54,41 @@ contract SQMUCrowdfund is
     /// Crowdfund Logic
     /// ---------------------------------------------------------------------
 
+    /// @notice Allow or disallow a payment token for crowdfund purchases.
+    function allowPaymentToken(address token, bool allowed) external onlyOwner {
+        allowedPaymentToken[token] = allowed;
+
+        bool found = false;
+        uint256 foundIndex = 0;
+        for (uint256 i = 0; i < paymentTokens.length; i++) {
+            if (paymentTokens[i] == token) {
+                found = true;
+                foundIndex = i;
+                break;
+            }
+        }
+
+        if (!found && allowed) {
+            paymentTokens.push(token);
+        } else if (found && !allowed) {
+            uint256 lastIndex = paymentTokens.length - 1;
+            for (uint256 i = foundIndex; i < lastIndex; i++) {
+                paymentTokens[i] = paymentTokens[i + 1];
+            }
+            paymentTokens.pop();
+        }
+
+        emit PaymentTokenChanged(token, allowed);
+    }
+
     /// @notice Purchase governance tokens by paying with a supported stablecoin.
-    /// @param paymentToken Address of USDC, USDT or USDQ on Scroll.
     /// @param amount Number of governance tokens to buy.
     function buy(address paymentToken, uint256 amount) external nonReentrant {
         require(amount > 0, "Amount required");
-        require(
-            paymentToken == USDC || paymentToken == USDT || paymentToken == USDQ,
-            "Token not allowed"
-        );
+        require(allowedPaymentToken[paymentToken], "Token not allowed");
 
-        IERC20Upgradeable erc20 = IERC20Upgradeable(paymentToken);
-        uint8 decimals = IERC20MetadataUpgradeable(paymentToken).decimals();
+        IERC20 erc20 = IERC20(paymentToken);
+        uint8 decimals = IERC20Metadata(paymentToken).decimals();
         uint256 total = (priceUSD * amount * (10 ** decimals)) / 1e18;
         require(total > 0, "Zero price");
 
@@ -94,7 +113,7 @@ contract SQMUCrowdfund is
     /// @param token ERC20 stablecoin address.
     /// @param amount Amount to withdraw (0 for full balance).
     function withdrawPayments(address token, uint256 amount) external onlyOwner {
-        IERC20Upgradeable erc20 = IERC20Upgradeable(token);
+        IERC20 erc20 = IERC20(token);
         uint256 bal = erc20.balanceOf(address(this));
         if (amount == 0) {
             amount = bal;
@@ -104,5 +123,12 @@ contract SQMUCrowdfund is
         require(erc20.transfer(owner(), amount), "Transfer failed");
         emit PaymentsWithdrawn(token, amount);
     }
-}
 
+    function isAllowedToken(address token) external view returns (bool) {
+        return allowedPaymentToken[token];
+    }
+
+    function getPaymentTokens() external view returns (address[] memory) {
+        return paymentTokens;
+    }
+}
