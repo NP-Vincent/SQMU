@@ -34,6 +34,17 @@ React + Wagmi owns:
 
 Runtime is direct browser-to-chain. WordPress is not used as a REST proxy in this version.
 
+## Local Validation Targets
+
+Keep two separate local WordPress testing lanes in mind:
+
+- Development lane
+  - Flexible local iteration is allowed on the official beta image currently in use for broader experimentation.
+- Release lane
+  - Final plugin signoff should be rechecked against a stable WordPress + PHP 8.3 environment to stay close to the live `sqmu.net` target (`WordPress 6.9.4`, `PHP 8.3`, WordPress.com hosting).
+
+The beta image is useful for development, but it is not the final compatibility gate for release confidence.
+
 ## Contract Bundle Pinning
 
 The plugin does not compile contracts at runtime.
@@ -178,6 +189,26 @@ Settings > SQMU Operations
 This page is restricted to administrators and exposes selected owner/admin actions only.
 It does not expose upgrade or ownership-transfer controls.
 
+The plugin also adds a deployment console:
+
+```text
+Settings > SQMU Deployments
+```
+
+This page shows:
+
+- the pinned contract bundle version mirrored from `contract-bundle.json`
+- whether `contracts/current/manifest.json` is actually packaged into the current plugin build
+- the contracts in the bundled manifest
+- deployment order and initializer metadata
+- upgradeability metadata from the bundled manifest
+- whether the site already has deployment history recorded
+- active deployments by chain and the full stored deployment history when records exist
+- a browser-signed deploy flow for creating a fresh stack from the bundled manifest
+- an optional settings-sync path that can copy the saved active deployment addresses into the main plugin contract settings
+
+In this version, the deployment console supports fresh deploys only. It does not attempt in-place proxy upgrades yet.
+
 ### Admin operations included
 
 - `SQMUCrowdfund`
@@ -207,6 +238,27 @@ The settings screen now supports these contract keys:
 - `rent`
 - `rentDistribution`
 - `escrowFactory`
+
+## Deployment Storage Model
+
+The plugin now reserves WordPress option storage for future contract deployment orchestration:
+
+- `sqmu_contract_bundle_pin`
+  - mirrors the packaged `contract-bundle.json` pin inside WordPress
+- `sqmu_contract_deployments`
+  - full deployment history keyed by deployment id
+- `sqmu_contract_active_deployments`
+  - chain id -> active deployment id
+
+Deployment records are normalized for:
+
+- active deployment per chain
+- deployed addresses
+- tx hashes
+- manifest version and SHA-256
+- status values: `draft`, `active`, `superseded`, `failed`
+
+This storage is now used by the deployment console for browser-signed fresh deploys and recorded deployment history.
 
 The frontend uses the current repository ABI files as its source of truth:
 

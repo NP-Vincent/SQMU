@@ -23,6 +23,7 @@ WordPress-specific behavior inside plugin PHP code and wp-admin settings.
 - Maintain the admin settings UI for chains, contracts, payment tokens, and per-view defaults
   It should stay field-driven in wp-admin rather than raw JSON textareas.
 - Maintain the restricted admin operations page for browser-signed owner/admin actions
+- Maintain the read-only deployment console that surfaces the pinned bundle, bundled manifest metadata, and recorded deployment history
 - Resolve property-specific details from WordPress post meta using the fixed SQMU meta keys
   Property-bound views should auto-discover from the current WordPress post first, then fall back to `[data-sqmu-property-code]`, Estatik DOM markup, and `?code=...` when needed.
 - Track dependencies on contract ABI and interface changes
@@ -30,6 +31,9 @@ WordPress-specific behavior inside plugin PHP code and wp-admin settings.
 - Keep generated runtime chunks in `plugin/assets/chunks/` packaged with the plugin
 - Keep the tracked contract bundle pin in `contract-bundle.json` aligned with the plugin release that should ship deployment support
 - Treat contract bundle release assets as immutable inputs from the contract pipeline, not as artifacts the plugin builds for itself
+- Maintain two WordPress validation lanes:
+  - flexible beta-image local development
+  - stable WordPress + PHP 8.3 release-parity validation before signoff
 
 ## Current Runtime Model
 
@@ -78,6 +82,35 @@ WordPress-specific behavior inside plugin PHP code and wp-admin settings.
   - Uses the same frontend bundle
   - Signs owner/admin actions in the browser wallet
   - Must not expose upgrade or ownership-transfer actions
+- `Settings > SQMU Deployments`
+  - Restricted administrator page
+  - Mirrors the packaged contract bundle pin and bundled manifest visibility
+  - Shows deployment order, upgradeability metadata, and recorded deployment history
+  - Uses the same frontend bundle for browser-signed fresh deploys
+  - May save deployment records and optionally sync the active addresses into main plugin settings
+  - Must not attempt in-place upgrades in this phase
+
+## Deployment Storage
+
+- `sqmu_contract_bundle_pin`
+  - mirrored copy of the packaged `contract-bundle.json`
+- `sqmu_contract_deployments`
+  - full deployment history keyed by deployment id
+- `sqmu_contract_active_deployments`
+  - chain id -> active deployment id
+
+Expected deployment record fields:
+
+- `deploymentId`
+- `chainId`
+- `releaseVersion`
+- `manifestVersion`
+- `manifestSha256`
+- `deployedAt`
+- `deployerWallet`
+- `status`
+- `contracts`
+- `txHashes`
 
 ## Contract Integration Surface
 

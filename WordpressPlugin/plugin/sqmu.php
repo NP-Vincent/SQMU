@@ -11,6 +11,9 @@ if (!defined('ABSPATH')) {
 }
 
 const SQMU_APP_OPTION_KEY = 'sqmu_app_settings';
+const SQMU_CONTRACT_BUNDLE_PIN_OPTION_KEY = 'sqmu_contract_bundle_pin';
+const SQMU_CONTRACT_DEPLOYMENTS_OPTION_KEY = 'sqmu_contract_deployments';
+const SQMU_CONTRACT_ACTIVE_DEPLOYMENTS_OPTION_KEY = 'sqmu_contract_active_deployments';
 const SQMU_PROPERTY_CODE_META_KEY = '_sqmu_property_code';
 const SQMU_PROPERTY_TOKEN_ID_META_KEY = '_sqmu_token_id';
 const SQMU_PROPERTY_TOKEN_ADDRESS_META_KEY = '_sqmu_token_address';
@@ -46,6 +49,31 @@ function sqmu_app_default_consulting_payment_settings() {
         'allowedChainIds' => array(),
         'tokens' => array()
     );
+}
+
+function sqmu_app_default_contract_bundle_pin() {
+    return array(
+        'schemaVersion' => 1,
+        'enabled' => false,
+        'release' => array(
+            'version' => '',
+            'tag' => '',
+            'asset' => '',
+            'sha256' => ''
+        )
+    );
+}
+
+function sqmu_app_default_contract_deployments() {
+    return array();
+}
+
+function sqmu_app_default_active_contract_deployments() {
+    return array();
+}
+
+function sqmu_app_allowed_deployment_statuses() {
+    return array('draft', 'active', 'superseded', 'failed');
 }
 
 function sqmu_app_default_view_defaults() {
@@ -138,6 +166,451 @@ function sqmu_app_get_settings() {
 
     return $settings;
 }
+
+function sqmu_app_read_json_file($file_path) {
+    if (!is_string($file_path) || $file_path === '' || !file_exists($file_path) || !is_readable($file_path)) {
+        return null;
+    }
+
+    $decoded = json_decode((string) file_get_contents($file_path), true);
+    return is_array($decoded) ? $decoded : null;
+}
+
+function sqmu_app_get_contract_bundle_pin_file_paths() {
+    return array(
+        plugin_dir_path(__FILE__) . 'contract-bundle.json',
+        dirname(plugin_dir_path(__FILE__)) . '/contract-bundle.json'
+    );
+}
+
+function sqmu_app_get_contract_manifest_file_paths() {
+    return array(
+        plugin_dir_path(__FILE__) . 'contracts/current/manifest.json',
+        dirname(plugin_dir_path(__FILE__)) . '/contracts/current/manifest.json'
+    );
+}
+
+function sqmu_app_get_contract_bundle_root_paths() {
+    return array(
+        plugin_dir_path(__FILE__) . 'contracts/current',
+        dirname(plugin_dir_path(__FILE__)) . '/contracts/current'
+    );
+}
+
+function sqmu_app_get_packaged_contract_bundle_pin() {
+    $defaults = sqmu_app_default_contract_bundle_pin();
+
+    foreach (sqmu_app_get_contract_bundle_pin_file_paths() as $file_path) {
+        $decoded = sqmu_app_read_json_file($file_path);
+        if (is_array($decoded)) {
+            return array_replace_recursive($defaults, $decoded);
+        }
+    }
+
+    return $defaults;
+}
+
+function sqmu_app_get_packaged_contract_manifest() {
+    foreach (sqmu_app_get_contract_manifest_file_paths() as $file_path) {
+        $decoded = sqmu_app_read_json_file($file_path);
+        if (is_array($decoded)) {
+            return $decoded;
+        }
+    }
+
+    return null;
+}
+
+function sqmu_app_get_packaged_contract_manifest_sha256() {
+    foreach (sqmu_app_get_contract_manifest_file_paths() as $file_path) {
+        if (is_readable($file_path)) {
+            return hash_file('sha256', $file_path);
+        }
+    }
+
+    return '';
+}
+
+function sqmu_app_get_packaged_contract_bundle() {
+    static $bundle = null;
+
+    if ($bundle !== null) {
+        return $bundle;
+    }
+
+    foreach (sqmu_app_get_contract_bundle_root_paths() as $bundle_root) {
+        $manifest_path = trailingslashit($bundle_root) . 'manifest.json';
+        $manifest = sqmu_app_read_json_file($manifest_path);
+        if (!is_array($manifest)) {
+            continue;
+        }
+
+        $contracts = array();
+        foreach (($manifest['contracts'] ?? array()) as $contract_meta) {
+            if (!is_array($contract_meta)) {
+                continue;
+            }
+
+            $name = sanitize_text_field($contract_meta['name'] ?? '');
+            $contract_file = sanitize_text_field($contract_meta['files']['contract'] ?? '');
+            if ($name === '' || $contract_file === '') {
+                continue;
+            }
+
+            $contract_json = sqmu_app_read_json_file(trailingslashit($bundle_root) . ltrim($contract_file, '/'));
+            if (is_array($contract_json)) {
+                $contracts[$name] = $contract_json;
+            }
+        }
+
+        $support = array();
+        $proxy_file = sanitize_text_field($manifest['support']['erc1967Proxy']['file'] ?? '');
+        if ($proxy_file !== '') {
+            $proxy_json = sqmu_app_read_json_file(trailingslashit($bundle_root) . ltrim($proxy_file, '/'));
+            if (is_array($proxy_json)) {
+                $support['ERC1967Proxy'] = $proxy_json;
+            }
+        }
+
+        $bundle = array(
+            'rootPath' => $bundle_root,
+            'manifest' => $manifest,
+            'manifestSha256' => hash_file('sha256', $manifest_path),
+            'contracts' => $contracts,
+            'support' => $support
+        );
+
+        return $bundle;
+    }
+
+    $bundle = null;
+    return null;
+}
+
+function sqmu_app_get_stored_contract_bundle_pin() {
+    $defaults = sqmu_app_default_contract_bundle_pin();
+    $stored = get_option(SQMU_CONTRACT_BUNDLE_PIN_OPTION_KEY, $defaults);
+
+    if (!is_array($stored)) {
+        $stored = array();
+    }
+
+    return array_replace_recursive($defaults, $stored);
+}
+
+function sqmu_app_normalize_optional_address($value) {
+    $value = sanitize_text_field($value);
+    return sqmu_app_is_valid_address($value) ? $value : '';
+}
+
+function sqmu_app_normalize_tx_hash($value) {
+    $value = sanitize_text_field($value);
+    return sqmu_app_is_valid_bytes32($value) ? $value : '';
+}
+
+function sqmu_app_normalize_contract_deployment_contracts($contracts) {
+    if (!is_array($contracts)) {
+        return array();
+    }
+
+    $normalized = array();
+
+    foreach ($contracts as $key => $contract) {
+        if (!is_array($contract)) {
+            continue;
+        }
+
+        $name = sanitize_text_field(is_string($key) ? $key : ($contract['name'] ?? ''));
+        if ($name === '') {
+            continue;
+        }
+
+        $normalized[$name] = array(
+            'name' => $name,
+            'address' => sqmu_app_normalize_optional_address($contract['address'] ?? ''),
+            'proxyAddress' => sqmu_app_normalize_optional_address($contract['proxyAddress'] ?? ''),
+            'implementationAddress' => sqmu_app_normalize_optional_address($contract['implementationAddress'] ?? ''),
+            'txHash' => sqmu_app_normalize_tx_hash($contract['txHash'] ?? ''),
+            'deploymentKind' => sanitize_key($contract['deploymentKind'] ?? '')
+        );
+    }
+
+    ksort($normalized, SORT_NATURAL | SORT_FLAG_CASE);
+    return $normalized;
+}
+
+function sqmu_app_normalize_contract_deployment_record($record, $fallback_id = '') {
+    $record = is_array($record) ? $record : array();
+    $status = sanitize_key($record['status'] ?? '');
+    if (!in_array($status, sqmu_app_allowed_deployment_statuses(), true)) {
+        $status = 'draft';
+    }
+
+    $deployment_id = sanitize_key($record['deploymentId'] ?? $fallback_id);
+    if ($deployment_id === '') {
+        $deployment_id = sanitize_key('sqmu-deployment-' . wp_generate_uuid4());
+    }
+
+    $manifest_sha256 = sanitize_text_field($record['manifestSha256'] ?? '');
+    if (!preg_match('/^[a-f0-9]{64}$/i', $manifest_sha256)) {
+        $manifest_sha256 = '';
+    }
+
+    $tx_hashes = array();
+    if (isset($record['txHashes']) && is_array($record['txHashes'])) {
+        foreach ($record['txHashes'] as $name => $hash) {
+            $normalized_hash = sqmu_app_normalize_tx_hash($hash);
+            if ($normalized_hash === '') {
+                continue;
+            }
+
+            $key = sanitize_text_field(is_string($name) ? $name : 'tx_' . count($tx_hashes));
+            $tx_hashes[$key] = $normalized_hash;
+        }
+    }
+
+    return array(
+        'deploymentId' => $deployment_id,
+        'chainId' => isset($record['chainId']) && is_numeric($record['chainId']) ? (int) $record['chainId'] : 0,
+        'releaseVersion' => sanitize_text_field($record['releaseVersion'] ?? ''),
+        'manifestVersion' => sanitize_text_field($record['manifestVersion'] ?? ''),
+        'manifestSha256' => strtolower($manifest_sha256),
+        'deployedAt' => sanitize_text_field($record['deployedAt'] ?? ''),
+        'deployerWallet' => sqmu_app_normalize_optional_address($record['deployerWallet'] ?? ''),
+        'status' => $status,
+        'contracts' => sqmu_app_normalize_contract_deployment_contracts($record['contracts'] ?? array()),
+        'txHashes' => $tx_hashes
+    );
+}
+
+function sqmu_app_get_contract_deployments() {
+    $stored = get_option(SQMU_CONTRACT_DEPLOYMENTS_OPTION_KEY, sqmu_app_default_contract_deployments());
+    if (!is_array($stored)) {
+        return array();
+    }
+
+    $deployments = array();
+    foreach ($stored as $deployment_id => $record) {
+        $normalized = sqmu_app_normalize_contract_deployment_record($record, is_string($deployment_id) ? $deployment_id : '');
+        $deployments[$normalized['deploymentId']] = $normalized;
+    }
+
+    uasort(
+        $deployments,
+        static function ($left, $right) {
+            return strcmp($right['deployedAt'] ?? '', $left['deployedAt'] ?? '');
+        }
+    );
+
+    return $deployments;
+}
+
+function sqmu_app_get_active_contract_deployments() {
+    $stored = get_option(SQMU_CONTRACT_ACTIVE_DEPLOYMENTS_OPTION_KEY, sqmu_app_default_active_contract_deployments());
+    $deployments = sqmu_app_get_contract_deployments();
+    $active = array();
+
+    if (!is_array($stored)) {
+        return $active;
+    }
+
+    foreach ($stored as $chain_id => $deployment_id) {
+        if (!is_numeric($chain_id)) {
+            continue;
+        }
+
+        $normalized_chain_id = (int) $chain_id;
+        $normalized_deployment_id = sanitize_key($deployment_id);
+        if ($normalized_deployment_id === '' || !isset($deployments[$normalized_deployment_id])) {
+            continue;
+        }
+
+        $active[$normalized_chain_id] = $normalized_deployment_id;
+    }
+
+    ksort($active, SORT_NUMERIC);
+    return $active;
+}
+
+function sqmu_app_persist_contract_deployments($deployments) {
+    update_option(SQMU_CONTRACT_DEPLOYMENTS_OPTION_KEY, $deployments, false);
+}
+
+function sqmu_app_persist_active_contract_deployments($active_deployments) {
+    update_option(SQMU_CONTRACT_ACTIVE_DEPLOYMENTS_OPTION_KEY, $active_deployments, false);
+}
+
+function sqmu_app_upsert_contract_deployment($record) {
+    $deployments = sqmu_app_get_contract_deployments();
+    $normalized = sqmu_app_normalize_contract_deployment_record($record);
+    $deployment_id = $normalized['deploymentId'];
+
+    $deployments[$deployment_id] = $normalized;
+
+    $active_deployments = sqmu_app_get_active_contract_deployments();
+    if ($normalized['status'] === 'active' && $normalized['chainId'] > 0) {
+        $existing_active_id = $active_deployments[$normalized['chainId']] ?? '';
+        if ($existing_active_id !== '' && $existing_active_id !== $deployment_id && isset($deployments[$existing_active_id])) {
+            $deployments[$existing_active_id]['status'] = 'superseded';
+        }
+
+        $active_deployments[$normalized['chainId']] = $deployment_id;
+    } elseif (($active_deployments[$normalized['chainId']] ?? '') === $deployment_id) {
+        unset($active_deployments[$normalized['chainId']]);
+    }
+
+    sqmu_app_persist_contract_deployments($deployments);
+    sqmu_app_persist_active_contract_deployments($active_deployments);
+
+    return $normalized;
+}
+
+function sqmu_app_contract_name_to_settings_key_map() {
+    return array(
+        'AtomicSQMUDistributor' => 'distributor',
+        'SQMUTrade' => 'trade',
+        'SQMU' => 'sqmu',
+        'SQMUCrowdfund' => 'crowdfund',
+        'SQMURent' => 'rent',
+        'SQMURentDistribution' => 'rentDistribution',
+        'EscrowFactory' => 'escrowFactory'
+    );
+}
+
+function sqmu_app_get_deployment_contract_address($contract) {
+    if (!is_array($contract)) {
+        return '';
+    }
+
+    foreach (array('address', 'proxyAddress', 'implementationAddress') as $key) {
+        $value = sqmu_app_normalize_optional_address($contract[$key] ?? '');
+        if ($value !== '') {
+            return $value;
+        }
+    }
+
+    return '';
+}
+
+function sqmu_app_sync_contract_settings_from_deployment($deployment) {
+    $deployment = sqmu_app_normalize_contract_deployment_record($deployment);
+    $settings = sqmu_app_get_settings();
+    $map = sqmu_app_contract_name_to_settings_key_map();
+    $synced = array();
+
+    foreach ($map as $contract_name => $settings_key) {
+        if (!isset($deployment['contracts'][$contract_name])) {
+            continue;
+        }
+
+        $resolved_address = sqmu_app_get_deployment_contract_address($deployment['contracts'][$contract_name]);
+        if ($resolved_address === '') {
+            continue;
+        }
+
+        $settings['contracts'][$settings_key] = $resolved_address;
+        $synced[$settings_key] = $resolved_address;
+    }
+
+    if ($deployment['chainId'] > 0) {
+        foreach ($settings['viewDefaults'] as $view => $defaults) {
+            if (!is_array($defaults)) {
+                continue;
+            }
+
+            if (empty($settings['viewDefaults'][$view]['defaultChainId'])) {
+                $settings['viewDefaults'][$view]['defaultChainId'] = $deployment['chainId'];
+            }
+        }
+    }
+
+    update_option(SQMU_APP_OPTION_KEY, $settings, false);
+
+    return array(
+        'contracts' => $synced,
+        'settings' => $settings
+    );
+}
+
+function sqmu_app_rest_can_manage_options() {
+    return current_user_can('manage_options');
+}
+
+function sqmu_app_rest_get_deployments_state() {
+    $deployments = array_values(sqmu_app_get_contract_deployments());
+
+    return rest_ensure_response(
+        array(
+            'deployments' => $deployments,
+            'activeDeployments' => sqmu_app_get_active_contract_deployments(),
+            'storedPin' => sqmu_app_get_stored_contract_bundle_pin()
+        )
+    );
+}
+
+function sqmu_app_rest_upsert_deployment(WP_REST_Request $request) {
+    $params = $request->get_json_params();
+    if (!is_array($params)) {
+        return new WP_Error('sqmu_invalid_deployment_payload', 'Deployment payload must be a JSON object.', array('status' => 400));
+    }
+
+    $record = isset($params['record']) && is_array($params['record']) ? $params['record'] : $params;
+    $sync_current_contracts = !empty($params['syncCurrentContracts']);
+    $normalized = sqmu_app_upsert_contract_deployment($record);
+    $synced = array(
+        'contracts' => array()
+    );
+
+    if ($sync_current_contracts && $normalized['status'] === 'active') {
+        $synced = sqmu_app_sync_contract_settings_from_deployment($normalized);
+    }
+
+    return rest_ensure_response(
+        array(
+            'deployment' => $normalized,
+            'deployments' => array_values(sqmu_app_get_contract_deployments()),
+            'activeDeployments' => sqmu_app_get_active_contract_deployments(),
+            'syncedContracts' => $synced['contracts'],
+            'settings' => $synced['settings'] ?? null
+        )
+    );
+}
+
+function sqmu_app_register_rest_routes() {
+    register_rest_route(
+        'sqmu/v1',
+        '/deployments',
+        array(
+            array(
+                'methods' => WP_REST_Server::READABLE,
+                'callback' => 'sqmu_app_rest_get_deployments_state',
+                'permission_callback' => 'sqmu_app_rest_can_manage_options'
+            ),
+            array(
+                'methods' => WP_REST_Server::CREATABLE,
+                'callback' => 'sqmu_app_rest_upsert_deployment',
+                'permission_callback' => 'sqmu_app_rest_can_manage_options'
+            )
+        )
+    );
+}
+add_action('rest_api_init', 'sqmu_app_register_rest_routes');
+
+function sqmu_app_refresh_contract_bundle_pin_mirror() {
+    $packaged_pin = sqmu_app_get_packaged_contract_bundle_pin();
+    $stored_pin = get_option(SQMU_CONTRACT_BUNDLE_PIN_OPTION_KEY, null);
+
+    if ($stored_pin !== $packaged_pin) {
+        update_option(SQMU_CONTRACT_BUNDLE_PIN_OPTION_KEY, $packaged_pin, false);
+    }
+}
+
+function sqmu_app_activate_plugin() {
+    add_option(SQMU_CONTRACT_DEPLOYMENTS_OPTION_KEY, sqmu_app_default_contract_deployments(), '', false);
+    add_option(SQMU_CONTRACT_ACTIVE_DEPLOYMENTS_OPTION_KEY, sqmu_app_default_active_contract_deployments(), '', false);
+    sqmu_app_refresh_contract_bundle_pin_mirror();
+}
+register_activation_hook(__FILE__, 'sqmu_app_activate_plugin');
 
 function sqmu_app_parse_json_textarea($value, $fallback) {
     if (!is_string($value) || trim($value) === '') {
@@ -509,6 +982,8 @@ function sqmu_app_register_settings() {
             'default' => sqmu_app_default_settings()
         )
     );
+
+    sqmu_app_refresh_contract_bundle_pin_mirror();
 }
 add_action('admin_init', 'sqmu_app_register_settings');
 
@@ -532,6 +1007,19 @@ function sqmu_app_admin_menu() {
 
     if ($operations_hook) {
         $GLOBALS['sqmu_app_operations_hook'] = $operations_hook;
+    }
+
+    $deployments_hook = add_submenu_page(
+        'options-general.php',
+        'SQMU Deployments',
+        'SQMU Deployments',
+        'manage_options',
+        'sqmu-app-deployments',
+        'sqmu_app_render_deployments_page'
+    );
+
+    if ($deployments_hook) {
+        $GLOBALS['sqmu_app_deployments_hook'] = $deployments_hook;
     }
 }
 add_action('admin_menu', 'sqmu_app_admin_menu');
@@ -1087,6 +1575,401 @@ function sqmu_app_render_settings_page() {
     <?php
 }
 
+function sqmu_app_get_chain_labels_by_id() {
+    $settings = sqmu_app_get_settings();
+    $labels = array();
+
+    foreach ($settings['chains'] as $chain) {
+        if (!isset($chain['id']) || !is_numeric($chain['id'])) {
+            continue;
+        }
+
+        $chain_id = (int) $chain['id'];
+        $chain_name = sanitize_text_field($chain['name'] ?? '');
+        $labels[$chain_id] = $chain_name !== '' ? sprintf('%s (%d)', $chain_name, $chain_id) : sprintf('Chain %d', $chain_id);
+    }
+
+    return $labels;
+}
+
+function sqmu_app_format_chain_label($chain_id, $chain_labels) {
+    if (!is_numeric($chain_id) || (int) $chain_id <= 0) {
+        return 'Unknown';
+    }
+
+    $chain_id = (int) $chain_id;
+    return $chain_labels[$chain_id] ?? sprintf('Chain %d', $chain_id);
+}
+
+function sqmu_app_render_code_cell($value) {
+    if (!is_string($value) || trim($value) === '') {
+        return '&mdash;';
+    }
+
+    return '<code>' . esc_html($value) . '</code>';
+}
+
+function sqmu_app_render_deployments_page() {
+    if (!current_user_can('manage_options')) {
+        return;
+    }
+
+    $packaged_pin = sqmu_app_get_packaged_contract_bundle_pin();
+    $stored_pin = sqmu_app_get_stored_contract_bundle_pin();
+    $manifest = sqmu_app_get_packaged_contract_manifest();
+    $manifest_sha256 = sqmu_app_get_packaged_contract_manifest_sha256();
+    $deployments = sqmu_app_get_contract_deployments();
+    $active_deployments = sqmu_app_get_active_contract_deployments();
+    $chain_labels = sqmu_app_get_chain_labels_by_id();
+    $deployment_count = count($deployments);
+    $has_deployments = $deployment_count > 0;
+    ?>
+    <div class="wrap">
+        <h1>SQMU Deployments</h1>
+        <p>This screen shows the contract bundle pinned into the plugin package, the deployment history currently recorded on this WordPress site, and the browser-signed deployment console for creating new deployment records.</p>
+        <style>
+            .sqmu-deploy-grid {
+                display: grid;
+                gap: 16px;
+                grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+                margin: 16px 0 24px;
+            }
+
+            .sqmu-deploy-card {
+                background: #fff;
+                border: 1px solid #dcdcde;
+                border-radius: 8px;
+                padding: 16px;
+            }
+
+            .sqmu-deploy-card h2,
+            .sqmu-deploy-card h3 {
+                margin-top: 0;
+            }
+
+            .sqmu-deploy-card p {
+                margin-bottom: 0;
+            }
+
+            .sqmu-deploy-table {
+                margin: 16px 0 24px;
+            }
+
+            .sqmu-deploy-table code {
+                word-break: break-word;
+            }
+
+            .sqmu-deploy-table td,
+            .sqmu-deploy-table th {
+                vertical-align: top;
+            }
+
+            .sqmu-deploy-record {
+                margin: 0 0 16px;
+                background: #fff;
+                border: 1px solid #dcdcde;
+                border-radius: 8px;
+                padding: 12px 16px;
+            }
+
+            .sqmu-deploy-record summary {
+                cursor: pointer;
+                font-weight: 600;
+                margin: -12px -16px 12px;
+                padding: 12px 16px;
+            }
+
+            .sqmu-deploy-badge {
+                display: inline-block;
+                border-radius: 999px;
+                background: #f0f0f1;
+                padding: 2px 8px;
+                font-size: 12px;
+                line-height: 1.8;
+                text-transform: uppercase;
+                letter-spacing: 0.03em;
+            }
+
+            .sqmu-deploy-badge-active {
+                background: #dff6dd;
+                color: #0f5132;
+            }
+
+            .sqmu-deploy-badge-failed {
+                background: #fbeaea;
+                color: #8a2424;
+            }
+
+            .sqmu-deploy-badge-superseded {
+                background: #e8f0fe;
+                color: #1d4ed8;
+            }
+        </style>
+
+        <?php if (!empty($packaged_pin['enabled']) && !$manifest) : ?>
+            <div class="notice notice-warning inline"><p>The plugin pin is enabled, but no bundled <code>contracts/current/manifest.json</code> was found in this plugin build.</p></div>
+        <?php elseif (!$packaged_pin['enabled']) : ?>
+            <div class="notice notice-info inline"><p>This plugin build is currently pinned with contract bundling disabled. The deployment console is still ready to show history once deployments are recorded.</p></div>
+        <?php elseif ($manifest) : ?>
+            <div class="notice notice-success inline"><p>A bundled contract manifest is packaged with this plugin build and ready for review.</p></div>
+        <?php endif; ?>
+
+        <div class="sqmu-deploy-grid">
+            <div class="sqmu-deploy-card">
+                <h2>Pinned Bundle</h2>
+                <p><strong>Version:</strong> <?php echo esc_html($packaged_pin['release']['version'] ?: 'Not pinned'); ?></p>
+                <p><strong>Tag:</strong> <?php echo esc_html($packaged_pin['release']['tag'] ?: 'Not set'); ?></p>
+                <p><strong>Bundled Manifest:</strong> <?php echo esc_html($manifest ? 'Present' : 'Not packaged'); ?></p>
+            </div>
+            <div class="sqmu-deploy-card">
+                <h2>Recorded Deployments</h2>
+                <p><strong>History Records:</strong> <?php echo esc_html((string) $deployment_count); ?></p>
+                <p><strong>Active Chains:</strong> <?php echo esc_html((string) count($active_deployments)); ?></p>
+                <p><strong>Site Has Deployments:</strong> <?php echo esc_html($has_deployments ? 'Yes' : 'No'); ?></p>
+            </div>
+            <div class="sqmu-deploy-card">
+                <h2>Manifest Integrity</h2>
+                <p><strong>Release Version:</strong> <?php echo esc_html($manifest['releaseVersion'] ?? 'Unavailable'); ?></p>
+                <p><strong>EVM Target:</strong> <?php echo esc_html($manifest['evmVersion'] ?? 'Unavailable'); ?></p>
+                <p><strong>SHA-256:</strong> <?php echo $manifest_sha256 !== '' ? sqmu_app_render_code_cell($manifest_sha256) : '&mdash;'; ?></p>
+            </div>
+        </div>
+
+        <h2>Bundle Metadata</h2>
+        <table class="widefat striped sqmu-deploy-table">
+            <tbody>
+                <tr>
+                    <th scope="row">Pin enabled</th>
+                    <td><?php echo !empty($packaged_pin['enabled']) ? 'Yes' : 'No'; ?></td>
+                </tr>
+                <tr>
+                    <th scope="row">Pinned release version</th>
+                    <td><?php echo sqmu_app_render_code_cell($packaged_pin['release']['version'] ?? ''); ?></td>
+                </tr>
+                <tr>
+                    <th scope="row">Pinned release tag</th>
+                    <td><?php echo sqmu_app_render_code_cell($packaged_pin['release']['tag'] ?? ''); ?></td>
+                </tr>
+                <tr>
+                    <th scope="row">Pinned release asset</th>
+                    <td><?php echo sqmu_app_render_code_cell($packaged_pin['release']['asset'] ?? ''); ?></td>
+                </tr>
+                <tr>
+                    <th scope="row">Pinned release checksum</th>
+                    <td><?php echo sqmu_app_render_code_cell($packaged_pin['release']['sha256'] ?? ''); ?></td>
+                </tr>
+                <tr>
+                    <th scope="row">Mirrored option version</th>
+                    <td><?php echo sqmu_app_render_code_cell($stored_pin['release']['version'] ?? ''); ?></td>
+                </tr>
+                <tr>
+                    <th scope="row">Manifest present in plugin package</th>
+                    <td><?php echo $manifest ? 'Yes' : 'No'; ?></td>
+                </tr>
+                <tr>
+                    <th scope="row">Recorded deployment history</th>
+                    <td><?php echo $has_deployments ? sprintf('Yes (%d record%s)', $deployment_count, $deployment_count === 1 ? '' : 's') : 'No'; ?></td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h2>Active Deployments By Chain</h2>
+        <?php if (empty($active_deployments)) : ?>
+            <p>No active deployments are recorded yet.</p>
+        <?php else : ?>
+            <table class="widefat striped sqmu-deploy-table">
+                <thead>
+                    <tr>
+                        <th>Chain</th>
+                        <th>Deployment ID</th>
+                        <th>Release Version</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($active_deployments as $chain_id => $deployment_id) : ?>
+                        <?php $record = $deployments[$deployment_id] ?? null; ?>
+                        <tr>
+                            <td><?php echo esc_html(sqmu_app_format_chain_label($chain_id, $chain_labels)); ?></td>
+                            <td><?php echo sqmu_app_render_code_cell($deployment_id); ?></td>
+                            <td><?php echo sqmu_app_render_code_cell($record['releaseVersion'] ?? ''); ?></td>
+                            <td><?php echo esc_html($record['status'] ?? 'Unknown'); ?></td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        <?php endif; ?>
+
+        <h2>Contracts In Bundled Manifest</h2>
+        <?php if (!$manifest || empty($manifest['contracts']) || !is_array($manifest['contracts'])) : ?>
+            <p>No bundled manifest contracts are available in this plugin build yet.</p>
+        <?php else : ?>
+            <table class="widefat striped sqmu-deploy-table">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Contract</th>
+                        <th>Deployment Kind</th>
+                        <th>Depends On</th>
+                        <th>Initializer</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach (array_values($manifest['contracts']) as $index => $contract) : ?>
+                        <?php
+                        $depends_on = isset($contract['dependsOn']) && is_array($contract['dependsOn']) ? implode(', ', array_map('sanitize_text_field', $contract['dependsOn'])) : '';
+                        $initializer = isset($contract['initializer']) && is_array($contract['initializer'])
+                            ? sanitize_text_field($contract['initializer']['method'] ?? '') . '(' . implode(', ', array_map('sanitize_text_field', $contract['initializer']['args'] ?? array())) . ')'
+                            : 'None';
+                        ?>
+                        <tr>
+                            <td><?php echo esc_html((string) ($index + 1)); ?></td>
+                            <td><?php echo esc_html($contract['name'] ?? 'Unknown'); ?></td>
+                            <td><?php echo esc_html($contract['deploymentKind'] ?? 'Unknown'); ?></td>
+                            <td><?php echo esc_html($depends_on !== '' ? $depends_on : 'None'); ?></td>
+                            <td><?php echo esc_html($initializer); ?></td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+
+            <h2>Upgradeability Metadata</h2>
+            <table class="widefat striped sqmu-deploy-table">
+                <thead>
+                    <tr>
+                        <th>Contract</th>
+                        <th>Upgrade Allowed</th>
+                        <th>Default Action</th>
+                        <th>Review Required</th>
+                        <th>Notes</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($manifest['contracts'] as $contract) : ?>
+                        <?php $upgrade = isset($contract['upgrade']) && is_array($contract['upgrade']) ? $contract['upgrade'] : array(); ?>
+                        <tr>
+                            <td><?php echo esc_html($contract['name'] ?? 'Unknown'); ?></td>
+                            <td><?php echo !empty($upgrade['allowed']) ? 'Yes' : 'No'; ?></td>
+                            <td><?php echo esc_html($upgrade['defaultAction'] ?? 'Unavailable'); ?></td>
+                            <td><?php echo !empty($upgrade['reviewRequired']) ? 'Yes' : 'No'; ?></td>
+                            <td><?php echo esc_html($upgrade['notes'] ?? ''); ?></td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        <?php endif; ?>
+
+        <h2>Recorded Deployment History</h2>
+        <?php if (!$has_deployments) : ?>
+            <p>No deployment history is recorded on this site yet.</p>
+        <?php else : ?>
+            <?php foreach ($deployments as $deployment) : ?>
+                <?php
+                $status_class = 'sqmu-deploy-badge';
+                if ($deployment['status'] === 'active') {
+                    $status_class .= ' sqmu-deploy-badge-active';
+                } elseif ($deployment['status'] === 'failed') {
+                    $status_class .= ' sqmu-deploy-badge-failed';
+                } elseif ($deployment['status'] === 'superseded') {
+                    $status_class .= ' sqmu-deploy-badge-superseded';
+                }
+                ?>
+                <details class="sqmu-deploy-record">
+                    <summary>
+                        <?php echo esc_html($deployment['deploymentId']); ?>
+                        ·
+                        <?php echo esc_html(sqmu_app_format_chain_label($deployment['chainId'], $chain_labels)); ?>
+                        ·
+                        <span class="<?php echo esc_attr($status_class); ?>"><?php echo esc_html($deployment['status']); ?></span>
+                    </summary>
+
+                    <table class="widefat striped sqmu-deploy-table">
+                        <tbody>
+                            <tr>
+                                <th scope="row">Release Version</th>
+                                <td><?php echo sqmu_app_render_code_cell($deployment['releaseVersion']); ?></td>
+                            </tr>
+                            <tr>
+                                <th scope="row">Manifest Version</th>
+                                <td><?php echo sqmu_app_render_code_cell($deployment['manifestVersion']); ?></td>
+                            </tr>
+                            <tr>
+                                <th scope="row">Manifest SHA-256</th>
+                                <td><?php echo sqmu_app_render_code_cell($deployment['manifestSha256']); ?></td>
+                            </tr>
+                            <tr>
+                                <th scope="row">Deployed At</th>
+                                <td><?php echo esc_html($deployment['deployedAt'] !== '' ? $deployment['deployedAt'] : 'Unavailable'); ?></td>
+                            </tr>
+                            <tr>
+                                <th scope="row">Deployer Wallet</th>
+                                <td><?php echo sqmu_app_render_code_cell($deployment['deployerWallet']); ?></td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <h3>Contracts</h3>
+                    <?php if (empty($deployment['contracts'])) : ?>
+                        <p>No deployed contract addresses are stored on this record yet.</p>
+                    <?php else : ?>
+                        <table class="widefat striped sqmu-deploy-table">
+                            <thead>
+                                <tr>
+                                    <th>Contract</th>
+                                    <th>Deployment Kind</th>
+                                    <th>Address</th>
+                                    <th>Proxy Address</th>
+                                    <th>Implementation Address</th>
+                                    <th>Tx Hash</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($deployment['contracts'] as $contract) : ?>
+                                    <tr>
+                                        <td><?php echo esc_html($contract['name']); ?></td>
+                                        <td><?php echo esc_html($contract['deploymentKind'] !== '' ? $contract['deploymentKind'] : 'Unavailable'); ?></td>
+                                        <td><?php echo sqmu_app_render_code_cell($contract['address']); ?></td>
+                                        <td><?php echo sqmu_app_render_code_cell($contract['proxyAddress']); ?></td>
+                                        <td><?php echo sqmu_app_render_code_cell($contract['implementationAddress']); ?></td>
+                                        <td><?php echo sqmu_app_render_code_cell($contract['txHash']); ?></td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    <?php endif; ?>
+
+                    <h3>Transaction Hashes</h3>
+                    <?php if (empty($deployment['txHashes'])) : ?>
+                        <p>No additional transaction hashes are stored on this record yet.</p>
+                    <?php else : ?>
+                        <table class="widefat striped sqmu-deploy-table">
+                            <thead>
+                                <tr>
+                                    <th>Label</th>
+                                    <th>Tx Hash</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($deployment['txHashes'] as $label => $hash) : ?>
+                                    <tr>
+                                        <td><?php echo esc_html($label); ?></td>
+                                        <td><?php echo sqmu_app_render_code_cell($hash); ?></td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    <?php endif; ?>
+                </details>
+            <?php endforeach; ?>
+        <?php endif; ?>
+
+        <h2>Browser Deployment Console</h2>
+        <p>The connected wallet signs deployment transactions in your browser. Saving a successful deployment record is handled through the WordPress REST API with administrator permissions.</p>
+        <div id="sqmu-admin-deploy" data-sqmu-app="1" data-sqmu-view="admin_deploy" class="sqmu-widget wp-block-group is-layout-flow"></div>
+    </div>
+    <?php
+}
+
 function sqmu_app_render_operations_page() {
     if (!current_user_can('manage_options')) {
         return;
@@ -1412,6 +2295,40 @@ function sqmu_app_build_mount_config($view, $property_code, $escrow_address = ''
         );
     }
 
+    if ($view === 'admin_deploy') {
+        $bundle = sqmu_app_get_packaged_contract_bundle();
+        $default_chain_id = !empty($settings['chains'][0]['id']) ? (int) $settings['chains'][0]['id'] : 0;
+
+        return array(
+            'view' => 'admin_deploy',
+            'config' => array(
+                'version' => 1,
+                'context' => $context,
+                'app' => $settings['app'],
+                'currentUser' => array(
+                    'canManageOptions' => current_user_can('manage_options')
+                ),
+                'chains' => $settings['chains'],
+                'defaultChainId' => $default_chain_id,
+                'deploymentBundle' => array(
+                    'available' => is_array($bundle),
+                    'pin' => sqmu_app_get_packaged_contract_bundle_pin(),
+                    'manifest' => $bundle['manifest'] ?? null,
+                    'manifestSha256' => $bundle['manifestSha256'] ?? '',
+                    'contracts' => $bundle['contracts'] ?? array(),
+                    'support' => $bundle['support'] ?? array()
+                ),
+                'deploymentRecords' => array_values(sqmu_app_get_contract_deployments()),
+                'activeDeployments' => sqmu_app_get_active_contract_deployments(),
+                'adminApi' => array(
+                    'baseUrl' => esc_url_raw(rest_url('sqmu/v1')),
+                    'nonce' => wp_create_nonce('wp_rest')
+                )
+            ),
+            'errors' => array()
+        );
+    }
+
     $view_defaults = isset($settings['viewDefaults'][$view]) && is_array($settings['viewDefaults'][$view])
         ? $settings['viewDefaults'][$view]
         : $settings['viewDefaults']['buy'];
@@ -1521,7 +2438,8 @@ add_action('wp_enqueue_scripts', 'sqmu_app_enqueue_assets');
 
 function sqmu_app_enqueue_admin_assets($hook_suffix) {
     $operations_hook = $GLOBALS['sqmu_app_operations_hook'] ?? '';
-    if ($hook_suffix !== $operations_hook) {
+    $deployments_hook = $GLOBALS['sqmu_app_deployments_hook'] ?? '';
+    if ($hook_suffix !== $operations_hook && $hook_suffix !== $deployments_hook) {
         return;
     }
 
@@ -1529,12 +2447,17 @@ function sqmu_app_enqueue_admin_assets($hook_suffix) {
         return;
     }
 
-    $mount_id = 'sqmu-admin-ops';
+    $mounts = array();
+    if ($hook_suffix === $operations_hook) {
+        $mounts['sqmu-admin-ops'] = sqmu_app_build_mount_config('admin_ops', '', '', 'admin');
+    }
+    if ($hook_suffix === $deployments_hook) {
+        $mounts['sqmu-admin-deploy'] = sqmu_app_build_mount_config('admin_deploy', '', '', 'admin');
+    }
+
     $payload = array(
         'global' => sqmu_app_get_runtime_global_config('admin'),
-        'mounts' => array(
-            $mount_id => sqmu_app_build_mount_config('admin_ops', '', '', 'admin')
-        )
+        'mounts' => $mounts
     );
 
     sqmu_app_enqueue_runtime_payload($payload);
