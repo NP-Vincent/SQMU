@@ -60,21 +60,47 @@ jobs:
           cd ..
           sha256sum "${{ steps.release_meta.outputs.asset }}" > "${{ steps.release_meta.outputs.checksum }}"
 
-      - name: Create release if needed
+      - name: Create immutable release with assets
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release view "${{ steps.release_meta.outputs.version }}" >/dev/null 2>&1 || \
+          if gh release view "${{ steps.release_meta.outputs.version }}" >/dev/null 2>&1; then
+            echo "Release ${{ steps.release_meta.outputs.version }} already exists. Immutable releases require publishing a new contract bundle version." >&2
+            exit 1
+          fi
+
           gh release create "${{ steps.release_meta.outputs.version }}" \
+            "dist/${{ steps.release_meta.outputs.asset }}" \
+            "dist/${{ steps.release_meta.outputs.checksum }}" \
             --target "${GITHUB_SHA}" \
             --title "${{ steps.release_meta.outputs.version }}" \
             --notes "Versioned SQMU contract deployment bundle."
 
-      - name: Upload release assets
-        env:
-          GH_TOKEN: ${{ github.token }}
+      - name: Switch to main for plugin pin update
+        working-directory: .
         run: |
-          gh release upload "${{ steps.release_meta.outputs.version }}" \
-            "dist/${{ steps.release_meta.outputs.asset }}" \
-            "dist/${{ steps.release_meta.outputs.checksum }}" \
-            --clobber
+          git fetch origin main
+          git switch -C main origin/main
+
+      - name: Update plugin contract bundle pin
+        working-directory: .
+        run: |
+          node .github/scripts/update-contract-bundle-pin.cjs \
+            --file WordpressPlugin/contract-bundle.json \
+            --version "${{ steps.release_meta.outputs.version }}" \
+            --tag "${{ steps.release_meta.outputs.version }}" \
+            --asset "${{ steps.release_meta.outputs.asset }}" \
+            --checksum-file "SQMU/dist/${{ steps.release_meta.outputs.checksum }}"
+
+      - name: Commit plugin contract bundle pin
+        working-directory: .
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add WordpressPlugin/contract-bundle.json
+          if git diff --cached --quiet; then
+            echo "No plugin contract bundle pin changes to commit."
+            exit 0
+          fi
+          git commit -m "chore: pin contract bundle ${{ steps.release_meta.outputs.version }}"
+          git push origin HEAD:main

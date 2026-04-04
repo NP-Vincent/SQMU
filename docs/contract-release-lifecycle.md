@@ -82,15 +82,15 @@ Each `contracts/<ContractName>.json` file includes:
 
 The tracked pin file is [WordpressPlugin/contract-bundle.json](/Users/alfred/Documents/GitHub/SQMU/WordpressPlugin/contract-bundle.json).
 
-This file is intentionally small and human-reviewed.
-It should be changed only when the plugin is ready to ship a specific contract release.
+This file is intentionally small and auditable.
+When `contracts-release.yml` succeeds, it now updates this file automatically on `main` with the exact bundle version, asset name, and SHA-256 checksum that were just published.
 
 Suggested update flow:
 
 1. Contract code changes land in `SQMU/`
 2. `contracts-ci.yml` validates the changes
 3. A maintainer publishes a `contracts-vX.Y.Z` release
-4. The maintainer updates `WordpressPlugin/contract-bundle.json`
+4. `contracts-release.yml` updates `WordpressPlugin/contract-bundle.json` on `main`
 5. The plugin release workflow packages that exact bundle version
 
 This means contract changes do not automatically force a plugin deployment.
