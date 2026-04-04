@@ -205,9 +205,17 @@ This page shows:
 - whether the site already has deployment history recorded
 - active deployments by chain and the full stored deployment history when records exist
 - a browser-signed deploy flow for creating a fresh stack from the bundled manifest
+- a scenario import helper that can ingest a generated local/testnet report to seed chain settings, deployment records, payment token metadata, and a synthetic property record for shortcode smoke testing
 - an optional settings-sync path that can copy the saved active deployment addresses into the main plugin contract settings
+- a post-deploy bootstrap form for treasury, commission, and token allowlist defaults across the active contract stack
 
-In this version, the deployment console supports fresh deploys only. It does not attempt in-place proxy upgrades yet.
+In this version, the deployment console supports:
+
+- fresh deploys from the bundled contract manifest
+- scenario imports from generated local/testnet reports
+- bootstrap/setup actions on the active deployment
+
+It does not attempt in-place proxy upgrades yet.
 
 ### Admin operations included
 
@@ -249,6 +257,8 @@ The plugin now reserves WordPress option storage for future contract deployment 
   - full deployment history keyed by deployment id
 - `sqmu_contract_active_deployments`
   - chain id -> active deployment id
+- `sqmu_imported_scenario_properties`
+  - synthetic property records created from imported local/testnet scenario reports when no matching WordPress property post exists yet
 
 Deployment records are normalized for:
 

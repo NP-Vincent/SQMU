@@ -7,6 +7,7 @@
     "export:abi": "node scripts/export-abis.cjs",
     "bundle:contracts": "node scripts/build-contract-bundle.cjs",
     "smoke:deploy:anvil": "node scripts/smoke-deploy-anvil.cjs",
+    "integration:anvil": "node scripts/integration-anvil.cjs",
     "verify": "npm run compile && npm test",
     "build": "npm run compile && npm run export:abi && npm run bundle:contracts",
     "ci:contracts": "npm run compile && npm test && npm run export:abi && npm run bundle:contracts"

@@ -87,7 +87,8 @@ WordPress-specific behavior inside plugin PHP code and wp-admin settings.
   - Mirrors the packaged contract bundle pin and bundled manifest visibility
   - Shows deployment order, upgradeability metadata, and recorded deployment history
   - Uses the same frontend bundle for browser-signed fresh deploys
-  - May save deployment records and optionally sync the active addresses into main plugin settings
+  - May import generated local/testnet scenario reports to seed chain settings, deployment records, payment token metadata, and synthetic property records for smoke testing
+  - May save deployment records, optionally sync the active addresses into main plugin settings, and bootstrap treasury/commission/token defaults on-chain
   - Must not attempt in-place upgrades in this phase
 
 ## Deployment Storage
@@ -98,6 +99,8 @@ WordPress-specific behavior inside plugin PHP code and wp-admin settings.
   - full deployment history keyed by deployment id
 - `sqmu_contract_active_deployments`
   - chain id -> active deployment id
+- `sqmu_imported_scenario_properties`
+  - imported synthetic property records used for shortcode smoke testing when no real WordPress property post exists yet
 
 Expected deployment record fields:
 

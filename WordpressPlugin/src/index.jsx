@@ -278,6 +278,55 @@ const normalizeChain = (value) => {
   };
 };
 
+const normalizePaymentTokenRecord = (value) => {
+  const address = safeString(value?.address);
+  if (!address) {
+    return null;
+  }
+
+  return {
+    address,
+    symbol: safeString(value?.symbol),
+    decimals: Number.isFinite(Number(value?.decimals)) ? Number(value.decimals) : 18
+  };
+};
+
+const normalizeScenarioImportReport = (value) => {
+  if (!value || typeof value !== 'object') {
+    return null;
+  }
+
+  const chainId = Number(value.chainId);
+  if (!Number.isFinite(chainId) || chainId <= 0) {
+    return null;
+  }
+
+  const deployments = value.deployments && typeof value.deployments === 'object'
+    ? Object.entries(value.deployments)
+    : [];
+  const token = normalizePaymentTokenRecord(value.token);
+  const property = value.property && typeof value.property === 'object'
+    ? {
+        code: safeString(value.property.code),
+        name: safeString(value.property.name),
+        tokenId: Number.isFinite(Number(value.property.tokenId)) ? Number(value.property.tokenId) : null,
+        propertyId: Number.isFinite(Number(value.property.propertyId)) ? Number(value.property.propertyId) : null,
+        ref: isBytes32String(value.property.ref) ? value.property.ref : ''
+      }
+    : null;
+
+  return {
+    raw: value,
+    chainId,
+    rpcUrl: safeString(value.rpcUrl),
+    bundleVersion: safeString(value.bundle?.version),
+    deployerWallet: safeString(value.actors?.deployer),
+    token,
+    property,
+    deploymentCount: deployments.length
+  };
+};
+
 const normalizeDeploymentManifestContract = (value) => {
   const name = safeString(value?.name);
   if (!name) {
@@ -409,12 +458,8 @@ const normalizeConfig = (config = {}) => {
   };
 
   const paymentTokens = (Array.isArray(config.paymentTokens) ? config.paymentTokens : [])
-    .map((token) => ({
-      address: safeString(token?.address),
-      symbol: safeString(token?.symbol),
-      decimals: Number.isFinite(Number(token?.decimals)) ? Number(token.decimals) : undefined
-    }))
-    .filter((token) => token.address);
+    .map((token) => normalizePaymentTokenRecord(token))
+    .filter(Boolean);
 
   const properties = (Array.isArray(config.properties) ? config.properties : [])
     .map((property) => ({
@@ -768,11 +813,24 @@ const getWagmiConfig = (appConfig) => {
     return wagmiConfigCache.get(cacheKey);
   }
 
-  const chains = appConfig.chains.map(createChainDefinition);
+  const chainSource = appConfig.chains.length
+    ? appConfig.chains
+    : [
+        {
+          id: Number.isFinite(Number(appConfig.defaultChainId)) && Number(appConfig.defaultChainId) > 0
+            ? Number(appConfig.defaultChainId)
+            : 1,
+          name: 'Chain Pending Import',
+          rpcUrl: '',
+          blockExplorerUrl: '',
+          nativeCurrency: GENERIC_NATIVE_CURRENCY
+        }
+      ];
+  const chains = chainSource.map(createChainDefinition);
   const transports = {};
 
   chains.forEach((chain, index) => {
-    const rpcUrl = appConfig.chains[index]?.rpcUrl;
+    const rpcUrl = chainSource[index]?.rpcUrl;
     transports[chain.id] = rpcUrl ? http(rpcUrl) : http();
   });
 
@@ -1067,6 +1125,39 @@ const createDeploymentId = (chainId) => {
   const stamp = new Date().toISOString().replace(/[^0-9a-z]/gi, '-').replace(/-+/g, '-').replace(/^-|-$/g, '').toLowerCase();
   return `sqmu-${chainId}-${stamp}`;
 };
+
+const dedupeTokensByAddress = (tokens) => {
+  const seen = new Set();
+  const unique = [];
+
+  (Array.isArray(tokens) ? tokens : []).forEach((token) => {
+    const address = safeString(token?.address);
+    if (!address || !isAddress(address)) {
+      return;
+    }
+
+    const lower = address.toLowerCase();
+    if (seen.has(lower)) {
+      return;
+    }
+
+    seen.add(lower);
+    unique.push({
+      address,
+      symbol: safeString(token?.symbol) || maskAddress(address),
+      decimals: Number.isFinite(Number(token?.decimals)) ? Number(token.decimals) : 18
+    });
+  });
+
+  return unique;
+};
+
+const parseAddressList = (value) =>
+  safeString(value)
+    .split(/[\s,]+/)
+    .map((entry) => safeString(entry))
+    .filter(Boolean)
+    .filter((entry) => isAddress(entry));
 
 function Section({ title, help, children, actions }) {
   return (
@@ -3866,7 +3957,9 @@ function AdminDeploymentView({ appConfig }) {
 
   const initialChainId = appConfig.chains.some((chain) => chain.id === appConfig.defaultChainId)
     ? appConfig.defaultChainId
-    : (appConfig.chains[0]?.id ?? 0);
+    : (appConfig.chains[0]?.id ?? 1);
+  const [adminChains, setAdminChains] = useState(appConfig.chains);
+  const [adminPaymentTokens, setAdminPaymentTokens] = useState(appConfig.paymentTokens);
   const [selectedChainId, setSelectedChainId] = useState(initialChainId);
   const [formState, setFormState] = useState({
     sqmuUri: 'ipfs://sqmu/{id}.json',
@@ -3877,6 +3970,14 @@ function AdminDeploymentView({ appConfig }) {
     tradeCommissionBps: '250',
     crowdfundPriceUsd: '100'
   });
+  const [bootstrapState, setBootstrapState] = useState({
+    distributorCommissionBps: '300',
+    tradeTreasury: '',
+    tradeCommissionBps: '250',
+    rentTreasury: '',
+    rentManagementFeeBps: '1000',
+    manualTokenAddresses: ''
+  });
   const [syncCurrentContracts, setSyncCurrentContracts] = useState(false);
   const [deploymentRecords, setDeploymentRecords] = useState(appConfig.deploymentRecords);
   const [activeDeployments, setActiveDeployments] = useState(appConfig.activeDeployments);
@@ -3884,7 +3985,24 @@ function AdminDeploymentView({ appConfig }) {
   const [status, setStatus] = useState('Ready to deploy a fresh SQMU stack once the wallet is connected.');
   const [busy, setBusy] = useState(false);
   const [logEntries, setLogEntries] = useState([]);
-  const selectedChain = appConfig.chains.find((chain) => chain.id === selectedChainId) ?? null;
+  const [scenarioReportText, setScenarioReportText] = useState('');
+  const [scenarioImportState, setScenarioImportState] = useState({
+    importChain: true,
+    importPaymentToken: true,
+    importProperty: true,
+    syncCurrentContracts: true,
+    activateDeployment: true
+  });
+  const [scenarioChainState, setScenarioChainState] = useState({
+    name: '',
+    rpcUrl: '',
+    blockExplorerUrl: '',
+    nativeCurrencyName: 'Ether',
+    nativeCurrencySymbol: 'ETH',
+    nativeCurrencyDecimals: '18'
+  });
+  const [scenarioPrefillKey, setScenarioPrefillKey] = useState('');
+  const selectedChain = adminChains.find((chain) => chain.id === selectedChainId) ?? null;
   const targetChainDefinition = selectedChain ? createChainDefinition(selectedChain) : null;
   const bundle = appConfig.deploymentBundle;
   const manifestContracts = bundle.manifest?.contracts ?? [];
@@ -3898,6 +4016,62 @@ function AdminDeploymentView({ appConfig }) {
   const activeDeploymentId = activeDeployments[selectedChainId] ?? '';
   const activeRecord = deploymentRecords.find((record) => record.deploymentId === activeDeploymentId) ?? null;
   const { address, isConnected, chainId, publicClient, walletClient, ensureReady } = useAppWallet(appConfig, selectedChainId);
+  const activeContractsByName = useMemo(() => {
+    const map = new Map();
+    (activeRecord?.contracts ?? []).forEach((contract) => {
+      if (contract?.name) {
+        map.set(contract.name, contract);
+      }
+    });
+    return map;
+  }, [activeRecord]);
+  const knownBootstrapTokens = useMemo(() => {
+    const consultingTokens = (appConfig.consultingPayment?.tokens ?? [])
+      .filter((token) => token.chainId === selectedChainId)
+      .map((token) => ({
+        address: token.address,
+        symbol: token.symbol,
+        decimals: token.decimals
+      }));
+
+    return dedupeTokensByAddress([...adminPaymentTokens, ...consultingTokens]);
+  }, [adminPaymentTokens, appConfig.consultingPayment?.tokens, selectedChainId]);
+  const bootstrapTokens = useMemo(() => {
+    const manualTokens = parseAddressList(bootstrapState.manualTokenAddresses).map((address) => ({
+      address
+    }));
+    return dedupeTokensByAddress([...knownBootstrapTokens, ...manualTokens]);
+  }, [knownBootstrapTokens, bootstrapState.manualTokenAddresses]);
+  const parsedScenario = useMemo(() => {
+    const text = safeString(scenarioReportText);
+    if (!text) {
+      return {
+        report: null,
+        error: ''
+      };
+    }
+
+    try {
+      const decoded = JSON.parse(text);
+      const report = normalizeScenarioImportReport(decoded);
+      if (!report) {
+        return {
+          report: null,
+          error: 'The pasted JSON does not look like a supported SQMU scenario report.'
+        };
+      }
+
+      return {
+        report,
+        error: ''
+      };
+    } catch (error) {
+      return {
+        report: null,
+        error: 'The pasted scenario report is not valid JSON yet.'
+      };
+    }
+  }, [scenarioReportText]);
 
   useEffect(() => {
     if (address && !formState.tradeTreasury) {
@@ -3907,6 +4081,56 @@ function AdminDeploymentView({ appConfig }) {
       }));
     }
   }, [address, formState.tradeTreasury]);
+
+  useEffect(() => {
+    if (!address) {
+      return;
+    }
+
+    setBootstrapState((current) => ({
+      ...current,
+      tradeTreasury: current.tradeTreasury || address,
+      rentTreasury: current.rentTreasury || address
+    }));
+  }, [address]);
+
+  useEffect(() => {
+    if (!adminChains.length) {
+      return;
+    }
+
+    if (!adminChains.some((chain) => chain.id === selectedChainId)) {
+      setSelectedChainId(adminChains[0].id);
+    }
+  }, [adminChains, selectedChainId]);
+
+  useEffect(() => {
+    if (!parsedScenario.report) {
+      return;
+    }
+
+    const existingChain = adminChains.find((chain) => chain.id === parsedScenario.report.chainId) ?? null;
+    const prefillKey = [
+      parsedScenario.report.chainId,
+      parsedScenario.report.rpcUrl,
+      parsedScenario.report.token?.address ?? '',
+      existingChain?.name ?? ''
+    ].join(':');
+
+    if (scenarioPrefillKey === prefillKey) {
+      return;
+    }
+
+    setScenarioPrefillKey(prefillKey);
+    setScenarioChainState({
+      name: existingChain?.name || `Chain ${parsedScenario.report.chainId}`,
+      rpcUrl: existingChain?.rpcUrl || parsedScenario.report.rpcUrl || '',
+      blockExplorerUrl: existingChain?.blockExplorerUrl || '',
+      nativeCurrencyName: existingChain?.nativeCurrency?.name || 'Ether',
+      nativeCurrencySymbol: existingChain?.nativeCurrency?.symbol || 'ETH',
+      nativeCurrencyDecimals: String(existingChain?.nativeCurrency?.decimals ?? 18)
+    });
+  }, [adminChains, parsedScenario.report, scenarioPrefillKey]);
 
   const appendLog = (message) => {
     setLogEntries((current) => [...current, `${new Date().toLocaleTimeString()}: ${message}`]);
@@ -3919,7 +4143,29 @@ function AdminDeploymentView({ appConfig }) {
     }));
   };
 
-  const persistDeploymentRecord = async (record) => {
+  const updateBootstrapField = (key, value) => {
+    setBootstrapState((current) => ({
+      ...current,
+      [key]: value
+    }));
+  };
+
+  const updateScenarioImportField = (key, value) => {
+    setScenarioImportState((current) => ({
+      ...current,
+      [key]: value
+    }));
+  };
+
+  const updateScenarioChainField = (key, value) => {
+    setScenarioChainState((current) => ({
+      ...current,
+      [key]: value
+    }));
+  };
+
+  const persistDeploymentRecord = async (record, options = {}) => {
+    const syncSettings = options.syncSettings ?? syncCurrentContracts;
     const endpoint = `${appConfig.adminApi.baseUrl.replace(/\/$/, '')}/deployments`;
     const response = await fetch(endpoint, {
       method: 'POST',
@@ -3930,7 +4176,7 @@ function AdminDeploymentView({ appConfig }) {
       },
       body: JSON.stringify({
         record,
-        syncCurrentContracts
+        syncCurrentContracts: syncSettings
       })
     });
 
@@ -3946,6 +4192,129 @@ function AdminDeploymentView({ appConfig }) {
     }
 
     return payload;
+  };
+
+  const applyPersistedDeploymentState = (persisted, fallbackDeployment = null) => {
+    const updatedDeployment = normalizeDeploymentRecord(persisted?.deployment) ?? fallbackDeployment;
+    const updatedRecords = Array.isArray(persisted?.deployments)
+      ? persisted.deployments.map((entry) => normalizeDeploymentRecord(entry)).filter(Boolean)
+      : deploymentRecords;
+    const updatedActiveDeployments = {};
+
+    Object.entries(persisted?.activeDeployments ?? activeDeployments).forEach(([chainKey, deploymentId]) => {
+      const normalizedChainId = Number(chainKey);
+      const normalizedDeploymentId = safeString(deploymentId);
+      if (Number.isFinite(normalizedChainId) && normalizedDeploymentId) {
+        updatedActiveDeployments[normalizedChainId] = normalizedDeploymentId;
+      }
+    });
+
+    if (updatedDeployment) {
+      setSavedDeployment(updatedDeployment);
+    }
+    setDeploymentRecords(updatedRecords);
+    setActiveDeployments(updatedActiveDeployments);
+
+    return {
+      updatedDeployment,
+      updatedRecords,
+      updatedActiveDeployments,
+      syncedCount: Object.keys(persisted?.syncedContracts ?? {}).length
+    };
+  };
+
+  const importScenarioDetails = async () => {
+    if (!parsedScenario.report) {
+      setStatus(parsedScenario.error || 'Paste a valid SQMU scenario report first.');
+      return;
+    }
+
+    setBusy(true);
+    try {
+      setStatus(`Importing scenario details for chain ${parsedScenario.report.chainId}...`);
+      appendLog(`Importing scenario report for chain ${parsedScenario.report.chainId}.`);
+
+      const endpoint = `${appConfig.adminApi.baseUrl.replace(/\/$/, '')}/deployments/import-scenario`;
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-WP-Nonce': appConfig.adminApi.nonce
+        },
+        body: JSON.stringify({
+          report: parsedScenario.report.raw,
+          importChain: scenarioImportState.importChain,
+          importPaymentToken: scenarioImportState.importPaymentToken,
+          importProperty: scenarioImportState.importProperty,
+          syncCurrentContracts: scenarioImportState.syncCurrentContracts,
+          activateDeployment: scenarioImportState.activateDeployment,
+          chain: {
+            id: parsedScenario.report.chainId,
+            name: scenarioChainState.name,
+            rpcUrl: scenarioChainState.rpcUrl,
+            blockExplorerUrl: scenarioChainState.blockExplorerUrl,
+            nativeCurrency: {
+              name: scenarioChainState.nativeCurrencyName,
+              symbol: scenarioChainState.nativeCurrencySymbol,
+              decimals: Number(scenarioChainState.nativeCurrencyDecimals)
+            }
+          }
+        })
+      });
+
+      let payload = null;
+      try {
+        payload = await response.json();
+      } catch (error) {
+        payload = null;
+      }
+
+      if (!response.ok) {
+        throw new Error(payload?.message || 'WordPress rejected the imported scenario details.');
+      }
+
+      applyPersistedDeploymentState(payload, payload?.deployment ?? null);
+
+      if (Array.isArray(payload?.chains)) {
+        setAdminChains(payload.chains.map((chain) => normalizeChain(chain)).filter(Boolean));
+      }
+
+      if (Array.isArray(payload?.paymentTokens)) {
+        setAdminPaymentTokens(payload.paymentTokens.map((token) => normalizePaymentTokenRecord(token)).filter(Boolean));
+      }
+
+      if (Number.isFinite(Number(payload?.deployment?.chainId))) {
+        setSelectedChainId(Number(payload.deployment.chainId));
+      }
+
+      const summaryParts = [];
+      if (payload?.importedChain) {
+        summaryParts.push('chain settings updated');
+      }
+      if (payload?.importedToken?.address) {
+        summaryParts.push(`payment token ${payload.importedToken.symbol || maskAddress(payload.importedToken.address)} imported`);
+      }
+      if (payload?.importedProperty?.propertyCode) {
+        summaryParts.push(`scenario property ${payload.importedProperty.propertyCode} imported`);
+      }
+      if (Object.keys(payload?.syncedContracts ?? {}).length) {
+        summaryParts.push('contract settings synced');
+      }
+
+      setStatus(
+        summaryParts.length
+          ? `Scenario import complete: ${summaryParts.join(', ')}. Refresh other admin screens if you want them to pick up the imported settings immediately.`
+          : 'Scenario import complete.'
+      );
+      appendLog('Scenario import completed successfully.');
+    } catch (error) {
+      const message = error?.shortMessage || error?.message || 'Scenario import failed.';
+      setStatus(message);
+      appendLog(`Error: ${message}`);
+    } finally {
+      setBusy(false);
+    }
   };
 
   const validateDeployment = () => {
@@ -4107,25 +4476,7 @@ function AdminDeploymentView({ appConfig }) {
       setStatus('Saving deployment record to WordPress...');
       appendLog('Persisting deployment record to WordPress.');
       const persisted = await persistDeploymentRecord(record);
-      const updatedDeployment = normalizeDeploymentRecord(persisted?.deployment) ?? record;
-      const updatedRecords = Array.isArray(persisted?.deployments)
-        ? persisted.deployments.map((entry) => normalizeDeploymentRecord(entry)).filter(Boolean)
-        : deploymentRecords;
-      const updatedActiveDeployments = {};
-
-      Object.entries(persisted?.activeDeployments ?? activeDeployments).forEach(([chainKey, deploymentId]) => {
-        const normalizedChainId = Number(chainKey);
-        const normalizedDeploymentId = safeString(deploymentId);
-        if (Number.isFinite(normalizedChainId) && normalizedDeploymentId) {
-          updatedActiveDeployments[normalizedChainId] = normalizedDeploymentId;
-        }
-      });
-
-      setSavedDeployment(updatedDeployment);
-      setDeploymentRecords(updatedRecords);
-      setActiveDeployments(updatedActiveDeployments);
-
-      const syncedCount = Object.keys(persisted?.syncedContracts ?? {}).length;
+      const { syncedCount } = applyPersistedDeploymentState(persisted, record);
       const syncMessage = syncedCount
         ? ` Deployment saved and ${syncedCount} current contract setting${syncedCount === 1 ? '' : 's'} synced.`
         : ' Deployment saved to WordPress.';
@@ -4140,9 +4491,335 @@ function AdminDeploymentView({ appConfig }) {
     }
   };
 
+  const syncActiveDeploymentIntoSettings = async () => {
+    if (!activeRecord) {
+      setStatus('There is no active deployment on this chain to sync.');
+      return;
+    }
+
+    setBusy(true);
+    try {
+      setStatus('Syncing the active deployment addresses into the plugin settings...');
+      appendLog(`Syncing active deployment ${activeRecord.deploymentId} into the current plugin settings.`);
+      const persisted = await persistDeploymentRecord(activeRecord, { syncSettings: true });
+      const { syncedCount } = applyPersistedDeploymentState(persisted, activeRecord);
+      setStatus(
+        syncedCount
+          ? `Active deployment synced into the plugin settings. ${syncedCount} contract setting${syncedCount === 1 ? '' : 's'} updated.`
+          : 'Active deployment sync completed. Refresh the page if you want other admin screens to pick up the updated settings immediately.'
+      );
+      appendLog('Active deployment settings sync completed.');
+    } catch (error) {
+      const message = error?.shortMessage || error?.message || 'Settings sync failed.';
+      setStatus(message);
+      appendLog(`Error: ${message}`);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const applyBootstrapConfiguration = async () => {
+    if (!activeRecord) {
+      setStatus('There is no active deployment on this chain to bootstrap yet.');
+      return;
+    }
+
+    if (!selectedChain || !targetChainDefinition) {
+      setStatus('Select a configured chain before bootstrapping.');
+      return;
+    }
+
+    if (!isAddress(bootstrapState.tradeTreasury)) {
+      setStatus('Trade treasury must be a valid wallet address.');
+      return;
+    }
+
+    if (!isAddress(bootstrapState.rentTreasury)) {
+      setStatus('Rent treasury must be a valid wallet address.');
+      return;
+    }
+
+    const distributorCommission = parseIntegerUnits(bootstrapState.distributorCommissionBps);
+    const tradeCommission = parseIntegerUnits(bootstrapState.tradeCommissionBps);
+    const rentManagementFee = parseIntegerUnits(bootstrapState.rentManagementFeeBps);
+
+    if (distributorCommission === null) {
+      setStatus('Distributor commission bps must be a whole number.');
+      return;
+    }
+    if (tradeCommission === null) {
+      setStatus('Trade commission bps must be a whole number.');
+      return;
+    }
+    if (rentManagementFee === null) {
+      setStatus('Rent management fee bps must be a whole number.');
+      return;
+    }
+
+    setBusy(true);
+    try {
+      setStatus(`Applying bootstrap configuration on ${selectedChain.name}...`);
+      appendLog(`Applying bootstrap configuration for deployment ${activeRecord.deploymentId}.`);
+
+      await ensureReady();
+
+      if (!walletClient || !publicClient || !address) {
+        throw new Error('Connect a wallet before bootstrapping the deployment.');
+      }
+
+      const writeAndWait = async ({ contractName, address: contractAddress, abi, functionName, args, message }) => {
+        if (!contractAddress) {
+          appendLog(`Skipped ${message} because ${contractName} is not available on this deployment.`);
+          return null;
+        }
+
+        setStatus(message);
+        appendLog(message);
+        const txHash = await walletClient.writeContract({
+          address: contractAddress,
+          abi,
+          functionName,
+          args,
+          account: address,
+          chain: targetChainDefinition
+        });
+        await publicClient.waitForTransactionReceipt({ hash: txHash });
+        appendLog(`${message} confirmed: ${txHash}`);
+        return txHash;
+      };
+
+      const distributorAddress = resolveDeployedAddress(activeContractsByName.get('AtomicSQMUDistributor'));
+      const tradeAddress = resolveDeployedAddress(activeContractsByName.get('SQMUTrade'));
+      const crowdfundAddress = resolveDeployedAddress(activeContractsByName.get('SQMUCrowdfund'));
+      const rentAddress = resolveDeployedAddress(activeContractsByName.get('SQMURent'));
+      const rentDistributionAddress = resolveDeployedAddress(activeContractsByName.get('SQMURentDistribution'));
+      const escrowFactoryAddress = resolveDeployedAddress(activeContractsByName.get('EscrowFactory'));
+
+      await writeAndWait({
+        contractName: 'AtomicSQMUDistributor',
+        address: distributorAddress,
+        abi: distributorAbi,
+        functionName: 'setGlobalCommission',
+        args: [distributorCommission],
+        message: 'Updating distributor commission...'
+      });
+
+      await writeAndWait({
+        contractName: 'SQMUTrade',
+        address: tradeAddress,
+        abi: tradeAbi,
+        functionName: 'setTreasury',
+        args: [bootstrapState.tradeTreasury],
+        message: 'Updating trade treasury...'
+      });
+
+      await writeAndWait({
+        contractName: 'SQMUTrade',
+        address: tradeAddress,
+        abi: tradeAbi,
+        functionName: 'setCommission',
+        args: [tradeCommission],
+        message: 'Updating trade commission...'
+      });
+
+      if (distributorAddress) {
+        await writeAndWait({
+          contractName: 'SQMUTrade',
+          address: tradeAddress,
+          abi: tradeAbi,
+          functionName: 'setDistributor',
+          args: [distributorAddress],
+          message: 'Linking trade to the active distributor...'
+        });
+      }
+
+      await writeAndWait({
+        contractName: 'SQMURent',
+        address: rentAddress,
+        abi: rentAbi,
+        functionName: 'setTreasury',
+        args: [bootstrapState.rentTreasury],
+        message: 'Updating rent treasury...'
+      });
+
+      await writeAndWait({
+        contractName: 'SQMURent',
+        address: rentAddress,
+        abi: rentAbi,
+        functionName: 'setManagementFee',
+        args: [rentManagementFee],
+        message: 'Updating rent management fee...'
+      });
+
+      if (rentDistributionAddress) {
+        await writeAndWait({
+          contractName: 'SQMURent',
+          address: rentAddress,
+          abi: rentAbi,
+          functionName: 'setVault',
+          args: [rentDistributionAddress],
+          message: 'Linking rent to the active rent-distribution vault...'
+        });
+      }
+
+      for (const token of bootstrapTokens) {
+        await writeAndWait({
+          contractName: 'AtomicSQMUDistributor',
+          address: distributorAddress,
+          abi: distributorAbi,
+          functionName: 'allowPaymentToken',
+          args: [token.address, true],
+          message: `Allowing ${token.symbol} on the distributor...`
+        });
+
+        await writeAndWait({
+          contractName: 'SQMUTrade',
+          address: tradeAddress,
+          abi: tradeAbi,
+          functionName: 'allowPaymentToken',
+          args: [token.address, true],
+          message: `Allowing ${token.symbol} on trade...`
+        });
+
+        await writeAndWait({
+          contractName: 'SQMUCrowdfund',
+          address: crowdfundAddress,
+          abi: crowdfundAbi,
+          functionName: 'allowPaymentToken',
+          args: [token.address, true],
+          message: `Allowing ${token.symbol} on crowdfund...`
+        });
+
+        await writeAndWait({
+          contractName: 'SQMURent',
+          address: rentAddress,
+          abi: rentAbi,
+          functionName: 'setAcceptedToken',
+          args: [token.address, true],
+          message: `Allowing ${token.symbol} on rent...`
+        });
+
+        await writeAndWait({
+          contractName: 'EscrowFactory',
+          address: escrowFactoryAddress,
+          abi: escrowFactoryAbi,
+          functionName: 'addAllowedToken',
+          args: [token.address],
+          message: `Allowing ${token.symbol} on the escrow factory...`
+        });
+      }
+
+      setStatus(`Bootstrap configuration completed on ${selectedChain.name}.`);
+      appendLog('Bootstrap configuration completed.');
+    } catch (error) {
+      const message = error?.shortMessage || error?.message || 'Bootstrap configuration failed.';
+      setStatus(message);
+      appendLog(`Error: ${message}`);
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <div className="sqmu-stack">
       <WalletPanel appConfig={appConfig} desiredChainId={selectedChainId} busy={busy} autoSwitchOnConnect />
+
+      <Section
+        title="Import Scenario Details"
+        help="Paste a generated SQMU scenario report from a local Anvil run or a testnet run to import chain settings, the deployment record, payment token metadata, and an optional synthetic property record for shortcode smoke testing."
+      >
+        <Field
+          label="Scenario Report JSON"
+          hint="Use the JSON from dist/anvil-integration-report.json or an equivalent testnet report."
+        >
+          <textarea
+            value={scenarioReportText}
+            onChange={(event) => setScenarioReportText(event.target.value)}
+            rows={10}
+            placeholder='{"chainId":31337,"bundle":{"version":"..."},"deployments":{...}}'
+            disabled={busy}
+          />
+        </Field>
+
+        {parsedScenario.error ? (
+          <p className="sqmu-help">{parsedScenario.error}</p>
+        ) : null}
+
+        {parsedScenario.report ? (
+          <>
+            <div className="sqmu-stats">
+              <div className="sqmu-stat">
+                <span className="sqmu-stat-label">Report Chain</span>
+                <strong>{parsedScenario.report.chainId}</strong>
+              </div>
+              <div className="sqmu-stat">
+                <span className="sqmu-stat-label">Bundle Version</span>
+                <strong>{parsedScenario.report.bundleVersion || 'Unavailable'}</strong>
+              </div>
+              <div className="sqmu-stat">
+                <span className="sqmu-stat-label">Contracts</span>
+                <strong>{parsedScenario.report.deploymentCount}</strong>
+              </div>
+              <div className="sqmu-stat">
+                <span className="sqmu-stat-label">Token</span>
+                <strong>{parsedScenario.report.token ? `${parsedScenario.report.token.symbol || 'Token'} ${maskAddress(parsedScenario.report.token.address)}` : 'Unavailable'}</strong>
+              </div>
+              <div className="sqmu-stat">
+                <span className="sqmu-stat-label">Property</span>
+                <strong>{parsedScenario.report.property?.code || 'Unavailable'}</strong>
+              </div>
+            </div>
+
+            <div className="sqmu-form-grid">
+              <Field label="Chain Name">
+                <input value={scenarioChainState.name} onChange={(event) => updateScenarioChainField('name', event.target.value)} disabled={busy || !scenarioImportState.importChain} />
+              </Field>
+              <Field label="RPC URL">
+                <input value={scenarioChainState.rpcUrl} onChange={(event) => updateScenarioChainField('rpcUrl', event.target.value)} placeholder="https://..." disabled={busy || !scenarioImportState.importChain} />
+              </Field>
+              <Field label="Block Explorer URL">
+                <input value={scenarioChainState.blockExplorerUrl} onChange={(event) => updateScenarioChainField('blockExplorerUrl', event.target.value)} placeholder="https://..." disabled={busy || !scenarioImportState.importChain} />
+              </Field>
+              <Field label="Native Currency Name">
+                <input value={scenarioChainState.nativeCurrencyName} onChange={(event) => updateScenarioChainField('nativeCurrencyName', event.target.value)} disabled={busy || !scenarioImportState.importChain} />
+              </Field>
+              <Field label="Native Currency Symbol">
+                <input value={scenarioChainState.nativeCurrencySymbol} onChange={(event) => updateScenarioChainField('nativeCurrencySymbol', event.target.value)} disabled={busy || !scenarioImportState.importChain} />
+              </Field>
+              <Field label="Native Currency Decimals">
+                <input value={scenarioChainState.nativeCurrencyDecimals} onChange={(event) => updateScenarioChainField('nativeCurrencyDecimals', event.target.value)} inputMode="numeric" disabled={busy || !scenarioImportState.importChain} />
+              </Field>
+            </div>
+
+            <label className="sqmu-checkbox">
+              <input type="checkbox" checked={scenarioImportState.importChain} onChange={(event) => updateScenarioImportField('importChain', event.target.checked)} disabled={busy} />
+              <span>Import or update the chain configuration on this site.</span>
+            </label>
+            <label className="sqmu-checkbox">
+              <input type="checkbox" checked={scenarioImportState.importPaymentToken} onChange={(event) => updateScenarioImportField('importPaymentToken', event.target.checked)} disabled={busy} />
+              <span>Import the report token into the general SQMU payment token list.</span>
+            </label>
+            <label className="sqmu-checkbox">
+              <input type="checkbox" checked={scenarioImportState.importProperty} onChange={(event) => updateScenarioImportField('importProperty', event.target.checked)} disabled={busy} />
+              <span>Seed a synthetic property record for shortcode smoke testing when no WordPress property post exists yet.</span>
+            </label>
+            <label className="sqmu-checkbox">
+              <input type="checkbox" checked={scenarioImportState.activateDeployment} onChange={(event) => updateScenarioImportField('activateDeployment', event.target.checked)} disabled={busy} />
+              <span>Record the imported deployment as the active deployment for this chain.</span>
+            </label>
+            <label className="sqmu-checkbox">
+              <input type="checkbox" checked={scenarioImportState.syncCurrentContracts} onChange={(event) => updateScenarioImportField('syncCurrentContracts', event.target.checked)} disabled={busy} />
+              <span>Also sync the imported contract addresses into the current plugin settings.</span>
+            </label>
+
+            <div className="sqmu-actions">
+              <button type="button" className="wp-element-button" onClick={importScenarioDetails} disabled={busy}>
+                {busy ? 'Importing...' : 'Import Scenario Details'}
+              </button>
+            </div>
+          </>
+        ) : null}
+      </Section>
 
       <Section
         title="Deploy New Stack"
@@ -4178,7 +4855,7 @@ function AdminDeploymentView({ appConfig }) {
         <div className="sqmu-form-grid">
           <Field label="Chain">
             <select value={selectedChainId} onChange={(event) => setSelectedChainId(Number(event.target.value))} disabled={busy}>
-              {appConfig.chains.map((chain) => (
+              {adminChains.map((chain) => (
                 <option key={chain.id} value={chain.id}>
                   {chain.name} ({chain.id})
                 </option>
@@ -4225,6 +4902,76 @@ function AdminDeploymentView({ appConfig }) {
         </div>
 
         <p className="sqmu-status-line">{status}</p>
+      </Section>
+
+      <Section
+        title="Active Deployment Bootstrap"
+        help="Use the active deployment on the selected chain to push treasury, commission, and token allowlist defaults across the freshly deployed contract stack."
+      >
+        <div className="sqmu-stats">
+          <div className="sqmu-stat">
+            <span className="sqmu-stat-label">Active Deployment</span>
+            <strong>{activeRecord ? activeRecord.deploymentId : 'None recorded'}</strong>
+          </div>
+          <div className="sqmu-stat">
+            <span className="sqmu-stat-label">Known Tokens</span>
+            <strong>{bootstrapTokens.length}</strong>
+          </div>
+          <div className="sqmu-stat">
+            <span className="sqmu-stat-label">Trade Treasury</span>
+            <strong>{bootstrapState.tradeTreasury ? maskAddress(bootstrapState.tradeTreasury) : 'Unset'}</strong>
+          </div>
+          <div className="sqmu-stat">
+            <span className="sqmu-stat-label">Rent Treasury</span>
+            <strong>{bootstrapState.rentTreasury ? maskAddress(bootstrapState.rentTreasury) : 'Unset'}</strong>
+          </div>
+        </div>
+
+        {!activeRecord ? (
+          <p className="sqmu-help">Deploy a stack on this chain first, then come back here to sync settings and bootstrap the live contracts.</p>
+        ) : (
+          <>
+            <div className="sqmu-form-grid">
+              <Field label="Distributor Commission (bps)">
+                <input value={bootstrapState.distributorCommissionBps} onChange={(event) => updateBootstrapField('distributorCommissionBps', event.target.value)} inputMode="numeric" disabled={busy} />
+              </Field>
+              <Field label="Trade Treasury">
+                <input value={bootstrapState.tradeTreasury} onChange={(event) => updateBootstrapField('tradeTreasury', event.target.value)} placeholder="0x..." disabled={busy} />
+              </Field>
+              <Field label="Trade Commission (bps)">
+                <input value={bootstrapState.tradeCommissionBps} onChange={(event) => updateBootstrapField('tradeCommissionBps', event.target.value)} inputMode="numeric" disabled={busy} />
+              </Field>
+              <Field label="Rent Treasury">
+                <input value={bootstrapState.rentTreasury} onChange={(event) => updateBootstrapField('rentTreasury', event.target.value)} placeholder="0x..." disabled={busy} />
+              </Field>
+              <Field label="Rent Management Fee (bps)">
+                <input value={bootstrapState.rentManagementFeeBps} onChange={(event) => updateBootstrapField('rentManagementFeeBps', event.target.value)} inputMode="numeric" disabled={busy} />
+              </Field>
+              <Field label="Extra Token Addresses" hint="Optional. One address per line or separated by spaces/commas.">
+                <textarea value={bootstrapState.manualTokenAddresses} onChange={(event) => updateBootstrapField('manualTokenAddresses', event.target.value)} rows={4} disabled={busy} />
+              </Field>
+            </div>
+
+            {bootstrapTokens.length ? (
+              <div className="sqmu-help">
+                Tokens to apply:
+                {' '}
+                {bootstrapTokens.map((token) => token.symbol || maskAddress(token.address)).join(', ')}
+              </div>
+            ) : (
+              <p className="sqmu-help">No token addresses are currently queued for allowlisting. Add tokens in plugin settings or enter extra addresses here if you want the bootstrap flow to configure token allowlists.</p>
+            )}
+
+            <div className="sqmu-actions">
+              <button type="button" className="wp-element-button" onClick={syncActiveDeploymentIntoSettings} disabled={busy}>
+                {busy ? 'Submitting...' : 'Sync Active Deployment Into Settings'}
+              </button>
+              <button type="button" className="wp-element-button" onClick={applyBootstrapConfiguration} disabled={busy}>
+                {busy ? 'Submitting...' : 'Apply Bootstrap Configuration'}
+              </button>
+            </div>
+          </>
+        )}
       </Section>
 
       <Section title="Deployment Order" help="This is the exact order derived from the bundled manifest dependencies.">
@@ -4320,13 +5067,14 @@ function ConfigError({ issues }) {
 
 function validateMountConfig(view, appConfig) {
   const issues = [];
-  if (!appConfig.chains.length) {
+  const requireConfiguredChains = view !== 'admin_deploy';
+  if (requireConfiguredChains && !appConfig.chains.length) {
     issues.push('At least one chain configuration is required.');
   }
-  if (!appConfig.chains.some((chain) => chain.id === appConfig.defaultChainId)) {
+  if (requireConfiguredChains && !appConfig.chains.some((chain) => chain.id === appConfig.defaultChainId)) {
     issues.push('defaultChainId must match one of the configured chains.');
   }
-  if (!appConfig.chains.every((chain) => chain.rpcUrl)) {
+  if (requireConfiguredChains && !appConfig.chains.every((chain) => chain.rpcUrl)) {
     issues.push('Each configured chain must include an rpcUrl for browser-side reads.');
   }
 

@@ -14,6 +14,7 @@ const SQMU_APP_OPTION_KEY = 'sqmu_app_settings';
 const SQMU_CONTRACT_BUNDLE_PIN_OPTION_KEY = 'sqmu_contract_bundle_pin';
 const SQMU_CONTRACT_DEPLOYMENTS_OPTION_KEY = 'sqmu_contract_deployments';
 const SQMU_CONTRACT_ACTIVE_DEPLOYMENTS_OPTION_KEY = 'sqmu_contract_active_deployments';
+const SQMU_IMPORTED_SCENARIO_PROPERTIES_OPTION_KEY = 'sqmu_imported_scenario_properties';
 const SQMU_PROPERTY_CODE_META_KEY = '_sqmu_property_code';
 const SQMU_PROPERTY_TOKEN_ID_META_KEY = '_sqmu_token_id';
 const SQMU_PROPERTY_TOKEN_ADDRESS_META_KEY = '_sqmu_token_address';
@@ -69,6 +70,10 @@ function sqmu_app_default_contract_deployments() {
 }
 
 function sqmu_app_default_active_contract_deployments() {
+    return array();
+}
+
+function sqmu_app_default_imported_scenario_properties() {
     return array();
 }
 
@@ -440,6 +445,184 @@ function sqmu_app_persist_active_contract_deployments($active_deployments) {
     update_option(SQMU_CONTRACT_ACTIVE_DEPLOYMENTS_OPTION_KEY, $active_deployments, false);
 }
 
+function sqmu_app_normalize_imported_scenario_property($record) {
+    $record = is_array($record) ? $record : array();
+    $property_code = sanitize_text_field($record['propertyCode'] ?? '');
+    if ($property_code === '') {
+        return null;
+    }
+
+    $token_id = isset($record['tokenId']) && is_numeric($record['tokenId']) ? (int) $record['tokenId'] : null;
+    $property_id = isset($record['propertyId']) && is_numeric($record['propertyId'])
+        ? (int) $record['propertyId']
+        : $token_id;
+    $property_ref = sanitize_text_field($record['propertyRef'] ?? '');
+
+    return array(
+        'propertyCode' => $property_code,
+        'tokenId' => $token_id,
+        'tokenAddress' => sqmu_app_normalize_optional_address($record['tokenAddress'] ?? ''),
+        'propertyId' => $property_id,
+        'propertyRef' => sqmu_app_is_valid_bytes32($property_ref) ? $property_ref : null,
+        'postId' => 0,
+        'postTitle' => sanitize_text_field($record['postTitle'] ?? sprintf('Imported %s', $property_code))
+    );
+}
+
+function sqmu_app_get_imported_scenario_properties() {
+    $stored = get_option(SQMU_IMPORTED_SCENARIO_PROPERTIES_OPTION_KEY, sqmu_app_default_imported_scenario_properties());
+    if (!is_array($stored)) {
+        return array();
+    }
+
+    $properties = array();
+    foreach ($stored as $property_code => $record) {
+        $normalized = sqmu_app_normalize_imported_scenario_property(
+            is_array($record) ? $record : array('propertyCode' => is_string($property_code) ? $property_code : '')
+        );
+        if (!$normalized) {
+            continue;
+        }
+
+        $properties[$normalized['propertyCode']] = $normalized;
+    }
+
+    ksort($properties, SORT_NATURAL | SORT_FLAG_CASE);
+    return $properties;
+}
+
+function sqmu_app_persist_imported_scenario_properties($properties) {
+    update_option(SQMU_IMPORTED_SCENARIO_PROPERTIES_OPTION_KEY, $properties, false);
+}
+
+function sqmu_app_upsert_imported_scenario_property($record) {
+    $normalized = sqmu_app_normalize_imported_scenario_property($record);
+    if (!$normalized) {
+        return null;
+    }
+
+    $properties = sqmu_app_get_imported_scenario_properties();
+    $properties[$normalized['propertyCode']] = $normalized;
+    sqmu_app_persist_imported_scenario_properties($properties);
+
+    return $normalized;
+}
+
+function sqmu_app_build_scenario_import_deployment_id($chain_id, $report) {
+    $chain_id = (int) $chain_id;
+    $contracts = isset($report['deployments']) && is_array($report['deployments']) ? $report['deployments'] : array();
+    $seed = $contracts['EscrowFactory']['proxyAddress'] ?? $contracts['EscrowFactory']['address'] ?? '';
+    $seed = sanitize_text_field($seed);
+    $suffix = $seed !== '' ? strtolower(substr(preg_replace('/^0x/i', '', $seed), 0, 8)) : gmdate('YmdHis');
+
+    return sanitize_key(sprintf('sqmu-import-%d-%s', $chain_id, $suffix));
+}
+
+function sqmu_app_upsert_chain_config($chains, $chain) {
+    $chain = is_array($chain) ? $chain : array();
+    $chain_id = isset($chain['id']) && is_numeric($chain['id']) ? (int) $chain['id'] : 0;
+    if ($chain_id <= 0) {
+        return is_array($chains) ? array_values($chains) : array();
+    }
+
+    $normalized_chain = array(
+        'id' => $chain_id,
+        'name' => sanitize_text_field($chain['name'] ?? sprintf('Chain %d', $chain_id)),
+        'rpcUrl' => esc_url_raw($chain['rpcUrl'] ?? ''),
+        'blockExplorerUrl' => esc_url_raw($chain['blockExplorerUrl'] ?? ''),
+        'nativeCurrency' => array(
+            'name' => sanitize_text_field($chain['nativeCurrency']['name'] ?? 'Ether'),
+            'symbol' => sanitize_text_field($chain['nativeCurrency']['symbol'] ?? 'ETH'),
+            'decimals' => isset($chain['nativeCurrency']['decimals']) && is_numeric($chain['nativeCurrency']['decimals'])
+                ? (int) $chain['nativeCurrency']['decimals']
+                : 18
+        )
+    );
+
+    $updated = array();
+    $replaced = false;
+    foreach (is_array($chains) ? $chains : array() as $existing_chain) {
+        if (!is_array($existing_chain) || !isset($existing_chain['id']) || !is_numeric($existing_chain['id'])) {
+            continue;
+        }
+
+        if ((int) $existing_chain['id'] === $chain_id) {
+            $updated[] = $normalized_chain;
+            $replaced = true;
+        } else {
+            $updated[] = $existing_chain;
+        }
+    }
+
+    if (!$replaced) {
+        $updated[] = $normalized_chain;
+    }
+
+    usort(
+        $updated,
+        static function ($left, $right) {
+            return ((int) ($left['id'] ?? 0)) <=> ((int) ($right['id'] ?? 0));
+        }
+    );
+
+    return array_values($updated);
+}
+
+function sqmu_app_merge_payment_token_record($tokens, $token) {
+    $token = is_array($token) ? $token : array();
+    $address = sqmu_app_normalize_optional_address($token['address'] ?? '');
+    if ($address === '') {
+        return is_array($tokens) ? array_values($tokens) : array();
+    }
+
+    $normalized = array(
+        'address' => $address,
+        'symbol' => sanitize_text_field($token['symbol'] ?? ''),
+        'decimals' => isset($token['decimals']) && is_numeric($token['decimals']) ? (int) $token['decimals'] : 18
+    );
+
+    $updated = array();
+    $replaced = false;
+    foreach (is_array($tokens) ? $tokens : array() as $existing_token) {
+        if (!is_array($existing_token)) {
+            continue;
+        }
+
+        $existing_address = sqmu_app_normalize_optional_address($existing_token['address'] ?? '');
+        if ($existing_address !== '' && strtolower($existing_address) === strtolower($address)) {
+            $updated[] = $normalized;
+            $replaced = true;
+        } else {
+            $updated[] = $existing_token;
+        }
+    }
+
+    if (!$replaced) {
+        $updated[] = $normalized;
+    }
+
+    return array_values($updated);
+}
+
+function sqmu_app_apply_default_chain_id_to_empty_views($settings, $chain_id) {
+    $chain_id = (int) $chain_id;
+    if ($chain_id <= 0 || !is_array($settings)) {
+        return $settings;
+    }
+
+    foreach (($settings['viewDefaults'] ?? array()) as $view => $defaults) {
+        if (!is_array($defaults)) {
+            continue;
+        }
+
+        if (empty($settings['viewDefaults'][$view]['defaultChainId'])) {
+            $settings['viewDefaults'][$view]['defaultChainId'] = $chain_id;
+        }
+    }
+
+    return $settings;
+}
+
 function sqmu_app_upsert_contract_deployment($record) {
     $deployments = sqmu_app_get_contract_deployments();
     $normalized = sqmu_app_normalize_contract_deployment_record($record);
@@ -576,6 +759,129 @@ function sqmu_app_rest_upsert_deployment(WP_REST_Request $request) {
     );
 }
 
+function sqmu_app_rest_import_scenario(WP_REST_Request $request) {
+    $params = $request->get_json_params();
+    if (!is_array($params)) {
+        return new WP_Error('sqmu_invalid_scenario_payload', 'Scenario import payload must be a JSON object.', array('status' => 400));
+    }
+
+    $report = isset($params['report']) && is_array($params['report']) ? $params['report'] : null;
+    if (!$report) {
+        return new WP_Error('sqmu_invalid_scenario_report', 'Scenario import requires a report object.', array('status' => 400));
+    }
+
+    $chain_id = isset($report['chainId']) && is_numeric($report['chainId']) ? (int) $report['chainId'] : 0;
+    if ($chain_id <= 0) {
+        return new WP_Error('sqmu_invalid_scenario_chain', 'Scenario report must include a numeric chainId.', array('status' => 400));
+    }
+
+    $settings = sqmu_app_get_settings();
+    $settings_changed = false;
+    $import_chain = !empty($params['importChain']);
+    $import_payment_token = !empty($params['importPaymentToken']);
+    $import_property = !empty($params['importProperty']);
+    $activate_deployment = !empty($params['activateDeployment']);
+    $sync_current_contracts = !empty($params['syncCurrentContracts']);
+    $chain_input = isset($params['chain']) && is_array($params['chain']) ? $params['chain'] : array();
+
+    $existing_chain = null;
+    foreach ($settings['chains'] as $chain) {
+        if (is_array($chain) && isset($chain['id']) && (int) $chain['id'] === $chain_id) {
+            $existing_chain = $chain;
+            break;
+        }
+    }
+
+    $chain_config = array(
+        'id' => $chain_id,
+        'name' => sanitize_text_field($chain_input['name'] ?? ($existing_chain['name'] ?? sprintf('Chain %d', $chain_id))),
+        'rpcUrl' => $chain_input['rpcUrl'] ?? ($existing_chain['rpcUrl'] ?? ($report['rpcUrl'] ?? '')),
+        'blockExplorerUrl' => $chain_input['blockExplorerUrl'] ?? ($existing_chain['blockExplorerUrl'] ?? ''),
+        'nativeCurrency' => array(
+            'name' => sanitize_text_field($chain_input['nativeCurrency']['name'] ?? ($existing_chain['nativeCurrency']['name'] ?? 'Ether')),
+            'symbol' => sanitize_text_field($chain_input['nativeCurrency']['symbol'] ?? ($existing_chain['nativeCurrency']['symbol'] ?? 'ETH')),
+            'decimals' => isset($chain_input['nativeCurrency']['decimals']) && is_numeric($chain_input['nativeCurrency']['decimals'])
+                ? (int) $chain_input['nativeCurrency']['decimals']
+                : (isset($existing_chain['nativeCurrency']['decimals']) && is_numeric($existing_chain['nativeCurrency']['decimals']) ? (int) $existing_chain['nativeCurrency']['decimals'] : 18)
+        )
+    );
+
+    if ($import_chain) {
+        $settings['chains'] = sqmu_app_upsert_chain_config($settings['chains'], $chain_config);
+        $settings = sqmu_app_apply_default_chain_id_to_empty_views($settings, $chain_id);
+        $settings_changed = true;
+    }
+
+    $imported_token = null;
+    if ($import_payment_token && isset($report['token']) && is_array($report['token'])) {
+        $imported_token = array(
+            'address' => $report['token']['address'] ?? '',
+            'symbol' => $report['token']['symbol'] ?? '',
+            'decimals' => $report['token']['decimals'] ?? 18
+        );
+        $settings['paymentTokens'] = sqmu_app_merge_payment_token_record($settings['paymentTokens'], $imported_token);
+        $settings_changed = true;
+        $imported_token = sqmu_app_merge_payment_token_record(array(), $imported_token);
+        $imported_token = $imported_token ? $imported_token[0] : null;
+    }
+
+    if ($settings_changed) {
+        update_option(SQMU_APP_OPTION_KEY, $settings, false);
+    }
+
+    $deployment_record = array(
+        'deploymentId' => sanitize_key($params['deploymentId'] ?? sqmu_app_build_scenario_import_deployment_id($chain_id, $report)),
+        'chainId' => $chain_id,
+        'releaseVersion' => sanitize_text_field($report['bundle']['version'] ?? ''),
+        'manifestVersion' => sanitize_text_field($report['bundle']['manifestVersion'] ?? ''),
+        'manifestSha256' => sanitize_text_field($report['bundle']['manifestSha256'] ?? ''),
+        'deployedAt' => sanitize_text_field($report['checkedAt'] ?? current_time('c')),
+        'deployerWallet' => sqmu_app_normalize_optional_address($report['actors']['deployer'] ?? ''),
+        'status' => $activate_deployment ? 'active' : 'draft',
+        'contracts' => isset($report['deployments']) && is_array($report['deployments']) ? $report['deployments'] : array(),
+        'txHashes' => isset($report['txHashes']) && is_array($report['txHashes']) ? $report['txHashes'] : array()
+    );
+
+    $normalized_deployment = sqmu_app_upsert_contract_deployment($deployment_record);
+
+    $imported_property = null;
+    if ($import_property && isset($report['property']) && is_array($report['property'])) {
+        $sqmu_address = sqmu_app_get_deployment_contract_address($normalized_deployment['contracts']['SQMU'] ?? array());
+        $imported_property = sqmu_app_upsert_imported_scenario_property(
+            array(
+                'propertyCode' => $report['property']['code'] ?? '',
+                'tokenId' => $report['property']['tokenId'] ?? null,
+                'tokenAddress' => $sqmu_address,
+                'propertyId' => $report['property']['propertyId'] ?? ($report['property']['tokenId'] ?? null),
+                'propertyRef' => $report['property']['ref'] ?? '',
+                'postTitle' => sanitize_text_field($report['property']['name'] ?? sprintf('Imported %s', sanitize_text_field($report['property']['code'] ?? 'Scenario Property')))
+            )
+        );
+    }
+
+    $synced = array('contracts' => array());
+    if ($sync_current_contracts && $normalized_deployment['status'] === 'active') {
+        $synced = sqmu_app_sync_contract_settings_from_deployment($normalized_deployment);
+    }
+
+    $updated_settings = sqmu_app_get_settings();
+
+    return rest_ensure_response(
+        array(
+            'deployment' => $normalized_deployment,
+            'deployments' => array_values(sqmu_app_get_contract_deployments()),
+            'activeDeployments' => sqmu_app_get_active_contract_deployments(),
+            'syncedContracts' => $synced['contracts'],
+            'settings' => $synced['settings'] ?? null,
+            'chains' => $updated_settings['chains'],
+            'paymentTokens' => $updated_settings['paymentTokens'],
+            'importedChain' => $import_chain ? $chain_config : null,
+            'importedToken' => $imported_token,
+            'importedProperty' => $imported_property
+        )
+    );
+}
+
 function sqmu_app_register_rest_routes() {
     register_rest_route(
         'sqmu/v1',
@@ -589,6 +895,18 @@ function sqmu_app_register_rest_routes() {
             array(
                 'methods' => WP_REST_Server::CREATABLE,
                 'callback' => 'sqmu_app_rest_upsert_deployment',
+                'permission_callback' => 'sqmu_app_rest_can_manage_options'
+            )
+        )
+    );
+
+    register_rest_route(
+        'sqmu/v1',
+        '/deployments/import-scenario',
+        array(
+            array(
+                'methods' => WP_REST_Server::CREATABLE,
+                'callback' => 'sqmu_app_rest_import_scenario',
                 'permission_callback' => 'sqmu_app_rest_can_manage_options'
             )
         )
@@ -608,6 +926,7 @@ function sqmu_app_refresh_contract_bundle_pin_mirror() {
 function sqmu_app_activate_plugin() {
     add_option(SQMU_CONTRACT_DEPLOYMENTS_OPTION_KEY, sqmu_app_default_contract_deployments(), '', false);
     add_option(SQMU_CONTRACT_ACTIVE_DEPLOYMENTS_OPTION_KEY, sqmu_app_default_active_contract_deployments(), '', false);
+    add_option(SQMU_IMPORTED_SCENARIO_PROPERTIES_OPTION_KEY, sqmu_app_default_imported_scenario_properties(), '', false);
     sqmu_app_refresh_contract_bundle_pin_mirror();
 }
 register_activation_hook(__FILE__, 'sqmu_app_activate_plugin');
@@ -2129,6 +2448,19 @@ function sqmu_app_get_property_catalog() {
 
         if (isset($seen[$record['propertyCode']])) {
             $duplicates[$record['propertyCode']] = true;
+            continue;
+        }
+
+        $seen[$record['propertyCode']] = true;
+        $properties[] = $record;
+    }
+
+    foreach (sqmu_app_get_imported_scenario_properties() as $record) {
+        if (!is_array($record) || empty($record['propertyCode'])) {
+            continue;
+        }
+
+        if (isset($seen[$record['propertyCode']])) {
             continue;
         }
 

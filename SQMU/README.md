@@ -70,6 +70,16 @@ docker stop sqmu-anvil
 
 The smoke report is written to `dist/anvil-smoke-report.json` and is intentionally ignored by git.
 
+For a richer seeded integration run that deploys the bundle, creates a local stablecoin, bootstraps token allowlists, and executes distributor, crowdfund, trade, rent, and escrow flows:
+
+```bash
+docker run -d --rm --name sqmu-anvil ghcr.io/foundry-rs/foundry:latest anvil --host 0.0.0.0 --chain-id 31337
+docker run --rm --network container:sqmu-anvil -v "$PWD:/workspace" -w /workspace/SQMU -e ANVIL_RPC_URL=http://127.0.0.1:8545 node:22.11.0-alpine sh -lc "npm run build && npm run integration:anvil"
+docker stop sqmu-anvil
+```
+
+The integration report is written to `dist/anvil-integration-report.json` and can be used as a seeded reference when validating the WordPress plugin against a local chain.
+
 ## Licensing
 
 - SQMU contracts in `Contracts/` are licensed under **Apache-2.0** (see SPDX headers and repository `LICENSE`).
