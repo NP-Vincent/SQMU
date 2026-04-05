@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
-  "enabled": false,
+  "enabled": true,
   "release": {
-    "version": "",
-    "tag": "",
-    "asset": "",
-    "sha256": ""
+    "version": "contracts-v1.0.1",
+    "tag": "contracts-v1.0.1",
+    "asset": "sqmu-contract-bundle-contracts-v1.0.1.zip",
+    "sha256": "a50742adf6b8ba169ec40b2860bccfa70ebda9aae4af44adf597ea85f11c2511"
   }
 }
