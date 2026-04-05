@@ -7,6 +7,129 @@ Keep the contract lifecycle and the WordPress plugin lifecycle separate while le
 The contract pipeline verifies and publishes immutable release bundles.
 The plugin pipeline chooses one pinned bundle version and includes it in the packaged plugin release.
 
+## Single-Wallet Deployment Methodology
+
+SQMU uses a single-wallet administrative deployment model.
+This is the baseline approach that future SQMU contract work should extend rather than replace.
+
+### Core model
+
+The deployment system is intentionally split across three responsibilities:
+
+1. Contract release pipeline
+   - compiles, tests, and bundles the contract suite
+   - publishes an immutable release asset
+   - defines deployment metadata in a machine-readable manifest
+
+2. Browser-based admin deployment console
+   - loads the pinned bundle packaged with the application
+   - connects to one administrator wallet
+   - asks that wallet to sign each deployment and bootstrap transaction
+   - executes the deployment sequence in dependency order
+
+3. Application backend
+   - exposes the pinned bundle metadata to the admin UI
+   - stores deployment history and active deployment records
+   - syncs deployed addresses into application settings when requested
+   - never stores deployment private keys or signs on behalf of the wallet
+
+This creates a non-custodial deployment experience with a single operational wallet while still giving the application a durable deployment record.
+
+### Why the deployment UI is bundle-driven
+
+The admin UI does not deploy from raw Solidity source files.
+Instead, it deploys from a reviewed bundle that contains:
+
+- a manifest
+- ABI data
+- deployment bytecode
+- dependency order
+- initializer metadata
+- upgradeability metadata
+- integrity information
+
+That bundle-driven model matters because it keeps the deployment surface generic.
+The UI can deploy a stack by following manifest instructions rather than by embedding contract-specific deployment logic throughout the application.
+
+### Single-wallet execution flow
+
+The operational sequence is:
+
+1. The admin opens the deployment screen in the application.
+2. The application confirms that a pinned contract bundle is packaged and available.
+3. The admin connects one wallet and selects the target chain.
+4. The browser reads the bundle manifest and computes the deployment order.
+5. Each deployment transaction is signed by the connected wallet in the browser.
+6. The browser waits for each receipt, captures deployed addresses, and resolves dependencies for subsequent steps.
+7. When the stack is fully deployed, the application backend records the deployment.
+8. The admin may then sync the active deployment into runtime settings and run bootstrap operations.
+
+The critical point is that one wallet signs the entire sequence, but the sequence itself is coordinated by the browser and anchored by backend persistence.
+
+### Deployment and bootstrap are separate on purpose
+
+SQMU treats deployment and operational configuration as two distinct phases.
+
+Deployment is responsible for:
+
+- creating implementations and proxies
+- running initializers
+- resolving intra-stack dependencies
+- recording the resulting addresses
+
+Bootstrap is responsible for:
+
+- setting treasury addresses
+- setting fee or commission parameters
+- linking live contracts that require owner configuration
+- applying payment-token allowlists
+- syncing deployed addresses into application settings
+
+This separation keeps the deployment engine generic while allowing chain-specific or business-specific operational settings to be applied after the stack exists.
+
+### Deployment history is part of the system design
+
+The application must preserve deployment history instead of treating current addresses as the only source of truth.
+
+Each deployment record should capture:
+
+- deployment id
+- chain id
+- bundle/release version
+- deployer wallet
+- timestamp
+- contract addresses
+- implementation addresses where relevant
+- transaction hashes
+- deployment status
+
+Active deployment tracking should then map a chain to one chosen deployment record.
+Older deployments should remain available for audit, review, and rollback reasoning.
+
+### Upgradeability decisions belong in the bundle metadata
+
+The bundle manifest should carry the initial upgrade policy for each contract:
+
+- whether upgrades are allowed
+- whether the default action is upgrade or redeploy
+- whether manual review is required
+- what other deployed contracts depend on it
+
+This lets the admin experience evolve into a structured upgrade workflow later without inventing upgrade rules outside the release process.
+
+### Reusable pattern for another project
+
+To reproduce this model in another project:
+
+1. publish immutable contract bundles from CI
+2. package one pinned bundle inside the application
+3. build a browser admin deployment console around a single connected wallet
+4. execute deployments from manifest metadata in dependency order
+5. record deployment history in the backend
+6. keep bootstrap configuration separate from the deployment transaction flow
+
+That is the transferable foundation behind the SQMU approach.
+
 ## Workflows
 
 ### `contracts-ci.yml`
