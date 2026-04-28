@@ -37,6 +37,13 @@ They define responsibilities and interactions for developers, operators, and end
 - Keep automation scripts focused per workflow and document required payload fields/recipient logic.
 - Document cross-agent dependencies whenever contract interfaces, plugin hooks, or receipt payloads change.
 
+## Public Repository Hygiene
+
+- Treat every tracked file as public. Do not commit local stacks, `.env*` files, private keys, seed phrases, credentialed RPC URLs, production passwords, customer data, dumps, generated build outputs, or editor/system artifacts.
+- Keep local Docker and environment changes in ignored files such as `docker/compose.sqmu.yml` and `docker/.env`; update only sanitized `.example` templates when public setup guidance changes.
+- Before publishing or preparing a PR, follow the checks in `docs/public-repo-hygiene.md` and review any credential-shaped matches manually.
+- If contract deployment notes are updated, include only public-safe metadata such as chain, version, contract address, transaction hash, and explorer URL.
+
 ## Workflow Recommendations
 
 1. Define the target user journey and identify the participating agents.

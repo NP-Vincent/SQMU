@@ -12,11 +12,14 @@ Thumbs.db
 *.swp
 *.swo
 *~
+*.local
+*.local.*
 
 # Logs and temporary runtime output
 *.log
 *.tmp
 tmp/
+coverage/
 SQMU/node_modules/
 SQMU/artifacts/
 SQMU/cache/
@@ -26,7 +29,11 @@ WordpressPlugin/plugin/assets/sqmu.js
 WordpressPlugin/plugin/assets/sqmu.js.map
 WordpressPlugin/plugin/assets/chunks/
 
-# Local Docker stack overrides
+# Local environment and Docker stack overrides
+.env
+.env.*
+!.env.example
+!*.env.example
 docker/compose.sqmu.yml
 docker/.env
 !docker/compose.sqmu.example.yml

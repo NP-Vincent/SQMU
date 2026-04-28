@@ -49,6 +49,7 @@ Deploy the contracts with your preferred Solidity tooling (for example Hardhat, 
 The repo includes a sanitized Docker Compose template at `docker/compose.sqmu.example.yml`.
 It uses explicit SQMU container, network, and volume names so Docker resources can be traced back to this repository.
 Keep your real local stack in `docker/compose.sqmu.yml`, which is ignored by git and should not contain production secrets.
+For the ongoing public-repository policy and pre-push hygiene checklist, see [`docs/public-repo-hygiene.md`](docs/public-repo-hygiene.md).
 
 Create your local Compose file:
 
@@ -74,6 +75,19 @@ Start the same stack with the optional chain explorer:
 
 ```bash
 docker compose -f docker/compose.sqmu.yml --profile explorer up -d
+```
+
+Start the reusable Node development tools container:
+
+```bash
+docker compose -f docker/compose.sqmu.yml --profile tools up -d sqmu-node-tools
+```
+
+Run repeated contract or plugin commands through the named tools container:
+
+```bash
+docker exec sqmu-node-tools sh -lc "cd SQMU && npm ci && npm test"
+docker exec sqmu-node-tools sh -lc "cd WordpressPlugin && npm ci && npm run build"
 ```
 
 Stop the stack without deleting persisted WordPress/MySQL state:
