@@ -34,16 +34,16 @@ React + Wagmi owns:
 
 Runtime is direct browser-to-chain. WordPress is not used as a REST proxy in this version.
 
-## Local Validation Targets
+## Local Validation Target
 
-Keep two separate local WordPress testing lanes in mind:
+Keep the release-parity WordPress target in mind:
 
-- Development lane
-  - Flexible local iteration is allowed on the official beta image currently in use for broader experimentation.
 - Release lane
   - Final plugin signoff should be rechecked against a stable WordPress + PHP 8.3 environment to stay close to the live `sqmu.net` target (`WordPress 6.9.4`, `PHP 8.3`, WordPress.com hosting).
+- Local stack
+  - Copy [docker/compose.sqmu.example.yml](/Users/alfred/Documents/GitHub/SQMU/docker/compose.sqmu.example.yml) to the ignored `docker/compose.sqmu.yml` file for persistent WordPress release-lane validation.
 
-The beta image is useful for development, but it is not the final compatibility gate for release confidence.
+The beta WordPress/PHP image is not part of the active SQMU baseline. Reintroduce it only as an explicit optional profile if forward-compatibility testing becomes necessary.
 
 ## Contract Bundle Pinning
 

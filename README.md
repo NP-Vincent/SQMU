@@ -44,6 +44,50 @@ Deploy the contracts with your preferred Solidity tooling (for example Hardhat, 
    - `sqmu_listing`
    - `sqmu_portfolio`
 
+## Local Docker Stack
+
+The repo includes a sanitized Docker Compose template at `docker/compose.sqmu.example.yml`.
+It uses explicit SQMU container, network, and volume names so Docker resources can be traced back to this repository.
+Keep your real local stack in `docker/compose.sqmu.yml`, which is ignored by git and should not contain production secrets.
+
+Create your local Compose file:
+
+```bash
+cp docker/compose.sqmu.example.yml docker/compose.sqmu.yml
+```
+
+Optionally create a private env file for local port or password overrides:
+
+```bash
+cp docker/.env.example docker/.env
+```
+
+Do not commit `docker/compose.sqmu.yml` or `docker/.env`; both are ignored so local secrets and experiments stay out of the public repo.
+
+Start the release-parity WordPress + MySQL + Anvil stack:
+
+```bash
+docker compose -f docker/compose.sqmu.yml up -d
+```
+
+Start the same stack with the optional chain explorer:
+
+```bash
+docker compose -f docker/compose.sqmu.yml --profile explorer up -d
+```
+
+Stop the stack without deleting persisted WordPress/MySQL state:
+
+```bash
+docker compose -f docker/compose.sqmu.yml stop
+```
+
+Remove the stack and its named SQMU volumes only when you intentionally want a clean rebuild:
+
+```bash
+docker compose -f docker/compose.sqmu.yml down -v
+```
+
 ## Module Documentation
 
 - Contracts & ABI: [`SQMU/README.md`](SQMU/README.md)

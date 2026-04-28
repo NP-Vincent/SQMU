@@ -26,6 +26,12 @@ WordpressPlugin/plugin/assets/sqmu.js
 WordpressPlugin/plugin/assets/sqmu.js.map
 WordpressPlugin/plugin/assets/chunks/
 
+# Local Docker stack overrides
+docker/compose.sqmu.yml
+docker/.env
+!docker/compose.sqmu.example.yml
+!docker/.env.example
+
 # Never ignore compliance/legal docs
 !LICENSE
 !NOTICE

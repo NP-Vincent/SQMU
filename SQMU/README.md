@@ -63,9 +63,10 @@ The Hardhat workspace now compiles the full `Contracts/` suite and exports ABI f
 For a local deployment smoke check against Anvil:
 
 ```bash
-docker run -d --rm --name sqmu-anvil ghcr.io/foundry-rs/foundry:v1.5.1 anvil --host 0.0.0.0 --chain-id 31337
-docker run --rm --network container:sqmu-anvil -v "$PWD:/workspace" -w /workspace/SQMU -e ANVIL_RPC_URL=http://127.0.0.1:8545 node:24-alpine sh -lc "npm run build && npm run smoke:deploy:anvil"
-docker stop sqmu-anvil
+cp ../docker/compose.sqmu.example.yml ../docker/compose.sqmu.yml
+docker compose -f ../docker/compose.sqmu.yml up -d sqmu-contracts-anvil
+ANVIL_RPC_URL=http://127.0.0.1:8545 npm run build
+ANVIL_RPC_URL=http://127.0.0.1:8545 npm run smoke:deploy:anvil
 ```
 
 The smoke report is written to `dist/anvil-smoke-report.json` and is intentionally ignored by git.
@@ -73,9 +74,10 @@ The smoke report is written to `dist/anvil-smoke-report.json` and is intentional
 For a richer seeded integration run that deploys the bundle, creates a local stablecoin, bootstraps token allowlists, and executes distributor, crowdfund, trade, rent, and escrow flows:
 
 ```bash
-docker run -d --rm --name sqmu-anvil ghcr.io/foundry-rs/foundry:v1.5.1 anvil --host 0.0.0.0 --chain-id 31337
-docker run --rm --network container:sqmu-anvil -v "$PWD:/workspace" -w /workspace/SQMU -e ANVIL_RPC_URL=http://127.0.0.1:8545 node:24-alpine sh -lc "npm run build && npm run integration:anvil"
-docker stop sqmu-anvil
+cp ../docker/compose.sqmu.example.yml ../docker/compose.sqmu.yml
+docker compose -f ../docker/compose.sqmu.yml up -d sqmu-contracts-anvil
+ANVIL_RPC_URL=http://127.0.0.1:8545 npm run build
+ANVIL_RPC_URL=http://127.0.0.1:8545 npm run integration:anvil
 ```
 
 The integration report is written to `dist/anvil-integration-report.json` and can be used as a seeded reference when validating the WordPress plugin against a local chain.

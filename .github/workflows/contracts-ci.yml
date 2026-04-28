@@ -41,12 +41,12 @@ jobs:
         run: npm run ci:contracts
 
       - name: Start Anvil
-        run: docker run -d --rm --name sqmu-anvil ghcr.io/foundry-rs/foundry:v1.5.1 anvil --host 0.0.0.0 --chain-id 31337
+        run: docker compose -f ../docker/compose.sqmu.example.yml up -d sqmu-contracts-anvil
 
       - name: Wait for Anvil
         run: |
           for attempt in $(seq 1 20); do
-            if docker exec sqmu-anvil cast chain-id >/dev/null 2>&1; then
+            if docker exec sqmu-contracts-anvil cast chain-id >/dev/null 2>&1; then
               exit 0
             fi
             sleep 1
@@ -55,18 +55,13 @@ jobs:
           exit 1
 
       - name: Smoke deploy bundle to Anvil
-        run: |
-          docker run --rm \
-            --network container:sqmu-anvil \
-            -v "$GITHUB_WORKSPACE:/workspace" \
-            -w /workspace/SQMU \
-            -e ANVIL_RPC_URL=http://127.0.0.1:8545 \
-            node:24-bullseye \
-            sh -lc "npm run smoke:deploy:anvil"
+        env:
+          ANVIL_RPC_URL: http://127.0.0.1:8545
+        run: npm run smoke:deploy:anvil
 
       - name: Stop Anvil
         if: always()
-        run: docker stop sqmu-anvil
+        run: docker compose -f ../docker/compose.sqmu.example.yml down
 
       - name: Upload contract bundle preview
         uses: actions/upload-artifact@v6
@@ -77,5 +72,5 @@ jobs:
       - name: Upload Anvil smoke report
         uses: actions/upload-artifact@v6
         with:
-          name: sqmu-anvil-smoke-report
+          name: sqmu-contracts-anvil-smoke-report
           path: SQMU/dist/anvil-smoke-report.json
