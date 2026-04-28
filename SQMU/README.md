@@ -63,8 +63,8 @@ The Hardhat workspace now compiles the full `Contracts/` suite and exports ABI f
 For a local deployment smoke check against Anvil:
 
 ```bash
-docker run -d --rm --name sqmu-anvil ghcr.io/foundry-rs/foundry:latest anvil --host 0.0.0.0 --chain-id 31337
-docker run --rm --network container:sqmu-anvil -v "$PWD:/workspace" -w /workspace/SQMU -e ANVIL_RPC_URL=http://127.0.0.1:8545 node:22.11.0-alpine sh -lc "npm run build && npm run smoke:deploy:anvil"
+docker run -d --rm --name sqmu-anvil ghcr.io/foundry-rs/foundry:v1.5.1 anvil --host 0.0.0.0 --chain-id 31337
+docker run --rm --network container:sqmu-anvil -v "$PWD:/workspace" -w /workspace/SQMU -e ANVIL_RPC_URL=http://127.0.0.1:8545 node:24-alpine sh -lc "npm run build && npm run smoke:deploy:anvil"
 docker stop sqmu-anvil
 ```
 
@@ -73,8 +73,8 @@ The smoke report is written to `dist/anvil-smoke-report.json` and is intentional
 For a richer seeded integration run that deploys the bundle, creates a local stablecoin, bootstraps token allowlists, and executes distributor, crowdfund, trade, rent, and escrow flows:
 
 ```bash
-docker run -d --rm --name sqmu-anvil ghcr.io/foundry-rs/foundry:latest anvil --host 0.0.0.0 --chain-id 31337
-docker run --rm --network container:sqmu-anvil -v "$PWD:/workspace" -w /workspace/SQMU -e ANVIL_RPC_URL=http://127.0.0.1:8545 node:22.11.0-alpine sh -lc "npm run build && npm run integration:anvil"
+docker run -d --rm --name sqmu-anvil ghcr.io/foundry-rs/foundry:v1.5.1 anvil --host 0.0.0.0 --chain-id 31337
+docker run --rm --network container:sqmu-anvil -v "$PWD:/workspace" -w /workspace/SQMU -e ANVIL_RPC_URL=http://127.0.0.1:8545 node:24-alpine sh -lc "npm run build && npm run integration:anvil"
 docker stop sqmu-anvil
 ```
 
